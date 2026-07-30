@@ -1,5 +1,17 @@
 # AI News Digest
 
+## Current Phase
+
+🟡 Milestone 1 – Foundation
+
+---
+
+## Current Focus
+
+Setting up the development environment and project tooling.
+
+---
+
 ## Overall Progress
 
 - [x] Repository Created
@@ -10,71 +22,102 @@
 
 ---
 
-# Milestone 0 – Planning
+## Development Log
+
+### 2026-07-30
+
+- ✅ Planned the overall project architecture.
+- ✅ Created the architecture blueprint (`ARCHITECTURE.md`).
+- ✅ Established initial project documentation.
+- ✅ Created the initial repository skeleton.
+- ✅ Added Cursor prompt history tracking.
+- ✅ Organized the project using a Clean Architecture folder structure.
+- ✅ Version controlled the initial project planning prompts.
+
+---
+
+## Milestone 0 – Planning
 
 - [x] Architecture Blueprint
 
 ---
 
-# Milestone 1 – Foundation
+## Milestone 1 – Foundation
 
-- [ ] Repository Scaffold
+- [x] Repository Scaffold
 - [ ] Development Tooling
-- [ ] FastAPI App
-- [ ] Configuration
+- [ ] FastAPI Application
+- [ ] Configuration Management
 - [ ] Docker Configuration
-- [ ] CI/CD
+- [ ] CI/CD Pipeline
 
 ---
 
-# Milestone 2 – Data Layer
+## Milestone 2 – Data Layer
 
-- [ ] Database
-- [ ] Models
-- [ ] Migrations
+- [ ] PostgreSQL Database
+- [ ] SQLAlchemy Models
+- [ ] Alembic Migrations
 
 ---
 
-# Milestone 3 – News Collection
+## Milestone 3 – News Collection
 
 - [ ] RSS Sources
-- [ ] Fetcher
-- [ ] Deduplication
+- [ ] RSS Fetcher
+- [ ] Deduplication Engine
 
 ---
 
-# Milestone 4 – AI Processing
+## Milestone 4 – AI Processing
 
-- [ ] LLM Summaries
-- [ ] Categorization
-
----
-
-# Milestone 5 – Digest Generation
-
-- [ ] Markdown
-- [ ] HTML
-- [ ] PDF
+- [ ] LLM Integration
+- [ ] Article Summarization
+- [ ] Article Categorization
 
 ---
 
-# Milestone 6 – Automation
+## Milestone 5 – Digest Generation
+
+- [ ] Markdown Digest
+- [ ] HTML Digest
+- [ ] PDF Digest
+
+---
+
+## Milestone 6 – Automation
 
 - [ ] Scheduler
 - [ ] Email Delivery
 
 ---
 
-# Milestone 7 – Dashboard
+## Milestone 7 – Dashboard
 
-- [ ] API
+- [ ] REST API
 - [ ] Admin Dashboard
 
 ---
 
-# Milestone 8 – Production
+## Milestone 8 – Production
 
-- [ ] Monitoring
-- [ ] Tests
+- [ ] Monitoring & Logging
+- [ ] Automated Testing
 - [ ] Documentation
 - [ ] Deployment
+
+---
+
+## Next Session
+
+- Configure Poetry
+- Create `pyproject.toml`
+- Configure FastAPI
+- Configure Docker
+- Configure development tooling
+
+---
+
+## Last Commit
+
+`chore: create initial repository skeleton`
