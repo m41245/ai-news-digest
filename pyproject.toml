@@ -1,0 +1,188 @@
+[tool.poetry]
+name = "ai-news-digest"
+version = "0.1.0"
+description = "Production-ready AI news aggregation, summarization, and daily digest platform"
+authors = ["Madhav"]
+readme = "README.md"
+license = "MIT"
+package-mode = true
+packages = [{ include = "ai_news_digest", from = "src" }]
+
+[tool.poetry.dependencies]
+python = ">=3.12,<4.0"
+
+fastapi = "^0.115.0"
+uvicorn = { version = "^0.32.0", extras = ["standard"] }
+
+pydantic-settings = "^2.6.0"
+
+sqlalchemy = { version = "^2.0.36", extras = ["asyncio"] }
+alembic = "^1.14.0"
+psycopg = { version = "^3.2.0", extras = ["binary"] }
+
+celery = { version = "^5.4.0", extras = ["redis"] }
+redis = "^5.2.0"
+
+httpx = "^0.28.0"
+feedparser = "^6.0.11"
+
+openai = "^1.57.0"
+anthropic = "^0.40.0"
+
+structlog = "^24.4.0"
+
+jinja2 = "^3.1.4"
+weasyprint = "^63.0"
+
+bleach = "^6.2.0"
+tenacity = "^9.0.0"
+
+python-multipart = "^0.0.17"
+aiosqlite = "^0.22.1"
+defusedxml = "^0.7.1"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.8.0"
+mypy = "^1.13.0"
+
+pytest = "^8.3.0"
+pytest-asyncio = "^0.24.0"
+pytest-cov = "^6.0.0"
+
+testcontainers = { version = "^4.9.0", extras = ["postgres", "redis"] }
+freezegun = "^1.4.0"
+
+pip-audit = "^2.7.3"
+
+pre-commit = "^4.0.0"
+types-defusedxml = "^0.7.0.20260504"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+fix = false
+
+[tool.ruff.lint]
+select = [
+    "A",
+    "ASYNC",
+    "B",
+    "C4",
+    "E",
+    "F",
+    "I",
+    "N",
+    "PTH",
+    "RUF",
+    "S",
+    "SIM",
+    "UP",
+    "W",
+]
+
+ignore = [
+    "B008",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["ai_news_digest"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+warn_unused_configs = true
+show_error_codes = true
+namespace_packages = false
+mypy_path = "src"
+packages = ["ai_news_digest"]
+
+plugins = [
+    "pydantic.mypy",
+    "sqlalchemy.ext.mypy.plugin",
+]
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[[tool.mypy.overrides]]
+module = [
+    "celery.*",
+    "feedparser.*",
+    "testcontainers.*",
+    "weasyprint.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+xfail_strict = true
+
+filterwarnings = [
+    "error::DeprecationWarning:ai_news_digest.*",
+    "ignore::DeprecationWarning:testcontainers.*",
+]
+
+markers = [
+    "unit: Unit tests with no external I/O",
+    "integration: Integration tests requiring containers or databases",
+    "e2e: End-to-end pipeline tests",
+]
+
+addopts = [
+    "--strict-config",
+    "--strict-markers",
+    "-ra",
+    "--cov=ai_news_digest",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+    "--cov-branch",
+]
+
+[tool.coverage.run]
+source = ["src/ai_news_digest"]
+branch = true
+parallel = true
+
+omit = [
+    "*/tests/*",
+    "*/__init__.py",
+]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+skip_covered = false
+precision = 2
+
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if typing.TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
