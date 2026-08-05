@@ -18,6 +18,14 @@ class AIProvider(ABC):
     It only communicates with this interface.
     """
 
+    @abstractmethod
+    async def available(self) -> bool:
+        """Return True when the provider can currently accept requests."""
+
+    @abstractmethod
+    def priority(self) -> int:
+        """Return the provider priority used during selection."""
+
     @property
     @abstractmethod
     def provider_name(self) -> str:

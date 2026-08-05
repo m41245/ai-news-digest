@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterator
 
-from ai_news_digest.application.ai.providers.base import AIProvider
+from ai_news_digest.application.ai.providers.base import AIProvider  # type: ignore[import-untyped]
 
 
 class ProviderRegistry:
@@ -61,5 +61,5 @@ class ProviderRegistry:
     def __len__(self) -> int:
         return len(self._providers)
 
-    def __iter__(self) -> Iterable[AIProvider]:
+    def __iter__(self) -> Iterator[AIProvider]:
         return iter(self._providers.values())

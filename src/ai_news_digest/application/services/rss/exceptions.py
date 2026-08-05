@@ -5,7 +5,11 @@ RSS client exceptions.
 from __future__ import annotations
 
 
-class RSSClientError(Exception):
+class RSSException(Exception):
+    """Base exception for RSS-related failures."""
+
+
+class RSSClientError(RSSException):
     """Base exception for RSS client."""
 
 

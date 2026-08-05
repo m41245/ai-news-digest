@@ -7,7 +7,7 @@ from ai_news_digest.application.ai.models import (
 from ai_news_digest.application.ai.provider_registry import (
     ProviderRegistry,
 )
-from ai_news_digest.application.ai.providers.base import (
+from ai_news_digest.application.ai.providers.base import (  # type: ignore[import-untyped]
     AIProvider,
 )
 
