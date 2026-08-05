@@ -6,9 +6,10 @@ from ai_news_digest.application.ai.models import (
     AIRequest,
     AIResponse,
 )
+from ai_news_digest.plugin import Plugin
 
 
-class AIProvider(ABC):
+class AIProvider(Plugin, ABC):
     """
     Base interface implemented by every AI provider.
 

@@ -50,7 +50,7 @@ class ProviderManager:
 
         for provider in providers:
             try:
-                return await provider.generate(request)
+                return await provider.generate(request)  # type: ignore[no-any-return]
 
             except Exception as exc:
                 last_exception = exc
