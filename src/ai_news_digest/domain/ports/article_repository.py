@@ -59,6 +59,20 @@ class ArticleRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def list_digest_eligible(
+        self,
+        limit: int | None = None,
+    ) -> list[Article]:
+        """
+        Return articles ready to be included in a digest.
+
+        The repository should apply eligibility filtering at the database layer
+        whenever possible so the application does not need to load unrelated
+        data for selection.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     async def update(
         self,
         article: Article,

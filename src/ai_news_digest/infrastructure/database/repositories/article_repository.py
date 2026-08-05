@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_news_digest.application.services.rss.parser.models import ParsedArticle
+from ai_news_digest.domain.enums.article_status import ArticleStatus
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.ports.article_repository import (
     ArticleRepository as ArticleRepositoryPort,
@@ -106,6 +107,36 @@ class ArticleRepository(
             .order_by(ArticleModel.published_at.desc())
             .limit(limit)
         )
+
+        result = await self._session.execute(statement)
+
+        return [
+            ArticleMapper.to_domain(model)
+            for model in result.scalars().all()
+        ]
+
+    async def list_digest_eligible(
+        self,
+        limit: int | None = None,
+    ) -> list[Article]:
+        statement = (
+            select(ArticleModel)
+            .where(
+                ArticleModel.status.in_(
+                    [
+                        ArticleStatus.SUMMARIZED,
+                        ArticleStatus.CATEGORIZED,
+                    ]
+                )
+            )
+            .order_by(
+                ArticleModel.published_at.desc(),
+                ArticleModel.id.asc(),
+            )
+        )
+
+        if limit is not None:
+            statement = statement.limit(limit)
 
         result = await self._session.execute(statement)
 
