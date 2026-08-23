@@ -32,7 +32,16 @@ class DigestRepository(ABC):
     async def list_recent(
         self,
         limit: int = 30,
+        offset: int = 0,
     ) -> list[Digest]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_by_title(
+        self,
+        title: str,
+    ) -> Digest | None:
+        """Return the most recent digest matching the given title."""
         raise NotImplementedError
 
     @abstractmethod
@@ -47,4 +56,9 @@ class DigestRepository(ABC):
         self,
         digest_id: UUID,
     ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def count(self) -> int:
+        """Return the total number of digests."""
         raise NotImplementedError

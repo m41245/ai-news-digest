@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from ai_news_digest.core.exceptions import ResourceNotFoundError
 from ai_news_digest.domain.models.digest import Digest
 from ai_news_digest.domain.ports.digest_repository import (
     DigestRepository as DigestRepositoryPort,
@@ -125,6 +126,7 @@ class DigestRepository(
     async def list_recent(
         self,
         limit: int = 30,
+        offset: int = 0,
     ) -> list[Digest]:
         """
         Return the most recently generated digests.
@@ -141,6 +143,7 @@ class DigestRepository(
                 DigestModel.generated_at.desc(),
             )
             .limit(limit)
+            .offset(offset)
         )
 
         result = await self._session.execute(statement)
@@ -148,6 +151,39 @@ class DigestRepository(
         models = result.scalars().all()
 
         return [DigestMapper.to_domain(model) for model in models]
+
+    async def get_by_title(
+        self,
+        title: str,
+    ) -> Digest | None:
+        """
+        Return the most recent digest with the given title.
+        """
+
+        statement = (
+            select(DigestModel)
+            .options(
+                selectinload(
+                    DigestModel.digest_articles,
+                )
+            )
+            .where(
+                DigestModel.title == title,
+            )
+            .order_by(
+                DigestModel.generated_at.desc(),
+            )
+            .limit(1)
+        )
+
+        result = await self._session.execute(statement)
+
+        model = result.scalar_one_or_none()
+
+        if model is None:
+            return None
+
+        return DigestMapper.to_domain(model)
 
     async def update(
         self,
@@ -174,7 +210,7 @@ class DigestRepository(
         model = result.scalar_one_or_none()
 
         if model is None:
-            raise ValueError(f"Digest with id '{digest.id}' was not found.")
+            raise ResourceNotFoundError(f"Digest with id '{digest.id}' was not found.")
 
         DigestMapper.update_model(
             model,
@@ -248,3 +284,9 @@ class DigestRepository(
             return
 
         await self._delete(model)
+
+    async def count(self) -> int:
+        """Return the total number of digests."""
+        statement = select(func.count()).select_from(DigestModel)
+        result = await self._session.execute(statement)
+        return int(result.scalar_one())

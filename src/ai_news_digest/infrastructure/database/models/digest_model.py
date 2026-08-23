@@ -4,14 +4,13 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from sqlalchemy import DateTime, Enum, String, Text, func
+from sqlalchemy import DateTime, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_news_digest.domain.enums.digest_format import DigestFormat
 from ai_news_digest.infrastructure.database.base import Base
 
 if TYPE_CHECKING:
-
     from ai_news_digest.infrastructure.database.models.digest_article_model import (
         DigestArticleModel,
     )
@@ -33,6 +32,7 @@ class DigestModel(Base):
     title: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
+        unique=True,
     )
 
     content: Mapped[str] = mapped_column(
@@ -41,11 +41,7 @@ class DigestModel(Base):
     )
 
     format: Mapped[DigestFormat] = mapped_column(
-        Enum(
-            DigestFormat,
-            native_enum=False,
-            validate_strings=True,
-        ),
+        String(8),
         nullable=False,
         index=True,
     )
@@ -74,4 +70,3 @@ class DigestModel(Base):
         onupdate=func.now(),
         nullable=False,
     )
-

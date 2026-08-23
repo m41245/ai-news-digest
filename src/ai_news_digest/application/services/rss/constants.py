@@ -10,7 +10,4 @@ DEFAULT_MAX_RETRIES: int = 3
 
 DEFAULT_BACKOFF_FACTOR: float = 2.0
 
-DEFAULT_USER_AGENT: str = (
-    "AI-News-Digest/1.0 "
-    "(https://github.com/your-org/ai-news-digest)"
-)
+DEFAULT_USER_AGENT: str = "AI-News-Digest/1.0 (https://github.com/your-org/ai-news-digest)"

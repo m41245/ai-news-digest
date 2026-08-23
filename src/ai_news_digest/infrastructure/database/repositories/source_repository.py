@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ai_news_digest.core.exceptions import ResourceNotFoundError
 from ai_news_digest.domain.models.source import Source
 from ai_news_digest.domain.ports.source_repository import (
     SourceRepository as SourceRepositoryPort,
@@ -129,7 +130,7 @@ class SourceRepository(
         model = result.scalar_one_or_none()
 
         if model is None:
-            raise ValueError(f"Source with id '{source.id}' was not found.")
+            raise ResourceNotFoundError(f"Source with id '{source.id}' was not found.")
 
         SourceMapper.update_model(
             model,

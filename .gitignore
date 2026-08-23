@@ -48,6 +48,8 @@ Thumbs.db
 # ==========================================
 
 .env
+.env.prod.local
+.env.*.local
 
 # ==========================================
 # Logs
@@ -78,3 +80,25 @@ htmlcov/
 # ==========================================
 
 migrations/__pycache__/
+
+# Celery
+
+celerybeat-schedule
+celerybeat-schedule-shm
+celerybeat-schedule-wal
+
+# Placeholder DB
+
+placeholder.db
+
+# Reports and artifacts
+
+coverage.xml
+ruff-report.txt
+ruff_errors.txt
+traceback.txt
+output.txt
+
+# Kilo agent plans
+
+.kilo/

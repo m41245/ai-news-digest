@@ -15,3 +15,5 @@ class RssEntry:
     summary: str
     content: str | None
     published_at: datetime
+    author: str | None = None
+    guid: str | None = None

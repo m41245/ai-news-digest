@@ -18,7 +18,7 @@ pydantic-settings = "^2.6.0"
 
 sqlalchemy = { version = "^2.0.36", extras = ["asyncio"] }
 alembic = "^1.14.0"
-psycopg = { version = "^3.2.0", extras = ["binary"] }
+asyncpg = ">=0.29.0"
 
 celery = { version = "^5.4.0", extras = ["redis"] }
 redis = "^5.2.0"
@@ -33,6 +33,7 @@ structlog = "^24.4.0"
 
 jinja2 = "^3.1.4"
 weasyprint = "^63.0"
+reportlab = "^4.2.0"
 
 bleach = "^6.2.0"
 tenacity = "^9.0.0"
@@ -40,6 +41,10 @@ tenacity = "^9.0.0"
 python-multipart = "^0.0.17"
 aiosqlite = "^0.22.1"
 defusedxml = "^0.7.1"
+aiosmtplib = "^3.0.0"
+bcrypt = "^4.0.0"
+python-jose = { version = "^3.3.0", extras = ["cryptography"] }
+pydantic = { version = "^2.9.0", extras = ["email"] }
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.8.0"
@@ -94,6 +99,22 @@ known-first-party = ["ai_news_digest"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101"]
+"migrations/versions/*.py" = ["E501", "W291"]
+"src/ai_news_digest/application/services/rss/exceptions.py" = ["N818"]
+"src/ai_news_digest/api/v1/routes/auth.py" = ["S105"]
+"src/ai_news_digest/api/v1/schemas/auth.py" = ["S105"]
+"tests/unit/api/v1/dependencies/test_auth.py" = ["S106"]
+"tests/unit/api/v1/routes/test_admin.py" = ["S106"]
+"tests/unit/api/v1/routes/test_articles.py" = ["S106"]
+"tests/unit/api/v1/routes/test_categories.py" = ["S106"]
+"tests/unit/api/v1/routes/test_digests.py" = ["S106"]
+"tests/unit/api/v1/routes/test_sources.py" = ["S106"]
+"tests/unit/api/v1/routes/test_users.py" = ["S106"]
+"tests/unit/api/v1/routes/test_auth_routes.py" = ["S106", "S105"]
+"tests/unit/api/v1/routes/test_admin_users.py" = ["S106"]
+"tests/unit/api/v1/routes/test_deliveries.py" = ["S106"]
+"tests/unit/infrastructure/auth/test_jwt.py" = ["S105"]
+"tests/unit/infrastructure/email/test_smtp_sender.py" = ["S105", "S106"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -116,18 +137,31 @@ plugins = [
 ]
 
 [[tool.mypy.overrides]]
-module = ["tests.*"]
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-
-[[tool.mypy.overrides]]
 module = [
     "celery.*",
     "feedparser.*",
-    "testcontainers.*",
-    "weasyprint.*",
+    "aiosmtplib.*",
+    "jose.*",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "ai_news_digest.infrastructure.auth.*",
+    "ai_news_digest.api.v1.dependencies.auth",
+    "ai_news_digest.api.v1.routes.auth",
+    "ai_news_digest.api.v1.routes.users",
+    "ai_news_digest.api.v1.routes.admin",
+]
+disable_error_code = ["import-untyped"]
+
+[[tool.mypy.overrides]]
+module = ["ai_news_digest.infrastructure.auth.jwt"]
+disable_error_code = ["no-any-return"]
+
+[[tool.mypy.overrides]]
+module = ["ai_news_digest.workers.*"]
+disable_error_code = ["untyped-decorator"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

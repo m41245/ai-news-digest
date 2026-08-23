@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from uuid import UUID
 
 from ai_news_digest.domain.enums.digest_format import DigestFormat
 from ai_news_digest.domain.models.digest import Digest
@@ -12,9 +11,8 @@ from ai_news_digest.domain.models.digest import Digest
 class RenderedDigest:
     """Immutable rendered digest output."""
 
-    digest_id: UUID
     format: DigestFormat
-    content: str
+    content: str | bytes
 
 
 class DigestRenderer(ABC):
@@ -23,9 +21,8 @@ class DigestRenderer(ABC):
     @property
     @abstractmethod
     def format(self) -> DigestFormat:
-        raise NotImplementedError
+        """The digest format this renderer produces."""
 
     @abstractmethod
     def render(self, digest: Digest) -> RenderedDigest:
         """Render a Digest into immutable output for the chosen format."""
-        raise NotImplementedError

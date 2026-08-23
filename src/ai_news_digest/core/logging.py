@@ -1,7 +1,7 @@
 import logging
 import logging.config
 import sys
-from typing import cast
+from typing import Any, cast
 
 import structlog
 from structlog.stdlib import BoundLogger
@@ -19,6 +19,12 @@ def configure_logging() -> None:
 
     timestamper = structlog.processors.TimeStamper(fmt="iso")
 
+    renderer: Any
+    if settings.environment == "production":
+        renderer = structlog.processors.JSONRenderer()
+    else:
+        renderer = structlog.dev.ConsoleRenderer()
+
     logging.config.dictConfig(
         {
             "version": 1,
@@ -26,7 +32,7 @@ def configure_logging() -> None:
             "formatters": {
                 "default": {
                     "()": structlog.stdlib.ProcessorFormatter,
-                    "processor": structlog.dev.ConsoleRenderer(),
+                    "processor": renderer,
                     "foreign_pre_chain": [
                         structlog.stdlib.add_log_level,
                         timestamper,

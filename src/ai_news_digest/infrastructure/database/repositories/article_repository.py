@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_news_digest.application.services.rss.parser.models import ParsedArticle
+from ai_news_digest.core.exceptions import ResourceNotFoundError
 from ai_news_digest.domain.enums.article_status import ArticleStatus
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.ports.article_repository import (
@@ -101,19 +102,18 @@ class ArticleRepository(
     async def list_recent(
         self,
         limit: int = 100,
+        offset: int = 0,
     ) -> list[Article]:
         statement = (
             select(ArticleModel)
             .order_by(ArticleModel.published_at.desc())
             .limit(limit)
+            .offset(offset)
         )
 
         result = await self._session.execute(statement)
 
-        return [
-            ArticleMapper.to_domain(model)
-            for model in result.scalars().all()
-        ]
+        return [ArticleMapper.to_domain(model) for model in result.scalars().all()]
 
     async def list_digest_eligible(
         self,
@@ -140,10 +140,7 @@ class ArticleRepository(
 
         result = await self._session.execute(statement)
 
-        return [
-            ArticleMapper.to_domain(model)
-            for model in result.scalars().all()
-        ]
+        return [ArticleMapper.to_domain(model) for model in result.scalars().all()]
 
     async def update(
         self,
@@ -158,9 +155,7 @@ class ArticleRepository(
         model = result.scalar_one_or_none()
 
         if model is None:
-            raise ValueError(
-                f"Article with id '{article.id}' was not found."
-            )
+            raise ResourceNotFoundError(f"Article with id '{article.id}' was not found.")
 
         ArticleMapper.update_model(
             model,
@@ -189,3 +184,10 @@ class ArticleRepository(
             return
 
         await self._delete(model)
+
+    async def count(self) -> int:
+        statement = select(ArticleModel)
+
+        result = await self._session.execute(statement)
+
+        return len(result.scalars().all())

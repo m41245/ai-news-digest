@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from ai_news_digest.domain.enums.digest_format import DigestFormat
 from ai_news_digest.domain.models.digest import Digest
 from ai_news_digest.infrastructure.database.models.digest_model import (
     DigestModel,
@@ -43,7 +44,9 @@ class DigestMapper:
             title=model.title,
             content=model.content,
             generated_at=model.generated_at,
-            format=model.format,
+            format=(
+                DigestFormat(model.format) if model.format is not None else DigestFormat.MARKDOWN
+            ),
             article_ids=[UUID(link.article_id) for link in getattr(model, "digest_articles", [])],
         )
 

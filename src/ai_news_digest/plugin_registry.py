@@ -27,9 +27,7 @@ class PluginRegistry:
 
         plugin_id = plugin.id
         if plugin_id in self._plugins:
-            raise DuplicatePluginError(
-                f"Plugin with id '{plugin_id}' is already registered."
-            )
+            raise DuplicatePluginError(f"Plugin with id '{plugin_id}' is already registered.")
 
         self._plugins[plugin_id] = plugin
         return plugin
@@ -39,9 +37,7 @@ class PluginRegistry:
         self._validate_plugin_id(plugin_id)
 
         if plugin_id not in self._plugins:
-            raise PluginNotFoundError(
-                f"Plugin with id '{plugin_id}' was not found."
-            )
+            raise PluginNotFoundError(f"Plugin with id '{plugin_id}' was not found.")
 
         return self._plugins.pop(plugin_id)
 
@@ -50,9 +46,7 @@ class PluginRegistry:
         self._validate_plugin_id(plugin_id)
 
         if plugin_id not in self._plugins:
-            raise PluginNotFoundError(
-                f"Plugin with id '{plugin_id}' was not found."
-            )
+            raise PluginNotFoundError(f"Plugin with id '{plugin_id}' was not found.")
 
         return self._plugins[plugin_id]
 
@@ -69,9 +63,7 @@ class PluginRegistry:
     def _validate_plugin(plugin: Plugin) -> None:
         """Validate a plugin instance before registration."""
         if not isinstance(plugin, Plugin):
-            raise InvalidPluginError(
-                "Plugin registration requires an instance of Plugin."
-            )
+            raise InvalidPluginError("Plugin registration requires an instance of Plugin.")
 
         if not plugin.id or not plugin.id.strip():
             raise InvalidPluginError("Plugin id cannot be empty.")

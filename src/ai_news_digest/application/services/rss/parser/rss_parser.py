@@ -100,22 +100,15 @@ class RSSParser:
 
         link_element = entry.find(f"{namespace}link")
 
-        if (
-            link_element is None
-            or "href" not in link_element.attrib
-        ):
+        if link_element is None or "href" not in link_element.attrib:
             raise RSSArticleValidationError(
                 "Atom entry missing link.",
             )
 
-        summary = (
-            entry.findtext(f"{namespace}summary")
-            or ""
-        )
+        summary = entry.findtext(f"{namespace}summary") or ""
 
         published = self._parse_date(
-            entry.findtext(f"{namespace}updated")
-            or entry.findtext(f"{namespace}published"),
+            entry.findtext(f"{namespace}updated") or entry.findtext(f"{namespace}published"),
         )
 
         return ParsedArticle(

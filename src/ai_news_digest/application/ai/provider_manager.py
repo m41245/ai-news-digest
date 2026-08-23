@@ -7,23 +7,14 @@ from ai_news_digest.application.ai.models import (
 from ai_news_digest.application.ai.provider_registry import (
     ProviderRegistry,
 )
-from ai_news_digest.application.ai.providers.base import (  # type: ignore[import-untyped]
+from ai_news_digest.application.ai.providers.base import (
     AIProvider,
 )
+from ai_news_digest.core.exceptions import ExternalServiceError
 
 
 class ProviderManager:
-    """
-    Dynamically selects the best available AI provider.
-
-    Future versions will use weighted scoring based on:
-        - Quality
-        - Cost
-        - Latency
-        - Reliability
-        - Context window
-        - Historical performance
-    """
+    """Dynamically selects the best available AI provider."""
 
     def __init__(
         self,
@@ -35,43 +26,27 @@ class ProviderManager:
         self,
         request: AIRequest,
     ) -> AIResponse:
-        """
-        Generate a response using the highest-ranked provider.
-        """
-
+        """Generate a response using the highest-ranked provider."""
         providers = await self._available_providers()
 
         if not providers:
-            raise RuntimeError(
-                "No AI providers are currently available."
-            )
+            raise ExternalServiceError("No AI providers are currently available.")
 
         last_exception: Exception | None = None
 
         for provider in providers:
             try:
-                return await provider.generate(request)  # type: ignore[no-any-return]
+                return await provider.generate(request)
 
             except Exception as exc:
                 last_exception = exc
 
-        raise RuntimeError(
-            "Every AI provider failed."
-        ) from last_exception
+        raise ExternalServiceError("Every AI provider failed.") from last_exception
 
     async def _available_providers(
         self,
     ) -> list[AIProvider]:
-        """
-        Return providers sorted by priority.
-
-        Version 1:
-            Uses provider.priority()
-
-        Future:
-            Uses weighted scoring engine.
-        """
-
+        """Return providers sorted by priority."""
         available: list[AIProvider] = []
 
         for provider in self._registry:

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC
+
 from ai_news_digest.application.rendering.renderer import DigestRenderer, RenderedDigest
 from ai_news_digest.domain.enums.digest_format import DigestFormat
 from ai_news_digest.domain.models.digest import Digest
@@ -13,20 +15,24 @@ class MarkdownRenderer(DigestRenderer):
         return DigestFormat.MARKDOWN
 
     def render(self, digest: Digest) -> RenderedDigest:
+        title = digest.title.strip() if digest.title else "AI News Digest"
+        generated_at = digest.generated_at.astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
+
         lines = [
-            f"# {digest.title}",
+            f"# {title}",
             "",
-            f"Generated: {digest.generated_at.isoformat()}",
+            f"**Generated:** {generated_at}",
+            "",
+            "---",
             "",
         ]
 
         if digest.content.strip():
             lines.append(digest.content.strip())
         else:
-            lines.append("_No digest content available._")
+            lines.append("*No digest content available.*")
 
         return RenderedDigest(
-            digest_id=digest.id,
             format=self.format,
             content="\n".join(lines),
         )

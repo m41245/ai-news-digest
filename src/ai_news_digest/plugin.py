@@ -53,11 +53,11 @@ class Plugin(ABC):
         """Initialize plugin resources and internal state."""
 
     @abstractmethod
-    def health_check(self) -> bool:
+    async def health_check(self) -> bool:
         """Return whether the plugin is healthy and ready for use."""
 
     @abstractmethod
-    def shutdown(self) -> None:
+    async def shutdown(self) -> None:
         """Release plugin resources and stop background work."""
 
 

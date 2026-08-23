@@ -23,9 +23,13 @@ class ConsolePrinter:
         summary: IngestionSummary,
     ) -> None:
         print(f"Sources processed : {summary.sources_processed}")
+        if summary.sources_failed:
+            print(f"Sources failed    : {summary.sources_failed}")
         print(f"Articles fetched  : {summary.fetched}")
         print(f"Imported          : {summary.imported}")
         print(f"Skipped           : {summary.skipped}")
+        if summary.failed:
+            print(f"Entries failed    : {summary.failed}")
         print()
         print("Done.")
 

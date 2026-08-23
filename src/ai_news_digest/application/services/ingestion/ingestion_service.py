@@ -93,11 +93,7 @@ class IngestionService:
                 )
 
         logger.info(
-            (
-                "Ingestion complete. "
-                "Processed=%d Failed=%d "
-                "Fetched=%d New=%d Existing=%d"
-            ),
+            ("Ingestion complete. Processed=%d Failed=%d Fetched=%d New=%d Existing=%d"),
             processed_sources,
             failed_sources,
             fetched_articles,

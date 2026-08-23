@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_news_digest.domain.enums.article_status import ArticleStatus
@@ -69,11 +69,7 @@ class ArticleModel(Base):
     )
 
     status: Mapped[ArticleStatus] = mapped_column(
-        Enum(
-            ArticleStatus,
-            native_enum=False,
-            validate_strings=True,
-        ),
+        String(20),
         nullable=False,
         index=True,
     )
@@ -117,4 +113,3 @@ class ArticleModel(Base):
         onupdate=func.now(),
         nullable=False,
     )
-

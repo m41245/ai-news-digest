@@ -1,1 +1,80 @@
-Generic single-database configuration.
+Database Migration Guide
+========================
+
+This directory contains Alembic database migrations for the AI News Digest
+application. Migrations follow a sequential naming convention:
+
+  - ``001_initial_schema.py``
+  - ``002_create_users_table.py``
+  - ``003_fix_article_status_enum.py``
+  - ...
+
+Naming Convention
+-----------------
+Each migration filename follows: ``{NNN}_{description}.py``
+
+  - ``NNN`` — zero-padded sequence number (3 digits)
+  - ``description`` — short snake_case description of the change
+
+Migration Policy
+----------------
+1. **Schema-only**: migrations contain only schema changes (DDL), not data
+   transformations. Data migrations belong in a separate script.
+2. **PostgreSQL-first**: the application targets PostgreSQL 16+. Migrations
+   may use PostgreSQL-specific syntax (e.g., ``ALTER TYPE ... ADD VALUE``).
+3. **Idempotent upgrade**: each migration should be re-runnable without
+   error (use ``IF NOT EXISTS`` or ``IF EXISTS`` where applicable).
+4. **Always provide downgrade**: every ``upgrade()`` must have a reversible
+   ``downgrade()`` when possible.
+5. **No destructive operations** without explicit justification in the
+   migration docstring.
+
+Generating a Migration
+----------------------
+::
+
+    alembic revision -m "description_of_change" --squaresh
+
+The ``--squaresh`` flag uses the project's configured template which
+automatically applies Ruff formatting (see ``alembic.ini`` ``post-write-hooks``).
+
+Applying Migrations
+-------------------
+
+Migrations run automatically on container startup via ``entrypoint.sh``::
+
+    python -m alembic upgrade head
+
+To apply manually inside a running container::
+
+    docker compose exec web alembic upgrade head
+
+To check current revision::
+
+    docker compose exec web alembic current
+
+To list available heads::
+
+    docker compose exec web alembic heads
+
+To stamp the database to a specific revision without running migrations::
+
+    docker compose exec web alembic stamp <revision>
+
+Testing Migrations
+------------------
+Migrations are validated in CI:
+  - ``tests/unit/test_migrations.py`` verifies the Alembic configuration
+    loads correctly and the migration chain is consistent (no missing
+    downgrades, linear history).
+  - ``alembic heads`` and ``alembic history`` are checked for integrity.
+
+Rolling Back
+------------
+To downgrade to a previous revision::
+
+    alembic downgrade -1       # one step back
+    alembic downgrade <rev>    # to a specific revision
+
+Note: rolling back may destroy data. Always back up before downgrading
+in any environment other than local development.

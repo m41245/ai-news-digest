@@ -18,8 +18,8 @@ class PluginNotFoundError(PluginError):
 
 
 __all__ = [
-    "PluginError",
-    "InvalidPluginError",
     "DuplicatePluginError",
+    "InvalidPluginError",
+    "PluginError",
     "PluginNotFoundError",
 ]

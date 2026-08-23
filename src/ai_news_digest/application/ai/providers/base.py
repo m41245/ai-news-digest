@@ -30,54 +30,40 @@ class AIProvider(Plugin, ABC):
     @property
     @abstractmethod
     def provider_name(self) -> str:
-        """
-        Human-readable provider name.
-        """
+        """Human-readable provider name."""
 
     @property
     @abstractmethod
     def model_name(self) -> str:
-        """
-        Active model.
-        """
+        """Active model."""
 
     @property
     @abstractmethod
     def supports_streaming(self) -> bool:
-        ...
+        """Whether the provider supports streaming responses."""
 
     @property
     @abstractmethod
     def supports_json_mode(self) -> bool:
-        ...
+        """Whether the provider supports JSON mode."""
 
     @property
     @abstractmethod
     def supports_vision(self) -> bool:
-        ...
+        """Whether the provider supports vision/multimodal."""
 
     @property
     @abstractmethod
     def max_context_tokens(self) -> int:
-        ...
-
-    @abstractmethod
-    async def is_available(self) -> bool:
-        """
-        Returns True if the provider can currently accept requests.
-        """
+        """Maximum context window size in tokens."""
 
     @abstractmethod
     async def generate(
         self,
         request: AIRequest,
     ) -> AIResponse:
-        """
-        Execute one AI request.
-        """
+        """Execute one AI request."""
 
     @abstractmethod
     async def health_check(self) -> bool:
-        """
-        Lightweight connectivity test.
-        """
+        """Lightweight connectivity test."""

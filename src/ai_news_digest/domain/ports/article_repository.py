@@ -52,6 +52,7 @@ class ArticleRepository(ABC):
     async def list_recent(
         self,
         limit: int = 100,
+        offset: int = 0,
     ) -> list[Article]:
         """
         Return the most recently published articles.
@@ -84,4 +85,9 @@ class ArticleRepository(ABC):
         self,
         article_id: UUID,
     ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def count(self) -> int:
+        """Return the total number of articles."""
         raise NotImplementedError

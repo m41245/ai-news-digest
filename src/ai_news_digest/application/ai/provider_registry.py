@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from typing import List, cast
+from typing import cast
 
-from ai_news_digest.application.ai.providers.base import AIProvider  # type: ignore[import-untyped]
+from ai_news_digest.application.ai.providers.base import AIProvider
 from ai_news_digest.exceptions import InvalidPluginError
 from ai_news_digest.plugin_registry import PluginRegistry
 
@@ -23,9 +23,7 @@ class ProviderRegistry:
     def register(self, provider: AIProvider) -> AIProvider:
         """Register a provider plugin using its immutable id."""
         if not isinstance(provider, AIProvider):
-            raise InvalidPluginError(
-                "Provider registration requires an instance of AIProvider."
-            )
+            raise InvalidPluginError("Provider registration requires an instance of AIProvider.")
 
         self._registry.register(provider)
         return provider
@@ -38,7 +36,7 @@ class ProviderRegistry:
         """Return a provider plugin by its id."""
         return cast(AIProvider, self._registry.get(provider_id))
 
-    def list(self) -> List[AIProvider]:
+    def list_all(self) -> list[AIProvider]:
         """Return all registered provider plugins."""
         return [cast(AIProvider, plugin) for plugin in self._registry.list()]
 
@@ -56,12 +54,12 @@ class ProviderRegistry:
 
     def __iter__(self) -> Iterator[AIProvider]:
         """Iterate over registered providers."""
-        return iter(self.list())
+        return iter(self.list_all())
 
-    def all(self) -> List[AIProvider]:
+    def all(self) -> list[AIProvider]:
         """Return all registered provider plugins."""
-        return self.list()
+        return self.list_all()
 
-    def names(self) -> List[str]:
+    def names(self) -> list[str]:
         """Return all registered provider ids."""
-        return [provider.id for provider in self.list()]
+        return [provider.id for provider in self.list_all()]

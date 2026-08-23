@@ -41,3 +41,10 @@ class CacheStore(ABC):
         Check whether a cache key exists.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    async def clear(self) -> None:
+        """
+        Clear all keys from the cache.
+        """
+        raise NotImplementedError

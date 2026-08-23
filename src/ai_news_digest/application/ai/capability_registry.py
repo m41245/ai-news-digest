@@ -19,9 +19,7 @@ class CapabilityRegistry:
     def register_capability(self, capability: Capability) -> Capability:
         """Register a new capability definition."""
         if capability.id in self._capabilities:
-            raise ValueError(
-                f"Capability with id '{capability.id}' is already registered."
-            )
+            raise ValueError(f"Capability with id '{capability.id}' is already registered.")
 
         self._capabilities[capability.id] = capability
         self._providers_by_capability.setdefault(capability.id, set())
@@ -41,9 +39,7 @@ class CapabilityRegistry:
         if capability_id not in self._capabilities:
             raise KeyError(f"Capability with id '{capability_id}' was not found.")
 
-        self._providers_by_capability.setdefault(capability_id, set()).add(
-            provider_id
-        )
+        self._providers_by_capability.setdefault(capability_id, set()).add(provider_id)
 
     def remove_provider(self, capability_id: str, provider_id: str) -> None:
         """Remove a provider id from a capability mapping."""

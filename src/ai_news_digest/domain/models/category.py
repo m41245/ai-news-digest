@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 
@@ -26,5 +26,5 @@ class Category:
             id=uuid4(),
             name=name,
             description=description,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(UTC),
         )
