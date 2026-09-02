@@ -1,19 +1,25 @@
 from __future__ import annotations
 
+import time
 from datetime import UTC, datetime
-
-from celery.utils.log import get_task_logger
 
 from ai_news_digest.application.use_cases.digest.generate_digest import (
     DigestGenerationResult,
 )
 from ai_news_digest.core.exceptions import ValidationError
 from ai_news_digest.core.logging import get_logger
+from ai_news_digest.core.metrics import (
+    record_celery_task_duration,
+    record_celery_task_failure,
+    record_celery_task_success,
+    record_digest_generated,
+)
 from ai_news_digest.workers._container import get_container
 from ai_news_digest.workers.celery_app import celery_app
 
-task_logger = get_task_logger(__name__)
 logger = get_logger(__name__)
+
+_TASK_NAME = "workers.tasks.digest.generate_daily_digest"
 
 
 async def _generate_daily_digest_impl() -> dict[str, str]:
@@ -61,8 +67,8 @@ async def _generate_daily_digest_impl() -> dict[str, str]:
 
 @celery_app.task(
     name="workers.tasks.digest.generate_daily_digest",
-    max_retries=2,
-    default_retry_delay=300,
+    max_retries=3,
+    default_retry_delay=60,
 )
 async def generate_daily_digest() -> dict[str, str]:
     """
@@ -70,13 +76,19 @@ async def generate_daily_digest() -> dict[str, str]:
 
     This task is idempotent and can be safely retried.
     """
+    start = time.monotonic()
     try:
-        return await _generate_daily_digest_impl()
+        result = await _generate_daily_digest_impl()
+        if result.get("status") == "completed":
+            record_digest_generated(1)
+        await record_celery_task_success(_TASK_NAME)
+        return result
     except ValidationError as exc:
         logger.warning(
             "Digest generation skipped - no eligible articles",
             error=str(exc),
         )
+        await record_celery_task_success(_TASK_NAME)
         return {
             "status": "skipped",
             "reason": "no_eligible_articles",
@@ -87,7 +99,10 @@ async def generate_daily_digest() -> dict[str, str]:
             error=str(exc),
             exc_info=True,
         )
+        await record_celery_task_failure(_TASK_NAME)
         raise
+    finally:
+        await record_celery_task_duration(_TASK_NAME, time.monotonic() - start)
 
 
 __all__ = ["generate_daily_digest"]

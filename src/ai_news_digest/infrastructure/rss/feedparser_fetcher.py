@@ -6,13 +6,24 @@ from email.utils import parsedate_to_datetime
 from http import HTTPStatus
 
 import feedparser
+import httpx
 from feedparser import FeedParserDict
 
+from ai_news_digest.core.config import settings
 from ai_news_digest.core.logging import get_logger
 from ai_news_digest.domain.models.rss_entry import RssEntry
 from ai_news_digest.domain.ports.rss_fetcher import RSSFetcher
+from ai_news_digest.infrastructure.rss.url_safety import (
+    MAX_REDIRECTS,
+    SSRFValidationError,
+    validate_rss_http_url,
+)
 
 logger = get_logger(__name__)
+
+_USER_AGENT = "ai-news-digest/0.1 (+RSS feed fetcher)"
+_ACCEPT = "application/rss+xml,application/atom+xml,application/xml,text/xml;q=0.9,*/*;q=0.1"
+_CHUNK_SIZE = 64 * 1024
 
 
 class FeedFetchError(Exception):
@@ -23,9 +34,13 @@ class FeedparserFetcher(RSSFetcher):
     """
     RSSFetcher implementation backed by feedparser.
 
-    ``feedparser.parse`` performs blocking HTTP I/O, so the actual fetch runs
-    in a thread pool via :func:`asyncio.to_thread` to avoid blocking the event
-    loop. A configurable timeout bounds the operation.
+    The HTTP fetch is performed through an SSRF-safe boundary
+    (:mod:`ai_news_digest.infrastructure.rss.url_safety`): only public
+    http(s) destinations are reachable, redirects are re-validated on every
+    hop, the response body is capped, and a configurable timeout bounds the
+    operation. The downloaded payload is passed to ``feedparser.parse`` (a
+    CPU-bound, blocking call) inside a thread pool via :func:`asyncio.to_thread`
+    so the event loop is never blocked.
     """
 
     def __init__(
@@ -33,9 +48,15 @@ class FeedparserFetcher(RSSFetcher):
         *,
         timeout: float = 20.0,
         max_articles: int = 50,
+        max_redirects: int = MAX_REDIRECTS,
+        max_response_bytes: int = settings.rss_max_response_bytes,
+        transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._timeout = timeout
         self._max_articles = max_articles
+        self._max_redirects = max_redirects
+        self._max_response_bytes = max_response_bytes
+        self._transport = transport
 
     async def fetch(
         self,
@@ -44,16 +65,124 @@ class FeedparserFetcher(RSSFetcher):
         """Fetch and normalize a single RSS feed."""
 
         try:
+            url = await validate_rss_http_url(feed_url)
+        except SSRFValidationError as exc:
+            raise FeedFetchError(f"Feed URL rejected: {exc}") from exc
+
+        data, headers = await self._download(url)
+
+        if data == b"":
+            return []
+
+        feed = await self._parse_payload(data, headers, url)
+
+        return self._parse(feed, url)
+
+    async def _download(self, url: str) -> tuple[bytes, dict[str, str]]:
+        """
+        Download the feed body over an SSRF-safe HTTP boundary.
+
+        Returns ``(body_bytes, response_headers)``. An empty body is returned
+        for ``304 Not Modified`` responses.
+        """
+        timeout = httpx.Timeout(self._timeout)
+        headers = {"User-Agent": _USER_AGENT, "Accept": _ACCEPT}
+
+        async with httpx.AsyncClient(
+            timeout=timeout,
+            follow_redirects=False,
+            headers=headers,
+            transport=self._transport,
+        ) as client:
+            current_url = url
+
+            for _ in range(self._max_redirects + 1):
+                try:
+                    response = await client.get(current_url)
+                except httpx.TimeoutException as exc:
+                    raise FeedFetchError(f"Timed out while fetching feed '{url}'.") from exc
+                except httpx.HTTPError as exc:
+                    raise FeedFetchError(f"Failed to fetch feed '{url}': {exc}") from exc
+
+                status = response.status_code
+
+                if status == HTTPStatus.NOT_MODIFIED:
+                    return b"", {}
+
+                if status >= HTTPStatus.BAD_REQUEST:
+                    raise FeedFetchError(f"Feed '{url}' returned HTTP {status}.")
+
+                if HTTPStatus.MULTIPLE_CHOICES <= status < HTTPStatus.BAD_REQUEST:
+                    location = response.headers.get("location")
+                    if not location:
+                        raise FeedFetchError(
+                            f"Feed '{url}' returned a redirect without a Location header."
+                        )
+                    target = str(response.url.join(location))
+                    try:
+                        current_url = await validate_rss_http_url(target)
+                    except SSRFValidationError as exc:
+                        raise FeedFetchError(f"Feed redirect rejected: {exc}") from exc
+                    continue
+
+                return await self._read_body(response, url)
+
+        raise FeedFetchError(f"Feed '{url}' exceeded the maximum number of redirects.")
+
+    async def _read_body(
+        self,
+        response: httpx.Response,
+        url: str,
+    ) -> tuple[bytes, dict[str, str]]:
+        """Read the response body, enforcing the configured size cap."""
+        content_length = response.headers.get("content-length")
+        if content_length:
+            try:
+                if int(content_length) > self._max_response_bytes:
+                    raise FeedFetchError(
+                        f"Feed '{url}' body exceeds the maximum allowed size "
+                        f"({self._max_response_bytes} bytes)."
+                    )
+            except ValueError:
+                # Non-numeric Content-Length: fall through to streamed cap.
+                pass
+
+        chunks: list[bytes] = []
+        total = 0
+        async for chunk in response.aiter_bytes(_CHUNK_SIZE):
+            total += len(chunk)
+            if total > self._max_response_bytes:
+                raise FeedFetchError(
+                    f"Feed '{url}' body exceeds the maximum allowed size "
+                    f"({self._max_response_bytes} bytes)."
+                )
+            chunks.append(chunk)
+
+        return b"".join(chunks), dict(response.headers)
+
+    async def _parse_payload(
+        self,
+        data: bytes,
+        headers: dict[str, str],
+        feed_url: str,
+    ) -> FeedParserDict:
+        """Parse a downloaded feed payload with feedparser off the event loop."""
+        response_headers = {"content-type": headers.get("content-type", "")}
+        try:
             feed = await asyncio.wait_for(
-                asyncio.to_thread(feedparser.parse, feed_url),
+                asyncio.to_thread(
+                    feedparser.parse,
+                    data,
+                    response_headers=response_headers,
+                ),
                 timeout=self._timeout,
             )
         except TimeoutError as exc:
-            raise FeedFetchError(f"Timed out while fetching feed '{feed_url}'.") from exc
+            raise FeedFetchError(f"Timed out while parsing feed '{feed_url}'.") from exc
         except Exception as exc:
             raise FeedFetchError(f"Failed to fetch feed '{feed_url}': {exc}") from exc
 
-        return self._parse(feed, feed_url)
+        return feed
 
     def _parse(
         self,

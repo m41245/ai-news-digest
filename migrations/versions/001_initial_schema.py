@@ -171,18 +171,13 @@ def downgrade() -> None:
     op.drop_index("ix_articles_source_id", table_name="articles")
     op.drop_table("articles")
 
-    article_status_enum = sa.Enum(
-        "new",
-        "fetched",
-        "summarized",
-        "categorized",
-        "published",
-        "failed",
-        name="articlestatus",
-        native_enum=False,
-        validate_strings=True,
-    )
-    article_status_enum.drop(op.get_bind())
+    # PostgreSQL does not automatically drop custom enum types when the
+    # table that uses them is dropped. The ``articlestatus`` native enum was
+    # created with ``native_enum=True`` in ``upgrade``; its ``downgrade``
+    # must issue an explicit ``DROP TYPE``. Using ``IF EXISTS`` keeps the
+    # downgrade idempotent even when a later migration (006) has already
+    # converted the column to VARCHAR and dropped the type.
+    op.execute("DROP TYPE IF EXISTS articlestatus")
 
     op.drop_index("ix_categories_name", table_name="categories")
     op.drop_table("categories")

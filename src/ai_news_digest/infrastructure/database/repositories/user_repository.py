@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_news_digest.core.exceptions import ResourceNotFoundError
@@ -76,12 +76,23 @@ class UserRepository(
 
     async def list_all(
         self,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> list[User]:
-        """Return all users ordered by creation time (oldest first)."""
-        statement = select(UserModel).order_by(UserModel.created_at.asc())
+        """Return users ordered by creation time (oldest first)."""
+        statement = select(UserModel).order_by(UserModel.created_at.asc()).offset(offset)
+        if limit is not None:
+            statement = statement.limit(limit)
+
         result = await self._session.execute(statement)
         models = result.scalars().all()
         return [UserMapper.to_domain(model) for model in models]
+
+    async def count(self) -> int:
+        """Return the total number of users."""
+        statement = select(func.count()).select_from(UserModel)
+        result = await self._session.execute(statement)
+        return int(result.scalar_one())
 
     async def update(
         self,

@@ -12,6 +12,7 @@ import pytest
 
 from ai_news_digest.application.services.rss.parser.models import ParsedArticle
 from ai_news_digest.core.exceptions import ResourceNotFoundError
+from ai_news_digest.domain.enums.article_status import ArticleStatus
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.infrastructure.database.repositories.article_repository import ArticleRepository
 
@@ -293,3 +294,33 @@ async def test_article_repository_delete_not_found(
     mock_session.execute.return_value = mock_result
 
     await repository.delete(article_id)  # Should not raise
+
+
+@pytest.mark.asyncio
+async def test_mark_status_bulk_empty_ids(
+    repository: ArticleRepository,
+    mock_session: AsyncMock,
+) -> None:
+    """Test mark_status_bulk with empty list returns 0 and does not hit DB."""
+    result = await repository.mark_status_bulk([], ArticleStatus.READY)
+    assert result == 0
+    mock_session.execute.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_mark_status_bulk_updates_in_transaction(
+    repository: ArticleRepository,
+    mock_session: AsyncMock,
+) -> None:
+    """Test mark_status_bulk issues a single UPDATE for all IDs."""
+    article_ids = [uuid4(), uuid4(), uuid4()]
+    mock_result = MagicMock()
+    mock_result.rowcount = 3
+    mock_session.execute.return_value = mock_result
+
+    result = await repository.mark_status_bulk(article_ids, ArticleStatus.READY)
+
+    assert result == 3
+    mock_session.execute.assert_called_once()
+    commit_calls = [c for c in mock_session.method_calls if c[0] == "commit"]
+    assert len(commit_calls) == 1

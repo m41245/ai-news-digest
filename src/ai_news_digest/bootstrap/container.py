@@ -114,6 +114,11 @@ class Container:
             self._capability_registry,
         )
 
+    @property
+    def session(self) -> AsyncSession:
+        """Return the underlying database session for infrastructure queries."""
+        return self._session
+
     def _configure_capabilities(self) -> None:
         """Register the platform capabilities supported by providers."""
         self._capability_registry.register_capability(
@@ -202,6 +207,7 @@ class Container:
         return FeedparserFetcher(
             timeout=self._settings.rss_request_timeout,
             max_articles=self._settings.rss_max_articles_per_feed,
+            max_response_bytes=self._settings.rss_max_response_bytes,
         )
 
     @property

@@ -27,6 +27,7 @@ async def test_logging_middleware_logs_request(logging_middleware) -> None:
     request.url.path = "/test"
     request.client = MagicMock()
     request.client.host = "127.0.0.1"
+    request.state.request_id = "req-123"
 
     response = MagicMock()
     response.status_code = 200
@@ -35,7 +36,7 @@ async def test_logging_middleware_logs_request(logging_middleware) -> None:
     with patch("ai_news_digest.api.middleware.logging.logger") as mock_logger:
         await logging_middleware.dispatch(request, call_next)
 
-        assert mock_logger.info.call_count >= 2  # Request started and completed
+        assert mock_logger.info.call_count >= 2
 
 
 @pytest.mark.asyncio
@@ -46,6 +47,7 @@ async def test_logging_middleware_adds_process_time_header(logging_middleware) -
     request.url.path = "/test"
     request.client = MagicMock()
     request.client.host = "127.0.0.1"
+    request.state.request_id = "req-123"
 
     response = Response(status_code=200)
     call_next = AsyncMock(return_value=response)
@@ -63,6 +65,7 @@ async def test_logging_middleware_handles_no_client(logging_middleware) -> None:
     request.method = "GET"
     request.url.path = "/test"
     request.client = None
+    request.state.request_id = "req-123"
 
     response = MagicMock()
     response.status_code = 200
@@ -71,7 +74,6 @@ async def test_logging_middleware_handles_no_client(logging_middleware) -> None:
     with patch("ai_news_digest.api.middleware.logging.logger") as mock_logger:
         await logging_middleware.dispatch(request, call_next)
 
-        # Should not raise error
         assert mock_logger.info.call_count >= 2
 
 
@@ -83,6 +85,7 @@ async def test_logging_middleware_logs_status_code(logging_middleware) -> None:
     request.url.path = "/test"
     request.client = MagicMock()
     request.client.host = "127.0.0.1"
+    request.state.request_id = "req-123"
 
     response = MagicMock()
     response.status_code = 404
@@ -91,6 +94,27 @@ async def test_logging_middleware_logs_status_code(logging_middleware) -> None:
     with patch("ai_news_digest.api.middleware.logging.logger") as mock_logger:
         await logging_middleware.dispatch(request, call_next)
 
-        # Check that status code was logged
         call_args = mock_logger.info.call_args_list
         assert any("status_code" in str(call) for call in call_args)
+
+
+@pytest.mark.asyncio
+async def test_logging_middleware_includes_request_id(logging_middleware) -> None:
+    """Test middleware log entries include request_id."""
+    request = MagicMock(spec=Request)
+    request.method = "GET"
+    request.url.path = "/test"
+    request.client = MagicMock()
+    request.client.host = "127.0.0.1"
+    request.state.request_id = "req-456"
+
+    response = MagicMock()
+    response.status_code = 200
+    call_next = AsyncMock(return_value=response)
+
+    with patch("ai_news_digest.api.middleware.logging.logger") as mock_logger:
+        await logging_middleware.dispatch(request, call_next)
+
+        for call in mock_logger.info.call_args_list:
+            _, kwargs = call
+            assert kwargs.get("request_id") == "req-456"

@@ -22,15 +22,10 @@ from ai_news_digest.infrastructure.database.base import Base
 if TYPE_CHECKING:
     from ai_news_digest.bootstrap.container import Container
 
-
-@pytest.fixture(scope="session")
-def event_loop_policy() -> asyncio.WindowsSelectorEventLoopPolicy | None:
-    """
-    Use the default event loop policy.
-
-    On Windows, this may need to be adjusted for async test compatibility.
-    """
-    return None
+# On Windows, the default ProactorEventLoop can cause issues with asyncpg
+# connection-pool cleanup. The selector-based loop is more compatible.
+if hasattr(asyncio, "WindowsSelectorEventLoopPolicy"):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
 @pytest.fixture(scope="session")

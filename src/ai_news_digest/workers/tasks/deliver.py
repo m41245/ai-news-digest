@@ -1,8 +1,7 @@
 from __future__ import annotations
 
+import time
 from uuid import UUID
-
-from celery.utils.log import get_task_logger
 
 from ai_news_digest.application.use_cases.delivery.deliver_digest import (
     DeliverySummary,
@@ -10,13 +9,22 @@ from ai_news_digest.application.use_cases.delivery.deliver_digest import (
 from ai_news_digest.core.config import get_settings
 from ai_news_digest.core.exceptions import ValidationError
 from ai_news_digest.core.logging import get_logger
+from ai_news_digest.core.metrics import (
+    record_celery_task_duration,
+    record_celery_task_failure,
+    record_celery_task_success,
+    record_email_delivery_failure,
+    record_email_delivery_success,
+)
 from ai_news_digest.domain.ports.digest_repository import DigestRepository
 from ai_news_digest.workers._container import get_container
 from ai_news_digest.workers.celery_app import celery_app
 
-task_logger = get_task_logger(__name__)
 logger = get_logger(__name__)
 settings = get_settings()
+
+_TASK_NAME_SEND_EMAIL = "workers.tasks.deliver.send_digest_email"
+_TASK_NAME_SEND_LATEST = "workers.tasks.deliver.send_latest_digest"
 
 
 async def _send_digest_email_impl(digest_id: UUID) -> dict[str, str]:
@@ -86,7 +94,7 @@ async def _send_latest_digest_impl() -> dict[str, str]:
 @celery_app.task(
     name="workers.tasks.deliver.send_digest_email",
     max_retries=3,
-    default_retry_delay=300,
+    default_retry_delay=60,
 )
 async def send_digest_email(digest_id: UUID) -> dict[str, str]:
     """
@@ -94,14 +102,24 @@ async def send_digest_email(digest_id: UUID) -> dict[str, str]:
 
     This task is idempotent: already-sent deliveries are skipped on retry.
     """
+    start = time.monotonic()
     try:
-        return await _send_digest_email_impl(digest_id)
+        result = await _send_digest_email_impl(digest_id)
+        if result.get("status") == "completed":
+            sent_count = int(result.get("sent_count", 0))
+            record_email_delivery_success(sent_count if sent_count > 0 else 0)
+        else:
+            record_email_delivery_failure(1)
+        await record_celery_task_success(_TASK_NAME_SEND_EMAIL)
+        return result
     except ValidationError as exc:
         logger.warning(
             "Digest email delivery skipped",
             digest_id=str(digest_id),
             error=str(exc),
         )
+        record_email_delivery_failure(1)
+        await record_celery_task_success(_TASK_NAME_SEND_EMAIL)
         return {
             "status": "skipped",
             "reason": str(exc),
@@ -113,25 +131,40 @@ async def send_digest_email(digest_id: UUID) -> dict[str, str]:
             error=str(exc),
             exc_info=True,
         )
+        record_email_delivery_failure(1)
+        await record_celery_task_failure(_TASK_NAME_SEND_EMAIL)
         raise
+    finally:
+        await record_celery_task_duration(_TASK_NAME_SEND_EMAIL, time.monotonic() - start)
 
 
 @celery_app.task(
     name="workers.tasks.deliver.send_latest_digest",
     max_retries=3,
-    default_retry_delay=300,
+    default_retry_delay=60,
 )
 async def send_latest_digest() -> dict[str, str]:
     """
     Send the most recently generated digest via email.
     """
+    start = time.monotonic()
     try:
-        return await _send_latest_digest_impl()
+        result = await _send_latest_digest_impl()
+        status = result.get("status")
+        if status == "completed":
+            sent_count = int(result.get("sent_count", 0))
+            record_email_delivery_success(sent_count if sent_count > 0 else 0)
+        elif status != "no_digests":
+            record_email_delivery_failure(1)
+        await record_celery_task_success(_TASK_NAME_SEND_LATEST)
+        return result
     except ValidationError as exc:
         logger.warning(
             "Latest digest email delivery skipped",
             error=str(exc),
         )
+        record_email_delivery_failure(1)
+        await record_celery_task_success(_TASK_NAME_SEND_LATEST)
         return {
             "status": "skipped",
             "reason": str(exc),
@@ -142,7 +175,11 @@ async def send_latest_digest() -> dict[str, str]:
             error=str(exc),
             exc_info=True,
         )
+        record_email_delivery_failure(1)
+        await record_celery_task_failure(_TASK_NAME_SEND_LATEST)
         raise
+    finally:
+        await record_celery_task_duration(_TASK_NAME_SEND_LATEST, time.monotonic() - start)
 
 
 __all__ = ["send_digest_email", "send_latest_digest"]

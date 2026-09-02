@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import contextlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
 
 from ai_news_digest.application.dto.digest_article_view import DigestArticleView
 from ai_news_digest.core.exceptions import ValidationError
+from ai_news_digest.domain.enums.article_status import ArticleStatus
 from ai_news_digest.domain.enums.digest_format import DigestFormat
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.models.digest import Digest
@@ -76,11 +78,21 @@ class GenerateDigestUseCase:
             article_ids=selected_ids,
         )
 
-        persisted_digest = await self._digest_repository.create(digest)
+        persisted_digest = None
+        try:
+            persisted_digest = await self._digest_repository.create(digest)
 
-        for article in selected_articles:
-            article.mark_ready()
-            await self._article_repository.update(article)
+            await self._article_repository.mark_status_bulk(
+                selected_ids,
+                ArticleStatus.READY,
+            )
+        except Exception:
+            if persisted_digest is not None:
+                with contextlib.suppress(Exception):
+                    await self._digest_repository.rollback()
+                with contextlib.suppress(Exception):
+                    await self._digest_repository.delete(persisted_digest.id)
+            raise
 
         return DigestGenerationResult(
             digest_id=persisted_digest.id,

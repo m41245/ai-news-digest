@@ -24,7 +24,11 @@ This document provides configuration examples for nginx and Traefik. The reverse
 ### Example `ai-news-digest.conf`
 
 ```nginx
-upstream ai_news_digest {
+upstream ai_news_digest_frontend {
+    server 127.0.0.1:3000;
+}
+
+upstream ai_news_digest_api {
     server 127.0.0.1:8000;
 }
 
@@ -62,37 +66,25 @@ server {
     set_real_ip_from 172.16.0.0/12;
     set_real_ip_from 192.168.0.0/16;
 
-    # Proxy settings
-    proxy_pass http://ai_news_digest;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-
-    # Timeouts
-    proxy_connect_timeout 10s;
-    proxy_send_timeout 30s;
-    proxy_read_timeout 30s;
-
     # Health checks (do not proxy to upstream)
     location = /health/live {
         access_log off;
-        proxy_pass http://ai_news_digest/health/live;
+        proxy_pass http://ai_news_digest_api/health/live;
     }
 
     location = /health/ready {
         access_log off;
-        proxy_pass http://ai_news_digest/health/ready;
+        proxy_pass http://ai_news_digest_api/health/ready;
     }
 
     location = /metrics/health {
         access_log off;
-        proxy_pass http://ai_news_digest/metrics/health;
+        proxy_pass http://ai_news_digest_api/metrics/health;
     }
 
     # API routes
     location /api/ {
-        proxy_pass http://ai_news_digest/api/;
+        proxy_pass http://ai_news_digest_api/api/;
     }
 
     # Docs (disable in production via app config)
@@ -106,12 +98,21 @@ server {
 
     # Metrics (admin-only, but restrict access further if needed)
     location /metrics/ {
-        proxy_pass http://ai_news_digest/metrics/;
+        proxy_pass http://ai_news_digest_api/metrics/;
         # Optional: restrict to internal IPs
         # allow 10.0.0.0/8;
         # allow 172.16.0.0/12;
         # allow 192.168.0.0/16;
         # deny all;
+    }
+
+    # Frontend SPA
+    location / {
+        proxy_pass http://ai_news_digest_frontend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 ```
@@ -151,18 +152,29 @@ providers:
 
 ### Dynamic Configuration (Docker labels)
 
-Add these labels to `docker-compose.prod.yml` under the `web` service:
+Add these labels to `docker-compose.prod.yml` under the `web` and `frontend` services:
 
 ```yaml
 services:
+  frontend:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ai-news-digest-frontend.entrypoints=websecure"
+      - "traefik.http.routers.ai-news-digest-frontend.rule=Host(`news.example.com`)"
+      - "traefik.http.routers.ai-news-digest-frontend.tls=true"
+      - "traefik.http.routers.ai-news-digest-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.ai-news-digest-frontend.loadbalancer.server.port=8080"
+      - "traefik.http.routers.ai-news-digest-frontend.priority=1"
+
   web:
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.ai-news-digest.entrypoints=websecure"
-      - "traefik.http.routers.ai-news-digest.rule=Host(`news.example.com`)"
-      - "traefik.http.routers.ai-news-digest.tls=true"
-      - "traefik.http.routers.ai-news-digest.tls.certresolver=letsencrypt"
-      - "traefik.http.services.ai-news-digest.loadbalancer.server.port=8000"
+      - "traefik.http.routers.ai-news-digest-api.entrypoints=websecure"
+      - "traefik.http.routers.ai-news-digest-api.rule=Host(`news.example.com`) && PathPrefix(`/api/`)"
+      - "traefik.http.routers.ai-news-digest-api.tls=true"
+      - "traefik.http.routers.ai-news-digest-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.ai-news-digest-api.loadbalancer.server.port=8000"
+      - "traefik.http.routers.ai-news-digest-api.priority=2"
 ```
 
 ---

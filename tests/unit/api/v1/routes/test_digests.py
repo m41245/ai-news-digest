@@ -54,7 +54,8 @@ def client(mock_container: MagicMock, mock_user: User) -> TestClient:
     app.dependency_overrides[get_container] = lambda: mock_container
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
     setup_exception_handlers(app)
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 def test_list_digests(client: TestClient, mock_container: MagicMock) -> None:
@@ -86,7 +87,7 @@ def test_get_digest_not_found(client: TestClient, mock_container: MagicMock) -> 
 
     assert response.status_code == 404
     data = response.json()
-    assert "not found" in data["detail"].lower()
+    assert "not found" in data["message"].lower()
 
 
 def test_generate_digest(client: TestClient, mock_container: MagicMock) -> None:

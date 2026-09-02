@@ -110,5 +110,5 @@ def test_generate_daily_digest_registration() -> None:
     """The task is registered with the expected name and retries."""
     assert digest.generate_daily_digest.name == "workers.tasks.digest.generate_daily_digest"
     assert digest.generate_daily_digest.name in celery_app.tasks
-    assert digest.generate_daily_digest.max_retries == 2
-    assert digest.generate_daily_digest.default_retry_delay == 300
+    assert digest.generate_daily_digest.max_retries == 3
+    assert digest.generate_daily_digest.default_retry_delay == 60

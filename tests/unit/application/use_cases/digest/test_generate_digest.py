@@ -252,3 +252,87 @@ async def test_generate_digest_auto_builds_content(
     assert "Article 2" in created_digest.content
     assert "Article 3" in created_digest.content
     assert "Test Source" in created_digest.content
+
+
+async def test_generate_digest_cleans_up_on_article_update_failure(
+    sample_articles: list[Article],
+    mock_article_repository: AsyncMock,
+    mock_digest_repository: AsyncMock,
+    mock_source_repository: AsyncMock,
+    mock_category_repository: AsyncMock,
+) -> None:
+    """Test that digest is deleted if article status update fails."""
+    mock_article_repository.list_digest_eligible.return_value = sample_articles
+    mock_source_repository.list_all.return_value = []
+    mock_category_repository.list_all.return_value = []
+
+    digest_id = uuid4()
+    digest = Digest.create(
+        title="Test Digest",
+        content="Digest content",
+        digest_format=DigestFormat.MARKDOWN,
+        article_ids=[article.id for article in sample_articles],
+    )
+    object.__setattr__(digest, "id", digest_id)
+
+    mock_digest_repository.create.return_value = digest
+    mock_article_repository.mark_status_bulk.side_effect = RuntimeError("DB failure on bulk update")
+
+    use_case = GenerateDigestUseCase(
+        article_repository=mock_article_repository,
+        digest_repository=mock_digest_repository,
+        source_repository=mock_source_repository,
+        category_repository=mock_category_repository,
+    )
+
+    with pytest.raises(RuntimeError, match="DB failure on bulk update"):
+        await use_case.execute(
+            title="Test Digest",
+            content="Digest content",
+        )
+
+    mock_digest_repository.rollback.assert_awaited_once()
+    mock_digest_repository.delete.assert_awaited_once_with(digest_id)
+
+
+async def test_generate_digest_uses_atomic_bulk_mark_ready(
+    sample_articles: list[Article],
+    mock_article_repository: AsyncMock,
+    mock_digest_repository: AsyncMock,
+    mock_source_repository: AsyncMock,
+    mock_category_repository: AsyncMock,
+) -> None:
+    """Test that digest generation uses mark_status_bulk for atomicity."""
+    mock_article_repository.list_digest_eligible.return_value = sample_articles
+    mock_source_repository.list_all.return_value = []
+    mock_category_repository.list_all.return_value = []
+
+    digest_id = uuid4()
+    digest = Digest.create(
+        title="Test Digest",
+        content="Digest content",
+        digest_format=DigestFormat.MARKDOWN,
+        article_ids=[article.id for article in sample_articles],
+    )
+    object.__setattr__(digest, "id", digest_id)
+
+    mock_digest_repository.create.return_value = digest
+
+    use_case = GenerateDigestUseCase(
+        article_repository=mock_article_repository,
+        digest_repository=mock_digest_repository,
+        source_repository=mock_source_repository,
+        category_repository=mock_category_repository,
+    )
+
+    await use_case.execute(
+        title="Test Digest",
+        content="Digest content",
+    )
+
+    mock_article_repository.mark_status_bulk.assert_awaited_once()
+    call_args = mock_article_repository.mark_status_bulk.call_args
+    passed_ids = call_args[0][0]
+    passed_status = call_args[0][1]
+    assert set(passed_ids) == {a.id for a in sample_articles}
+    assert passed_status.value == "ready"

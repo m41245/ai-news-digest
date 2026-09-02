@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_news_digest.core.exceptions import ResourceNotFoundError
@@ -76,15 +76,26 @@ class CategoryRepository(
 
     async def list_all(
         self,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> list[Category]:
         """Return all categories ordered by name."""
         statement = select(CategoryModel).order_by(CategoryModel.name.asc())
+
+        if limit is not None:
+            statement = statement.limit(limit).offset(offset)
 
         result = await self._session.execute(statement)
 
         models = result.scalars().all()
 
         return [CategoryMapper.to_domain(model) for model in models]
+
+    async def count(self) -> int:
+        """Return the total number of categories."""
+        statement = select(func.count()).select_from(CategoryModel)
+        result = await self._session.execute(statement)
+        return int(result.scalar_one())
 
     async def update(
         self,

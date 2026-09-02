@@ -1,23 +1,38 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import HTMLResponse
 from jinja2 import Template
+from sqlalchemy import select
 
 from ai_news_digest.api.v1.dependencies.auth import get_current_admin_user
 from ai_news_digest.api.v1.dependencies.dependencies import get_container
+from ai_news_digest.api.v1.schemas.common import (
+    DEFAULT_PAGE_LIMIT,
+    MAX_OFFSET,
+    MAX_PAGE_LIMIT,
+    PaginatedResponse,
+)
 from ai_news_digest.api.v1.schemas.user import (
     AdminUserResponse,
     AdminUserUpdateRequest,
 )
 from ai_news_digest.bootstrap.container import Container
+from ai_news_digest.core.config import settings
 from ai_news_digest.core.exceptions import (
     DuplicateResourceError,
     ResourceNotFoundError,
 )
+from ai_news_digest.domain.enums.article_status import ArticleStatus
 from ai_news_digest.domain.models.user import User
 from ai_news_digest.infrastructure.auth.password import hash_password
+from ai_news_digest.infrastructure.database.models.article_model import ArticleModel
+from ai_news_digest.infrastructure.database.models.digest_delivery_model import (
+    DigestDeliveryModel,
+)
+from ai_news_digest.infrastructure.database.models.digest_model import DigestModel
+from ai_news_digest.workers.celery_app import celery_app
 
 router = APIRouter(
     prefix="/admin",
@@ -25,24 +40,32 @@ router = APIRouter(
 )
 
 
-@router.get("/users", response_model=list[AdminUserResponse], summary="List users")
+@router.get("/users", response_model=PaginatedResponse[AdminUserResponse], summary="List users")
 async def list_users(
     container: Annotated[Container, Depends(get_container)],
     _: Annotated[User, Depends(get_current_admin_user)],
-) -> list[AdminUserResponse]:
-    """Return all registered users (admin only)."""
-    users = await container.user_repository.list_all()
+    limit: Annotated[int, Query(ge=1, le=MAX_PAGE_LIMIT)] = DEFAULT_PAGE_LIMIT,
+    offset: Annotated[int, Query(ge=0, le=MAX_OFFSET)] = 0,
+) -> PaginatedResponse[AdminUserResponse]:
+    """Return registered users with pagination (admin only)."""
+    users = await container.user_repository.list_all(limit=limit, offset=offset)
+    total = await container.user_repository.count()
 
-    return [
-        AdminUserResponse(
-            id=str(user.id),
-            email=user.email,
-            is_active=user.is_active,
-            is_admin=user.is_admin,
-            created_at=user.created_at,
-        )
-        for user in users
-    ]
+    return PaginatedResponse(
+        items=[
+            AdminUserResponse(
+                id=str(user.id),
+                email=user.email,
+                is_active=user.is_active,
+                is_admin=user.is_admin,
+                created_at=user.created_at,
+            )
+            for user in users
+        ],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get(
@@ -139,14 +162,14 @@ async def get_system_stats(
     _: Annotated[User, Depends(get_current_admin_user)],
 ) -> dict[str, object]:
     """Return system statistics."""
-    articles = await container.article_repository.list_recent(limit=1)
+    articles = await container.article_repository.count()
     sources = await container.source_repository.list_all()
-    digests = await container.digest_repository.list_recent(limit=1)
+    digests = await container.digest_repository.count()
 
     return {
-        "articles": len(articles),
+        "articles": articles,
         "sources": len(sources),
-        "digests": len(digests),
+        "digests": digests,
         "status": "ok",
     }
 
@@ -156,7 +179,6 @@ async def get_system_stats(
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def trigger_ingestion(
-    container: Annotated[Container, Depends(get_container)],
     _: Annotated[User, Depends(get_current_admin_user)],
 ) -> dict[str, str]:
     """Trigger the ingestion pipeline via Celery."""
@@ -175,7 +197,6 @@ async def trigger_ingestion(
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def trigger_digest_generation(
-    container: Annotated[Container, Depends(get_container)],
     _: Annotated[User, Depends(get_current_admin_user)],
 ) -> dict[str, str]:
     """Trigger digest generation via Celery."""
@@ -194,7 +215,6 @@ async def trigger_digest_generation(
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def cleanup_database(
-    container: Annotated[Container, Depends(get_container)],
     _: Annotated[User, Depends(get_current_admin_user)],
 ) -> dict[str, str]:
     """Trigger cleanup tasks via Celery."""
@@ -217,6 +237,189 @@ async def admin_health(
         "status": "healthy",
         "service": "admin",
     }
+
+
+@router.get("/workers/health")
+async def worker_health(
+    _: Annotated[User, Depends(get_current_admin_user)],
+) -> dict[str, object]:
+    """Return Celery worker health and connectivity status."""
+    try:
+        ping_result = celery_app.control.ping(timeout=5)
+        worker_count = len(ping_result)
+        workers_online = worker_count > 0 and all(
+            response.get("ok") == "pong" for result in ping_result for response in result.values()
+        )
+
+        return {
+            "workers_online": worker_count > 0,
+            "workers_responded": worker_count,
+            "workers": [
+                {
+                    "hostname": hostname,
+                    "status": response.get("ok", "unknown"),
+                }
+                for result in ping_result
+                for hostname, response in result.items()
+            ],
+            "broker_connected": worker_count > 0,
+            "status": "healthy" if workers_online else "degraded",
+        }
+    except Exception as exc:
+        return {
+            "workers_online": False,
+            "workers_responded": 0,
+            "broker_connected": False,
+            "error": str(exc),
+            "status": "unhealthy",
+        }
+
+
+@router.get("/pipeline/status")
+async def pipeline_status(
+    container: Annotated[Container, Depends(get_container)],
+    _: Annotated[User, Depends(get_current_admin_user)],
+) -> dict[str, object]:
+    """Return operational pipeline status derived from existing data."""
+    from datetime import UTC, datetime, timedelta
+
+    from sqlalchemy import func
+
+    session = container.session
+    article_model = ArticleModel
+    digest_model = DigestModel
+    delivery_model = DigestDeliveryModel
+
+    now = datetime.now(UTC)
+    recent_threshold = timedelta(hours=26)
+    stale_threshold = timedelta(days=2)
+
+    def is_recent(timestamp: datetime | None) -> bool:
+        if timestamp is None:
+            return False
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=UTC)
+        delta: timedelta = now - timestamp
+        return delta <= recent_threshold
+
+    def is_stale(timestamp: datetime | None) -> bool:
+        if timestamp is None:
+            return True
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=UTC)
+        delta: timedelta = now - timestamp
+        return delta > stale_threshold
+
+    warnings: list[str] = []
+
+    last_ingestion = (
+        await session.execute(select(func.max(article_model.fetched_at)))
+    ).scalar_one_or_none()
+    last_processing = (
+        await session.execute(
+            select(func.max(article_model.updated_at)).where(
+                article_model.status.in_(
+                    [
+                        ArticleStatus.SUMMARIZED.value,
+                        ArticleStatus.CATEGORIZED.value,
+                        ArticleStatus.READY.value,
+                    ]
+                )
+            )
+        )
+    ).scalar_one_or_none()
+    last_digest = (
+        await session.execute(select(func.max(digest_model.generated_at)))
+    ).scalar_one_or_none()
+    last_delivery = (
+        await session.execute(select(func.max(delivery_model.sent_at)))
+    ).scalar_one_or_none()
+
+    new_articles = (
+        await session.execute(
+            select(func.count(article_model.id)).where(article_model.status == "new")
+        )
+    ).scalar_one_or_none() or 0
+    failed_deliveries = (
+        await session.execute(
+            select(func.count(delivery_model.id)).where(delivery_model.status == "failed")
+        )
+    ).scalar_one_or_none() or 0
+
+    status = "ok"
+    if not is_recent(last_ingestion):
+        status = "degraded"
+        if is_stale(last_ingestion):
+            warnings.append("ingestion_stale")
+    if not is_recent(last_digest):
+        status = "degraded"
+        if is_stale(last_digest):
+            warnings.append("digest_stale")
+    if is_stale(last_processing) and last_processing is not None:
+        warnings.append("processing_stale")
+    if is_stale(last_delivery) and last_delivery is not None:
+        warnings.append("delivery_stale")
+    if new_articles > 0:
+        warnings.append("pending_articles")
+    if failed_deliveries > 0:
+        warnings.append("failed_deliveries")
+
+    return {
+        "status": status,
+        "warnings": warnings,
+        "ingestion": {
+            "last_attempt": last_ingestion.isoformat() if last_ingestion else None,
+            "last_success": last_ingestion.isoformat() if last_ingestion else None,
+        },
+        "processing": {
+            "last_attempt": last_processing.isoformat() if last_processing else None,
+            "last_success": last_processing.isoformat() if last_processing else None,
+        },
+        "digest": {
+            "last_attempt": last_digest.isoformat() if last_digest else None,
+            "last_generated": last_digest.isoformat() if last_digest else None,
+        },
+        "delivery": {
+            "last_attempt": last_delivery.isoformat() if last_delivery else None,
+            "last_sent": last_delivery.isoformat() if last_delivery else None,
+        },
+        "counts": {
+            "new_articles": new_articles,
+            "failed_deliveries": failed_deliveries,
+        },
+    }
+
+
+@router.get("/tasks/{task_id}")
+async def get_task_status(
+    task_id: str,
+    _: Annotated[User, Depends(get_current_admin_user)],
+) -> dict[str, object]:
+    """Return the status and result of a Celery task by ID."""
+    result = celery_app.AsyncResult(task_id)
+
+    response: dict[str, object] = {
+        "task_id": task_id,
+        "state": result.state,
+        "ready": result.ready(),
+        "successful": result.successful() if result.ready() else None,
+        "failed": result.failed() if result.ready() else None,
+    }
+
+    if result.ready():
+        if result.failed():
+            exc_type = type(result.result).__name__ if result.result else "Exception"
+            response["error"] = {
+                "type": exc_type,
+                "message": "Task failed. Check worker logs for details.",
+            }
+        else:
+            response["result"] = result.result
+
+    if result.state == "PROGRESS":
+        response["progress"] = result.info
+
+    return response
 
 
 _DASHBOARD_TEMPLATE = Template(
@@ -265,8 +468,10 @@ _DASHBOARD_TEMPLATE = Template(
   </table>
 
   <h2>API</h2>
+  {% if settings.environment != "production" %}
   <p>Interactive API documentation: <a href="/docs">Swagger UI</a> &middot;
      <a href="/api/v1/openapi.json">OpenAPI</a></p>
+  {% endif %}
 </body>
 </html>
 """,
@@ -290,18 +495,19 @@ async def admin_dashboard(
     restricted to administrators; sensitive fields such as password hashes are
     never rendered.
     """
-    articles = await container.article_repository.list_recent(limit=1)
-    digests = await container.digest_repository.list_recent(limit=1)
-    users = await container.user_repository.list_all()
-    sources = await container.source_repository.list_all()
+    articles = await container.article_repository.count()
+    digests = await container.digest_repository.count()
+    users = await container.user_repository.list_all(limit=100)
+    sources = await container.source_repository.list_all(limit=100)
 
     return _DASHBOARD_TEMPLATE.render(
         stats={
-            "articles": len(articles),
-            "digests": len(digests),
+            "articles": articles,
+            "digests": digests,
         },
         users=users,
         sources=sources,
+        settings=settings,
     )
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -61,4 +62,17 @@ class DigestRepository(ABC):
     @abstractmethod
     async def count(self) -> int:
         """Return the total number of digests."""
+
+    @abstractmethod
+    async def delete_older_than(
+        self,
+        cutoff_date: datetime,
+        limit: int = 1000,
+    ) -> int:
+        """Delete digests older than the cutoff date, returning the count deleted."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def rollback(self) -> None:
+        """Roll back the current transaction."""
         raise NotImplementedError

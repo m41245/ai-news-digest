@@ -31,9 +31,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    stop_grace_period: 30s
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
     deploy:
       resources:
         limits:
@@ -52,13 +55,51 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    stop_grace_period: 30s
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
     deploy:
       resources:
         limits:
           memory: 256M
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+    container_name: ai_news_digest_frontend
+    ports:
+      - "127.0.0.1:3000:8080"
+    depends_on:
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+    stop_grace_period: 10s
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+      - /var/log/nginx
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
   web:
     image: ${DOCKER_IMAGE:-ai-news-digest:latest}
@@ -96,9 +137,15 @@ services:
       timeout: 10s
       start_period: 10s
       retries: 3
+    stop_grace_period: 30s
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
     deploy:
       resources:
         limits:
@@ -132,9 +179,21 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import sys; open('/proc/1/cmdline').read().find('celery') >= 0 or sys.exit(1)\""]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    stop_grace_period: 60s
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
     deploy:
       resources:
         limits:
@@ -143,7 +202,7 @@ services:
   celery_beat:
     image: ${DOCKER_IMAGE:-ai-news-digest:latest}
     container_name: ai_news_digest_beat
-    command: celery -A ai_news_digest.workers.celery_app beat --loglevel=info
+    command: celery -A ai_news_digest.workers.celery_app beat --loglevel=info --schedule /tmp/celerybeat-schedule
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-ai_news_digest}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
@@ -162,9 +221,21 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import sys; open('/proc/1/cmdline').read().find('celery') >= 0 or sys.exit(1)\""]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    stop_grace_period: 30s
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
     deploy:
       resources:
         limits:

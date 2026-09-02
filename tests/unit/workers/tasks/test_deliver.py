@@ -7,7 +7,7 @@ delivery occurs during the tests.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -64,10 +64,22 @@ async def test_send_digest_email_completed(monkeypatch):
         ),
     )
 
-    result = await deliver.send_digest_email(digest.id)
+    with (
+        patch.object(deliver, "record_celery_task_success") as mock_success,
+        patch.object(deliver, "record_celery_task_failure") as mock_failure,
+        patch.object(deliver, "record_celery_task_duration") as mock_duration,
+        patch.object(deliver, "record_email_delivery_success") as mock_email_success,
+        patch.object(deliver, "record_email_delivery_failure") as mock_email_failure,
+    ):
+        result = await deliver.send_digest_email(digest.id)
 
     assert result["status"] == "completed"
     usecase.execute.assert_awaited_once_with(digest.id)
+    mock_success.assert_awaited_once_with(deliver._TASK_NAME_SEND_EMAIL)
+    mock_failure.assert_not_awaited()
+    mock_email_success.assert_called_once_with(1)
+    mock_email_failure.assert_not_called()
+    mock_duration.assert_awaited_once()
 
 
 async def test_send_digest_email_not_found(monkeypatch):
@@ -81,8 +93,21 @@ async def test_send_digest_email_not_found(monkeypatch):
     )
     monkeypatch.setattr(deliver, "get_container", container_generator(mock_container))
 
-    with pytest.raises(ResourceNotFoundError):
+    with (
+        patch.object(deliver, "record_celery_task_success") as mock_success,
+        patch.object(deliver, "record_celery_task_failure") as mock_failure,
+        patch.object(deliver, "record_celery_task_duration") as mock_duration,
+        patch.object(deliver, "record_email_delivery_success") as mock_email_success,
+        patch.object(deliver, "record_email_delivery_failure") as mock_email_failure,
+        pytest.raises(ResourceNotFoundError),
+    ):
         await deliver.send_digest_email(digest_id)
+
+    mock_success.assert_not_awaited()
+    mock_failure.assert_awaited_once_with(deliver._TASK_NAME_SEND_EMAIL)
+    mock_email_success.assert_not_called()
+    mock_email_failure.assert_called_once_with(1)
+    mock_duration.assert_awaited_once()
 
 
 async def test_send_digest_email_system_error(monkeypatch):
@@ -103,8 +128,21 @@ async def test_send_digest_email_system_error(monkeypatch):
     )
     _patch_deliver_usecase(monkeypatch, summary=summary)
 
-    with pytest.raises(RuntimeError, match="SMTP auth failed"):
+    with (
+        patch.object(deliver, "record_celery_task_success") as mock_success,
+        patch.object(deliver, "record_celery_task_failure") as mock_failure,
+        patch.object(deliver, "record_celery_task_duration") as mock_duration,
+        patch.object(deliver, "record_email_delivery_success") as mock_email_success,
+        patch.object(deliver, "record_email_delivery_failure") as mock_email_failure,
+        pytest.raises(RuntimeError, match="SMTP auth failed"),
+    ):
         await deliver.send_digest_email(digest.id)
+
+    mock_success.assert_not_awaited()
+    mock_failure.assert_awaited_once_with(deliver._TASK_NAME_SEND_EMAIL)
+    mock_email_success.assert_not_called()
+    mock_email_failure.assert_called_once_with(1)
+    mock_duration.assert_awaited_once()
 
 
 # ----------------------------------------------------------------------
@@ -135,10 +173,23 @@ async def test_send_latest_digest_completed(monkeypatch):
 
     monkeypatch.setattr(deliver, "get_container", container_generator(mock_container))
 
-    result = await deliver.send_latest_digest()
+    with (
+        patch.object(deliver, "record_celery_task_success") as mock_success,
+        patch.object(deliver, "record_celery_task_failure") as mock_failure,
+        patch.object(deliver, "record_celery_task_duration") as mock_duration,
+        patch.object(deliver, "record_email_delivery_success") as mock_email_success,
+        patch.object(deliver, "record_email_delivery_failure") as mock_email_failure,
+    ):
+        result = await deliver.send_latest_digest()
+
     assert result["status"] == "completed"
     mock_container.digest_repository.list_recent.assert_awaited_once_with(limit=1)
     usecase.execute.assert_awaited_once_with(digest.id)
+    mock_success.assert_awaited_once_with(deliver._TASK_NAME_SEND_LATEST)
+    mock_failure.assert_not_awaited()
+    mock_email_success.assert_called_once_with(1)
+    mock_email_failure.assert_not_called()
+    mock_duration.assert_awaited_once()
 
 
 async def test_send_latest_digest_no_digests(monkeypatch):
@@ -148,8 +199,76 @@ async def test_send_latest_digest_no_digests(monkeypatch):
     mock_container.digest_repository.list_recent.return_value = []
     monkeypatch.setattr(deliver, "get_container", container_generator(mock_container))
 
-    result = await deliver.send_latest_digest()
+    with (
+        patch.object(deliver, "record_celery_task_success") as mock_success,
+        patch.object(deliver, "record_celery_task_failure") as mock_failure,
+        patch.object(deliver, "record_celery_task_duration") as mock_duration,
+        patch.object(deliver, "record_email_delivery_success") as mock_email_success,
+        patch.object(deliver, "record_email_delivery_failure") as mock_email_failure,
+    ):
+        result = await deliver.send_latest_digest()
+
     assert result["status"] == "no_digests"
+    mock_success.assert_awaited_once_with(deliver._TASK_NAME_SEND_LATEST)
+    mock_failure.assert_not_awaited()
+    mock_email_success.assert_not_called()
+    mock_email_failure.assert_not_called()
+    mock_duration.assert_awaited_once()
+
+
+# ----------------------------------------------------------------------
+# Regression tests for dead "skipped" branch removal (M-4)
+# ----------------------------------------------------------------------
+
+
+async def test_send_digest_email_not_found_treated_as_failure(monkeypatch):
+    """A 'not_found' status must record a failure, not be silently skipped."""
+    digest_id = uuid4()
+
+    mock_container = MagicMock()
+    mock_container.deliver_digest = MagicMock()
+    mock_container.deliver_digest.execute.side_effect = ResourceNotFoundError(
+        f"Digest with id '{digest_id}' was not found."
+    )
+    monkeypatch.setattr(deliver, "get_container", container_generator(mock_container))
+
+    with (
+        patch.object(deliver, "record_celery_task_success"),
+        patch.object(deliver, "record_celery_task_failure"),
+        patch.object(deliver, "record_celery_task_duration"),
+        patch.object(deliver, "record_email_delivery_success") as mock_email_success,
+        patch.object(deliver, "record_email_delivery_failure") as mock_email_failure,
+        pytest.raises(ResourceNotFoundError),
+    ):
+        await deliver.send_digest_email(digest_id)
+
+    mock_email_failure.assert_called_once_with(1)
+    mock_email_success.assert_not_called()
+
+
+async def test_send_latest_digest_not_found_treated_as_failure(monkeypatch):
+    """A ResourceNotFoundError during latest-digest delivery records failure and re-raises."""
+    latest_digest = make_digest()
+    mock_container = MagicMock()
+    mock_container.digest_repository = AsyncMock()
+    mock_container.digest_repository.list_recent.return_value = [latest_digest]
+
+    mock_container.deliver_digest = MagicMock()
+    mock_container.deliver_digest.execute.side_effect = ResourceNotFoundError("not found")
+    monkeypatch.setattr(deliver, "get_container", container_generator(mock_container))
+
+    with (
+        patch.object(deliver, "record_celery_task_success"),
+        patch.object(deliver, "record_celery_task_failure"),
+        patch.object(deliver, "record_celery_task_duration"),
+        patch.object(deliver, "record_email_delivery_success") as mock_email_success,
+        patch.object(deliver, "record_email_delivery_failure") as mock_email_failure,
+        pytest.raises(ResourceNotFoundError),
+    ):
+        await deliver.send_latest_digest()
+
+    mock_email_failure.assert_called_once_with(1)
+    mock_email_success.assert_not_called()
 
 
 # ----------------------------------------------------------------------
@@ -164,18 +283,20 @@ def test_deliver_task_registration() -> None:
 
     assert deliver.send_digest_email.name in celery_app.tasks
     assert deliver.send_digest_email.max_retries == 3
-    assert deliver.send_digest_email.default_retry_delay == 300
+    assert deliver.send_digest_email.default_retry_delay == 60
 
     assert deliver.send_latest_digest.name in celery_app.tasks
     assert deliver.send_latest_digest.max_retries == 3
-    assert deliver.send_latest_digest.default_retry_delay == 300
+    assert deliver.send_latest_digest.default_retry_delay == 60
 
 
 __all__ = [
     "test_deliver_task_registration",
     "test_send_digest_email_completed",
     "test_send_digest_email_not_found",
+    "test_send_digest_email_not_found_treated_as_failure",
     "test_send_digest_email_system_error",
     "test_send_latest_digest_completed",
     "test_send_latest_digest_no_digests",
+    "test_send_latest_digest_not_found_treated_as_failure",
 ]

@@ -102,3 +102,11 @@ output.txt
 # Kilo agent plans
 
 .kilo/
+
+# Node.js
+
+node_modules/
+
+# Staging environment
+
+.env.staging

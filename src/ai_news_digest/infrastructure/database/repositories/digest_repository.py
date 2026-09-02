@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import delete, func, select
@@ -290,3 +291,23 @@ class DigestRepository(
         statement = select(func.count()).select_from(DigestModel)
         result = await self._session.execute(statement)
         return int(result.scalar_one())
+
+    async def delete_older_than(
+        self,
+        cutoff_date: datetime,
+        limit: int = 1000,
+    ) -> int:
+        statement = select(DigestModel).where(DigestModel.generated_at < cutoff_date).limit(limit)
+        result = await self._session.execute(statement)
+        models = result.scalars().all()
+
+        for model in models:
+            await self._session.delete(model)
+
+        await self._commit()
+
+        return len(models)
+
+    async def rollback(self) -> None:
+        """Roll back the current transaction."""
+        await self._session.rollback()

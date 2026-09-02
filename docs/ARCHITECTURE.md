@@ -967,7 +967,7 @@ Every pull request must pass:
 - All API inputs validated via Pydantic schemas before reaching services
 - URL fields validated for scheme (http/https only) to prevent SSRF
 - RSS source URLs are admin-configured only — never accepted from unauthenticated users
-- HTML content sanitized before rendering in digest templates (bleach or equivalent)
+- HTML content escaped before rendering in digest templates (via html.escape in HTMLRenderer)
 - SQL injection prevented by parameterized queries via SQLAlchemy ORM
 
 ### Secrets Management

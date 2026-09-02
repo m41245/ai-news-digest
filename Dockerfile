@@ -35,16 +35,23 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app/src ./src/
 COPY README.md alembic.ini ./
 COPY migrations/ ./migrations/
-COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+
+RUN printf '%s\n' \
+  '#!/bin/bash' \
+  'set -e' \
+  '' \
+  'echo "Running database migrations..."' \
+  'python -m alembic upgrade head' \
+  '' \
+  'echo "Starting application..."' \
+  'exec "$@"' \
+  > /app/entrypoint.sh \
+  && chmod +x /app/entrypoint.sh
 
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8000
-
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live', timeout=5)"
 
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["uvicorn", "ai_news_digest.main:app", "--host", "0.0.0.0", "--port", "8000"]

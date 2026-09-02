@@ -70,14 +70,18 @@ def test_list_users(admin_user: User) -> None:
     )
     container = MagicMock()
     container.user_repository.list_all = AsyncMock(return_value=[admin_user, other])
+    container.user_repository.count = AsyncMock(return_value=2)
 
     client = _client(container=container, auth_override=admin_user)
     response = client.get("/admin/users")
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 2
-    assert all("hashed_password" not in u for u in data)
+    assert data["total"] == 2
+    assert data["limit"] == 20
+    assert data["offset"] == 0
+    assert len(data["items"]) == 2
+    assert all("hashed_password" not in u for u in data["items"])
 
 
 def test_get_user(admin_user: User) -> None:
@@ -150,9 +154,8 @@ def test_normal_user_forbidden(normal_user: User) -> None:
     app.dependency_overrides[get_current_active_user] = lambda: normal_user
     app.dependency_overrides[get_current_admin_user] = real_admin_check
     setup_exception_handlers(app)
-    client = TestClient(app)
-
-    response = client.get("/admin/users")
+    with TestClient(app) as client:
+        response = client.get("/admin/users")
 
     assert response.status_code == 403
 
@@ -162,9 +165,8 @@ def test_admin_endpoint_requires_auth() -> None:
     app = FastAPI()
     app.include_router(router)
     setup_exception_handlers(app)
-    client = TestClient(app)
-
-    response = client.get("/admin/users")
+    with TestClient(app) as client:
+        response = client.get("/admin/users")
 
     assert response.status_code == 401
 
@@ -172,13 +174,12 @@ def test_admin_endpoint_requires_auth() -> None:
 def test_dashboard_admin(admin_user: User) -> None:
     """Admin can access the server-rendered dashboard."""
     container = MagicMock()
-    container.article_repository.list_recent = AsyncMock(return_value=[])
-    container.digest_repository.list_recent = AsyncMock(return_value=[])
+    container.article_repository.count = AsyncMock(return_value=0)
+    container.digest_repository.count = AsyncMock(return_value=0)
     container.user_repository.list_all = AsyncMock(return_value=[admin_user])
     container.source_repository.list_all = AsyncMock(return_value=[])
-    client = _client(container=container, auth_override=admin_user)
-
-    response = client.get("/admin/dashboard")
+    with _client(container=container, auth_override=admin_user) as client:
+        response = client.get("/admin/dashboard")
 
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
@@ -198,8 +199,7 @@ def test_dashboard_forbidden(normal_user: User) -> None:
     app.dependency_overrides[get_current_active_user] = lambda: normal_user
     app.dependency_overrides[get_current_admin_user] = real_admin_check
     setup_exception_handlers(app)
-    client = TestClient(app)
-
-    response = client.get("/admin/dashboard")
+    with TestClient(app) as client:
+        response = client.get("/admin/dashboard")
 
     assert response.status_code == 403

@@ -6,20 +6,6 @@ from pydantic import Field, SecretStr, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-def _parse_list_env(value: str | list[str]) -> list[str]:
-    if isinstance(value, list):
-        return value
-    if not value or not value.strip():
-        return []
-    try:
-        parsed = json.loads(value)
-        if isinstance(parsed, list):
-            return parsed
-    except json.JSONDecodeError:
-        pass
-    return [item.strip() for item in value.split(",") if item.strip()]
-
-
 class Settings(BaseSettings):
     """
     Central application configuration.
@@ -60,6 +46,11 @@ class Settings(BaseSettings):
 
     api_prefix: str = "/api/v1"
 
+    app_startup_time: float | None = Field(
+        default=None,
+        description="Unix timestamp when the application finished startup.",
+    )
+
     # ======================================================================
     # Database
     # ======================================================================
@@ -69,6 +60,41 @@ class Settings(BaseSettings):
         description="PostgreSQL connection URL.",
     )
 
+    database_pool_size: int = Field(
+        default=5,
+        ge=1,
+        le=100,
+        description="Database connection pool size.",
+    )
+
+    database_max_overflow: int = Field(
+        default=10,
+        ge=0,
+        le=100,
+        description="Database connection pool max overflow.",
+    )
+
+    database_pool_timeout: int = Field(
+        default=30,
+        ge=1,
+        le=300,
+        description="Database connection pool timeout in seconds.",
+    )
+
+    database_pool_recycle: int = Field(
+        default=1800,
+        ge=60,
+        le=86400,
+        description="Database connection pool recycle time in seconds.",
+    )
+
+    database_statement_timeout: int = Field(
+        default=30000,
+        ge=1000,
+        le=300000,
+        description="Database statement timeout in milliseconds.",
+    )
+
     # ======================================================================
     # Redis
     # ======================================================================
@@ -76,6 +102,37 @@ class Settings(BaseSettings):
     redis_url: str = Field(
         validation_alias="REDIS_URL",
         description="Redis connection URL.",
+    )
+
+    redis_socket_connect_timeout: int = Field(
+        default=5,
+        ge=1,
+        le=60,
+        description="Redis socket connect timeout in seconds.",
+    )
+
+    redis_socket_timeout: int = Field(
+        default=5,
+        ge=1,
+        le=60,
+        description="Redis socket timeout in seconds.",
+    )
+
+    redis_max_connections: int = Field(
+        default=50,
+        ge=1,
+        le=500,
+        description="Redis maximum connection pool size.",
+    )
+
+    redis_retry_on_timeout: bool = Field(
+        default=True,
+        description="Retry Redis operations on timeout.",
+    )
+
+    redis_retry_on_connection_error: bool = Field(
+        default=True,
+        description="Retry Redis operations on connection error.",
     )
 
     # ======================================================================
@@ -243,6 +300,16 @@ class Settings(BaseSettings):
         le=500,
     )
 
+    rss_max_response_bytes: int = Field(
+        default=5_000_000,
+        ge=1_000,
+        le=100_000_000,
+        description=(
+            "Maximum accepted RSS/Atom feed response body size in bytes. "
+            "Larger responses are rejected to bound memory usage."
+        ),
+    )
+
     # ======================================================================
     # Digest
     # ======================================================================
@@ -287,7 +354,7 @@ class Settings(BaseSettings):
         description="SMTP server hostname.",
     )
 
-    smtp_port: str | int = Field(
+    smtp_port: int = Field(
         default=587,
         ge=1,
         le=65535,
@@ -345,6 +412,13 @@ class Settings(BaseSettings):
         description="Access token expiration time in minutes.",
     )
 
+    bcrypt_rounds: int = Field(
+        default=12,
+        ge=4,
+        le=31,
+        description="Cost factor (rounds) for bcrypt password hashing.",
+    )
+
     # ======================================================================
     # Authentication Tradeoffs
     # ======================================================================
@@ -377,7 +451,57 @@ class Settings(BaseSettings):
         description="Rate limit window in seconds.",
     )
 
-    @field_validator("email_recipients", "cors_origins", mode="before")
+    auth_rate_limit: int = Field(
+        default=10,
+        ge=1,
+        le=10000,
+        description="Maximum auth-endpoint requests per rate limit window.",
+    )
+
+    auth_rate_limit_window: int = Field(
+        default=60,
+        ge=1,
+        le=3600,
+        description="Auth-endpoint rate limit window in seconds.",
+    )
+
+    auth_max_failed_attempts: int = Field(
+        default=5,
+        ge=1,
+        le=100,
+        description="Maximum failed login attempts before account lockout.",
+    )
+
+    auth_lockout_seconds: int = Field(
+        default=300,
+        ge=30,
+        le=86400,
+        description="Base lockout duration in seconds after too many failed logins.",
+    )
+
+    max_request_size_bytes: int = Field(
+        default=1_048_576,
+        ge=1024,
+        le=50_000_000,
+        description="Maximum allowed HTTP request body size in bytes.",
+    )
+
+    metrics_allowed_ips: str | list[str] = Field(
+        default_factory=list,
+        description=(
+            "Optional list of client IP addresses permitted to access the "
+            "/metrics endpoint. When empty, access is governed solely by the "
+            "admin authentication requirement. In production this should be "
+            "restricted to monitoring/metrics scrapers."
+        ),
+    )
+
+    @field_validator(
+        "email_recipients",
+        "cors_origins",
+        "metrics_allowed_ips",
+        mode="before",
+    )
     @classmethod
     def parse_list_from_env(cls, value: str | list[str]) -> list[str]:
         if isinstance(value, str):
@@ -393,10 +517,25 @@ class Settings(BaseSettings):
             return [item.strip() for item in stripped.split(",") if item.strip()]
         return value
 
+    @field_validator("jwt_algorithm")
+    @classmethod
+    def validate_jwt_algorithm(cls, value: str) -> str:
+        """Reject the 'none' algorithm to prevent algorithm-confusion attacks."""
+        if value.strip().lower() == "none":
+            raise ValueError("JWT algorithm 'none' is not allowed.")
+        return value
+
     @field_validator("jwt_secret_key")
     @classmethod
     def validate_jwt_secret(cls, value: str, info: ValidationInfo) -> str:
-        """Ensure JWT secret is not a known weak default."""
+        """Ensure JWT secret is not a known weak default.
+
+        Placeholder secrets are only rejected in non-development environments.
+        In development mode, any non-empty value is accepted so that the
+        example configuration and quick-starts work out of the box.
+        """
+        if info.data.get("environment") == "development":
+            return value
         weak_defaults = {
             "change-me",
             "changeme",
@@ -408,12 +547,47 @@ class Settings(BaseSettings):
             "password",
             "12345678901234567890123456789012",
         }
+        weak_patterns = (
+            "change_me",
+            "changeme",
+            "change-me",
+            "replace-me",
+            "replace_me",
+            "please-replace",
+            "your-openssl-rand",
+            "test-secret",
+            "test_secret",
+            "placeholder",
+            "your-secret",
+            "your_secret",
+            "dev-secret",
+            "dev_secret",
+            "do-not-use",
+            "not-for-production",
+            "not_for_production",
+            "local-prod",
+            "local_dev",
+            "fake-key",
+            "fake_key",
+        )
         normalized = value.strip().lower()
         if normalized in weak_defaults:
             raise ValueError(
                 "JWT_SECRET_KEY must be set to a secure value. "
                 "The provided default is not allowed in any environment."
             )
+        if any(pattern in normalized for pattern in weak_patterns):
+            raise ValueError(
+                "JWT_SECRET_KEY must be set to a secure value. "
+                "The provided value resembles a placeholder."
+            )
+        if all(c in "0123456789abcdef" for c in normalized) and (
+            "0123456789abcdef" in normalized or "abcdef0123456789" in normalized
+        ):
+                raise ValueError(
+                    "JWT_SECRET_KEY must be set to a cryptographically secure value. "
+                    "The provided value appears to be a sequential hex pattern."
+                )
         if len(value) < 32:
             raise ValueError("JWT_SECRET_KEY must be at least 32 characters long.")
         return value

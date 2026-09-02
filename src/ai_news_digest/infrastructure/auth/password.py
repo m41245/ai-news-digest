@@ -3,7 +3,10 @@ from __future__ import annotations
 import bcrypt
 from pydantic import BaseModel, Field
 
+from ai_news_digest.core.config import get_settings
 from ai_news_digest.core.exceptions import ValidationError
+
+settings = get_settings()
 
 # Minimum password strength requirements
 _MIN_PASSWORD_LENGTH = 8
@@ -46,7 +49,7 @@ def hash_password(password: str) -> str:
         raise ValidationError(
             f"Password does not meet security requirements: {' '.join(strength.errors)}"
         )
-    salt = bcrypt.gensalt()
+    salt = bcrypt.gensalt(rounds=settings.bcrypt_rounds)
     hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
     return hashed.decode("utf-8")
 

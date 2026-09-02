@@ -37,6 +37,7 @@ def mock_user() -> User:
 def mock_container() -> MagicMock:
     container = MagicMock()
     container.source_repository.list_all = AsyncMock(return_value=[])
+    container.source_repository.count = AsyncMock(return_value=0)
     container.source_repository.get_by_id = AsyncMock(return_value=None)
     container.source_repository.create = AsyncMock()
     container.source_repository.delete = AsyncMock()
@@ -52,7 +53,8 @@ def client(mock_container: MagicMock, mock_user: User) -> TestClient:
     app.dependency_overrides[get_container] = lambda: mock_container
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
     setup_exception_handlers(app)
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 def test_list_sources(client: TestClient, mock_container: MagicMock) -> None:
@@ -67,6 +69,7 @@ def test_list_sources(client: TestClient, mock_container: MagicMock) -> None:
         created_at=datetime.now(UTC),
     )
     mock_container.source_repository.list_all.return_value = [mock_source]
+    mock_container.source_repository.count.return_value = 1
 
     response = client.get("/sources/")
 
@@ -113,7 +116,7 @@ def test_delete_source_not_implemented(client: TestClient, mock_container: Magic
 
     assert response.status_code == 404
     data = response.json()
-    assert "not found" in data["detail"].lower()
+    assert "not found" in data["message"].lower()
 
 
 def test_source_create_validation_name_too_short() -> None:

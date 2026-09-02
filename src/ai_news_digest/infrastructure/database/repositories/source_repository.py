@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_news_digest.core.exceptions import ResourceNotFoundError
@@ -82,17 +82,30 @@ class SourceRepository(
 
         return SourceMapper.to_domain(model)
 
-    async def list_all(self) -> list[Source]:
+    async def list_all(
+        self,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[Source]:
         """
         Return all configured news sources ordered by name.
         """
         statement = select(SourceModel).order_by(SourceModel.name.asc())
+
+        if limit is not None:
+            statement = statement.limit(limit).offset(offset)
 
         result = await self._session.execute(statement)
 
         models = result.scalars().all()
 
         return [SourceMapper.to_domain(model) for model in models]
+
+    async def count(self) -> int:
+        """Return the total number of sources."""
+        statement = select(func.count()).select_from(SourceModel)
+        result = await self._session.execute(statement)
+        return int(result.scalar_one())
 
     async def list_enabled(self) -> list[Source]:
         """

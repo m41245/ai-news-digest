@@ -45,9 +45,11 @@ async def list_sources(
     offset: Annotated[int, Query(ge=0, le=MAX_OFFSET)] = 0,
 ) -> PaginatedResponse[SourceResponse]:
     """Return all configured news sources with pagination."""
-    sources = await container.source_repository.list_all()
-    total = len(sources)
-    page = sources[offset : offset + limit]
+    sources = await container.source_repository.list_all(
+        limit=limit,
+        offset=offset,
+    )
+    total = await container.source_repository.count()
 
     return PaginatedResponse(
         items=[
@@ -59,7 +61,7 @@ async def list_sources(
                 description=source.description,
                 is_active=source.is_active,
             )
-            for source in page
+            for source in sources
         ],
         total=total,
         limit=limit,

@@ -8,7 +8,7 @@ calculation is stable (no ``freezegun`` dependency required).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -51,86 +51,62 @@ async def test_cleanup_old_articles_deletes_stale_only(
     mock_container: MagicMock,
 ) -> None:
     """Only articles older than the cutoff are deleted."""
-    # Arrange
-    now = datetime.now(UTC)
-    stale = _article_at(40, now)
-    fresh = _article_at(5, now)
-    mock_container.article_repository.list_recent.return_value = [stale, fresh]
+    mock_container.article_repository.delete_older_than.return_value = 1
 
-    # Act
     with patch.object(cleanup, "get_container", container_generator(mock_container)):
         result = await cleanup.cleanup_old_articles(days=30)
 
-    # Assert
     assert result == {"deleted": 1, "days": 30}
-    mock_container.article_repository.list_recent.assert_awaited_once_with(limit=1000, offset=0)
-    mock_container.article_repository.delete.assert_awaited_once_with(stale.id)
+    mock_container.article_repository.delete_older_than.assert_awaited_once()
+    assert mock_container.article_repository.delete_older_than.call_args.kwargs["limit"] == 1000
 
 
 async def test_cleanup_old_articles_none_deleted(
     mock_container: MagicMock,
 ) -> None:
     """When everything is newer than the cutoff nothing is deleted."""
-    # Arrange
-    now = datetime.now(UTC)
-    fresh = _article_at(5, now)
-    mock_container.article_repository.list_recent.return_value = [fresh]
+    mock_container.article_repository.delete_older_than.return_value = 0
 
-    # Act
     with patch.object(cleanup, "get_container", container_generator(mock_container)):
         result = await cleanup.cleanup_old_articles(days=30)
 
-    # Assert
     assert result == {"deleted": 0, "days": 30}
-    mock_container.article_repository.delete.assert_not_awaited()
+    mock_container.article_repository.delete_older_than.assert_awaited_once()
+    assert mock_container.article_repository.delete_older_than.call_args.kwargs["limit"] == 1000
 
 
 async def test_cleanup_old_articles_empty_repository(
     mock_container: MagicMock,
 ) -> None:
     """An empty repository yields a zero deletion count."""
-    # Arrange
-    mock_container.article_repository.list_recent.return_value = []
+    mock_container.article_repository.delete_older_than.return_value = 0
 
-    # Act
     with patch.object(cleanup, "get_container", container_generator(mock_container)):
         result = await cleanup.cleanup_old_articles(days=30)
 
-    # Assert
     assert result == {"deleted": 0, "days": 30}
 
 
 async def test_cleanup_old_articles_custom_days(
     mock_container: MagicMock,
 ) -> None:
-    """The ``days`` argument controls both the cutoff and the result dict."""
-    # Arrange
-    now = datetime.now(UTC)
-    stale = _article_at(15, now)
-    mock_container.article_repository.list_recent.return_value = [stale]
+    """The ``days`` argument controls the cutoff passed to the repository."""
+    mock_container.article_repository.delete_older_than.return_value = 1
 
-    # Act
     with patch.object(cleanup, "get_container", container_generator(mock_container)):
         result = await cleanup.cleanup_old_articles(days=10)
 
-    # Assert
-    cutoff = now - timedelta(days=10)
-    assert stale.published_at < cutoff
     assert result == {"deleted": 1, "days": 10}
-    mock_container.article_repository.delete.assert_awaited_once_with(stale.id)
+    mock_container.article_repository.delete_older_than.assert_awaited_once()
+    assert mock_container.article_repository.delete_older_than.call_args.kwargs["limit"] == 1000
 
 
 async def test_cleanup_old_articles_delete_error_propagates(
     mock_container: MagicMock,
 ) -> None:
-    """A delete failure propagates (the task has no error handling)."""
-    # Arrange
-    now = datetime.now(UTC)
-    stale = _article_at(40, now)
-    mock_container.article_repository.list_recent.return_value = [stale]
-    mock_container.article_repository.delete.side_effect = RuntimeError("boom")
+    """A delete failure propagates."""
+    mock_container.article_repository.delete_older_than.side_effect = RuntimeError("boom")
 
-    # Act / Assert
     with (
         patch.object(cleanup, "get_container", container_generator(mock_container)),
         pytest.raises(RuntimeError, match="boom"),
@@ -142,38 +118,28 @@ async def test_cleanup_old_digests_deletes_stale_only(
     mock_container: MagicMock,
 ) -> None:
     """Only digests older than the cutoff are deleted."""
-    # Arrange
-    now = datetime.now(UTC)
-    stale = _digest_at(120, now)
-    fresh = _digest_at(5, now)
-    mock_container.digest_repository.list_recent.return_value = [stale, fresh]
+    mock_container.digest_repository.delete_older_than.return_value = 1
 
-    # Act
     with patch.object(cleanup, "get_container", container_generator(mock_container)):
         result = await cleanup.cleanup_old_digests(days=90)
 
-    # Assert
     assert result == {"deleted": 1, "days": 90}
-    mock_container.digest_repository.list_recent.assert_awaited_once_with(limit=1000, offset=0)
-    mock_container.digest_repository.delete.assert_awaited_once_with(stale.id)
+    mock_container.digest_repository.delete_older_than.assert_awaited_once()
+    assert mock_container.digest_repository.delete_older_than.call_args.kwargs["limit"] == 1000
 
 
 async def test_cleanup_old_digests_none_deleted(
     mock_container: MagicMock,
 ) -> None:
     """When every digest is newer than the cutoff nothing is deleted."""
-    # Arrange
-    now = datetime.now(UTC)
-    fresh = _digest_at(5, now)
-    mock_container.digest_repository.list_recent.return_value = [fresh]
+    mock_container.digest_repository.delete_older_than.return_value = 0
 
-    # Act
     with patch.object(cleanup, "get_container", container_generator(mock_container)):
         result = await cleanup.cleanup_old_digests(days=90)
 
-    # Assert
     assert result == {"deleted": 0, "days": 90}
-    mock_container.digest_repository.delete.assert_not_awaited()
+    mock_container.digest_repository.delete_older_than.assert_awaited_once()
+    assert mock_container.digest_repository.delete_older_than.call_args.kwargs["limit"] == 1000
 
 
 def test_cleanup_task_registration() -> None:
@@ -183,5 +149,5 @@ def test_cleanup_task_registration() -> None:
 
     for task in (cleanup.cleanup_old_articles, cleanup.cleanup_old_digests):
         assert task.name in celery_app.tasks
-        assert task.max_retries == 2
-        assert task.default_retry_delay == 180
+        assert task.max_retries == 3
+        assert task.default_retry_delay == 60

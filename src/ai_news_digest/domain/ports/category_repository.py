@@ -36,6 +36,8 @@ class CategoryRepository(ABC):
     @abstractmethod
     async def list_all(
         self,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> list[Category]:
         raise NotImplementedError
 
@@ -51,4 +53,13 @@ class CategoryRepository(ABC):
         self,
         category_id: UUID,
     ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def count(
+        self,
+    ) -> int:
+        """
+        Return the total number of categories.
+        """
         raise NotImplementedError

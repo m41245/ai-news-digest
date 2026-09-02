@@ -1,17 +1,53 @@
 from __future__ import annotations
 
+import time
+from collections.abc import Awaitable
 from uuid import UUID
 
-from celery.utils.log import get_task_logger
-
 from ai_news_digest.core.logging import get_logger
+from ai_news_digest.core.metrics import (
+    record_article_processed,
+    record_celery_task_duration,
+    record_celery_task_failure,
+    record_celery_task_success,
+)
 from ai_news_digest.domain.enums.article_status import ArticleStatus
 from ai_news_digest.domain.ports.article_repository import ArticleRepository
 from ai_news_digest.workers._container import get_container
 from ai_news_digest.workers.celery_app import celery_app
 
-task_logger = get_task_logger(__name__)
 logger = get_logger(__name__)
+
+
+async def _record_task_outcome(
+    task_name: str,
+    impl_coro: Awaitable[object],
+    *,
+    count_article_on_completed: bool = False,
+) -> object:
+    """Run a task implementation while recording Celery and article metrics."""
+    start = time.monotonic()
+    try:
+        result = await impl_coro
+        if (
+            count_article_on_completed
+            and isinstance(result, dict)
+            and result.get("status") == "completed"
+        ):
+            record_article_processed(1)
+        await record_celery_task_success(task_name)
+        return result
+    except Exception as exc:
+        logger.error(
+            "Task failed",
+            task=task_name,
+            error=str(exc),
+            exc_info=True,
+        )
+        await record_celery_task_failure(task_name)
+        raise
+    finally:
+        await record_celery_task_duration(task_name, time.monotonic() - start)
 
 
 async def _summarize_article_impl(article_id: UUID) -> dict[str, str]:
@@ -126,8 +162,6 @@ async def _process_article_impl(article_id: UUID) -> dict[str, str]:
             )
             return {"status": "not_found"}
 
-        from ai_news_digest.domain.enums.article_status import ArticleStatus
-
         if article.status not in (ArticleStatus.NEW, ArticleStatus.SUMMARIZED):
             logger.info(
                 "Article already fully processed, skipping",
@@ -162,11 +196,9 @@ async def _summarize_pending_articles_impl() -> dict[str, int]:
 
     async for container in get_container():
         article_repository: ArticleRepository = container.article_repository
-        recent_articles = await article_repository.list_recent(limit=100)
-
-        pending_articles = [
-            article for article in recent_articles if article.status == ArticleStatus.NEW
-        ]
+        pending_articles = await article_repository.list_by_status(
+            ArticleStatus.NEW, limit=100
+        )
 
         if not pending_articles:
             logger.info("No pending articles found for summarization")
@@ -195,11 +227,9 @@ async def _categorize_pending_articles_impl() -> dict[str, int]:
 
     async for container in get_container():
         article_repository: ArticleRepository = container.article_repository
-        recent_articles = await article_repository.list_recent(limit=100)
-
-        ready_articles = [
-            article for article in recent_articles if article.status == ArticleStatus.SUMMARIZED
-        ]
+        ready_articles = await article_repository.list_by_status(
+            ArticleStatus.SUMMARIZED, limit=100
+        )
 
         if not ready_articles:
             logger.info("No ready articles found for categorization")
@@ -223,7 +253,7 @@ async def _categorize_pending_articles_impl() -> dict[str, int]:
 @celery_app.task(
     name="workers.tasks.process.summarize_article",
     max_retries=3,
-    default_retry_delay=120,
+    default_retry_delay=60,
 )
 async def summarize_article(article_id: UUID) -> dict[str, str]:
     """
@@ -231,22 +261,17 @@ async def summarize_article(article_id: UUID) -> dict[str, str]:
 
     This task is idempotent and can be safely retried.
     """
-    try:
-        return await _summarize_article_impl(article_id)
-    except Exception as exc:
-        logger.error(
-            "Article summarization failed",
-            article_id=str(article_id),
-            error=str(exc),
-            exc_info=True,
-        )
-        raise
+    return await _record_task_outcome(  # type: ignore[return-value]
+        "workers.tasks.process.summarize_article",
+        _summarize_article_impl(article_id),
+        count_article_on_completed=True,
+    )
 
 
 @celery_app.task(
     name="workers.tasks.process.categorize_article",
     max_retries=3,
-    default_retry_delay=120,
+    default_retry_delay=60,
 )
 async def categorize_article(article_id: UUID) -> dict[str, str]:
     """
@@ -254,22 +279,17 @@ async def categorize_article(article_id: UUID) -> dict[str, str]:
 
     This task is idempotent and can be safely retried.
     """
-    try:
-        return await _categorize_article_impl(article_id)
-    except Exception as exc:
-        logger.error(
-            "Article categorization failed",
-            article_id=str(article_id),
-            error=str(exc),
-            exc_info=True,
-        )
-        raise
+    return await _record_task_outcome(  # type: ignore[return-value]
+        "workers.tasks.process.categorize_article",
+        _categorize_article_impl(article_id),
+        count_article_on_completed=True,
+    )
 
 
 @celery_app.task(
     name="workers.tasks.process.process_article",
     max_retries=3,
-    default_retry_delay=120,
+    default_retry_delay=60,
 )
 async def process_article(article_id: UUID) -> dict[str, str]:
     """
@@ -277,20 +297,17 @@ async def process_article(article_id: UUID) -> dict[str, str]:
 
     This task is idempotent and can be safely retried.
     """
-    try:
-        return await _process_article_impl(article_id)
-    except Exception as exc:
-        logger.error(
-            "Article processing failed",
-            article_id=str(article_id),
-            error=str(exc),
-            exc_info=True,
-        )
-        raise
+    return await _record_task_outcome(  # type: ignore[return-value]
+        "workers.tasks.process.process_article",
+        _process_article_impl(article_id),
+        count_article_on_completed=True,
+    )
 
 
 @celery_app.task(
     name="workers.tasks.process.summarize_pending_articles",
+    max_retries=3,
+    default_retry_delay=60,
 )
 async def summarize_pending_articles() -> dict[str, int]:
     """
@@ -298,19 +315,16 @@ async def summarize_pending_articles() -> dict[str, int]:
 
     This task chains individual summarization tasks for each article.
     """
-    try:
-        return await _summarize_pending_articles_impl()
-    except Exception as exc:
-        logger.error(
-            "Batch summarization failed",
-            error=str(exc),
-            exc_info=True,
-        )
-        raise
+    return await _record_task_outcome(  # type: ignore[return-value]
+        "workers.tasks.process.summarize_pending_articles",
+        _summarize_pending_articles_impl(),
+    )
 
 
 @celery_app.task(
     name="workers.tasks.process.categorize_pending_articles",
+    max_retries=3,
+    default_retry_delay=60,
 )
 async def categorize_pending_articles() -> dict[str, int]:
     """
@@ -318,15 +332,10 @@ async def categorize_pending_articles() -> dict[str, int]:
 
     This task chains individual categorization tasks for each article.
     """
-    try:
-        return await _categorize_pending_articles_impl()
-    except Exception as exc:
-        logger.error(
-            "Batch categorization failed",
-            error=str(exc),
-            exc_info=True,
-        )
-        raise
+    return await _record_task_outcome(  # type: ignore[return-value]
+        "workers.tasks.process.categorize_pending_articles",
+        _categorize_pending_articles_impl(),
+    )
 
 
 __all__ = [

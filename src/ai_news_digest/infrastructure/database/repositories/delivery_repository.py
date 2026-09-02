@@ -135,5 +135,22 @@ class DeliveryRepository(
         await self._session.refresh(model)
         return DigestDeliveryMapper.to_domain(model)
 
+    async def delete(
+        self,
+        delivery_id: UUID,
+    ) -> None:
+        """
+        Delete a delivery record.
+        """
+        statement = select(DigestDeliveryModel).where(
+            DigestDeliveryModel.id == str(delivery_id),
+        )
+        result = await self._session.execute(statement)
+        model = result.scalar_one_or_none()
+        if model is None:
+            raise ResourceNotFoundError(f"Delivery with id '{delivery_id}' was not found.")
+        await self._session.delete(model)
+        await self._commit()
+
 
 __all__ = ["DeliveryRepository"]

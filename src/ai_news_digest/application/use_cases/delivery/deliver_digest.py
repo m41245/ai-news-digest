@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import contextlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
 from ai_news_digest.core.exceptions import ResourceNotFoundError
+from ai_news_digest.core.logging import get_logger
 from ai_news_digest.domain.enums.delivery_status import DeliveryStatus
 from ai_news_digest.domain.models.digest_delivery import DigestDelivery
 from ai_news_digest.domain.ports.delivery_repository import DeliveryRepository
@@ -24,6 +26,8 @@ from ai_news_digest.infrastructure.email.errors import (
 
 if TYPE_CHECKING:
     from ai_news_digest.domain.ports.email_sender import EmailSender
+
+logger = get_logger(__name__)
 
 
 @dataclass(slots=True, frozen=True)
@@ -101,69 +105,124 @@ class DeliverDigestUseCase:
         failed_count = 0
         skipped_count = 0
 
-        for delivery in deliveries:
-            if delivery.status == DeliveryStatus.SENT:
-                skipped_count += 1
-                results.append(
-                    DeliveryResult(
-                        recipient=delivery.recipient,
-                        status=DeliveryStatus.SENT,
+        try:
+            for delivery in deliveries:
+                if delivery.status == DeliveryStatus.SENT:
+                    skipped_count += 1
+                    results.append(
+                        DeliveryResult(
+                            recipient=delivery.recipient,
+                            status=DeliveryStatus.SENT,
+                        )
                     )
-                )
-                continue
+                    continue
 
-            try:
-                await self._email_sender.send(
-                    recipient=delivery.recipient,
-                    subject=email_message.subject,
-                    html=email_message.html_body,
-                    text=email_message.text_body,
-                )
-                delivery.status = DeliveryStatus.SENT
-                delivery.sent_at = datetime.now(UTC)
-                delivery.attempt_count += 1
-                await self._delivery_repository.update(delivery)
-                sent_count += 1
-                results.append(
-                    DeliveryResult(
+                try:
+                    await self._email_sender.send(
                         recipient=delivery.recipient,
-                        status=DeliveryStatus.SENT,
+                        subject=email_message.subject,
+                        html=email_message.html_body,
+                        text=email_message.text_body,
                     )
-                )
-            except EmailInvalidRecipientError as exc:
-                delivery.status = DeliveryStatus.FAILED
-                delivery.failed_at = datetime.now(UTC)
-                delivery.failure_reason = str(exc)
-                delivery.attempt_count += 1
-                await self._delivery_repository.update(delivery)
-                failed_count += 1
-                results.append(
-                    DeliveryResult(
-                        recipient=delivery.recipient,
-                        status=DeliveryStatus.FAILED,
-                        failure_reason=str(exc),
+                    delivery.status = DeliveryStatus.SENT
+                    delivery.sent_at = datetime.now(UTC)
+                    delivery.attempt_count += 1
+                    await self._delivery_repository.update(delivery)
+                    sent_count += 1
+                    results.append(
+                        DeliveryResult(
+                            recipient=delivery.recipient,
+                            status=DeliveryStatus.SENT,
+                        )
                     )
-                )
-            except EmailPermanentFailureError as exc:
-                delivery.status = DeliveryStatus.FAILED
-                delivery.failed_at = datetime.now(UTC)
-                delivery.failure_reason = str(exc)
-                delivery.attempt_count += 1
-                await self._delivery_repository.update(delivery)
-                failed_count += 1
-                results.append(
-                    DeliveryResult(
-                        recipient=delivery.recipient,
-                        status=DeliveryStatus.FAILED,
-                        failure_reason=str(exc),
+                except EmailInvalidRecipientError as exc:
+                    delivery.status = DeliveryStatus.FAILED
+                    delivery.failed_at = datetime.now(UTC)
+                    delivery.failure_reason = str(exc)
+                    delivery.attempt_count += 1
+                    await self._delivery_repository.update(delivery)
+                    failed_count += 1
+                    results.append(
+                        DeliveryResult(
+                            recipient=delivery.recipient,
+                            status=DeliveryStatus.FAILED,
+                            failure_reason=str(exc),
+                        )
                     )
-                )
-            except (EmailAuthenticationError, EmailConfigurationError) as exc:
-                for d in deliveries:
-                    if d.status == DeliveryStatus.PENDING:
+                except EmailPermanentFailureError as exc:
+                    delivery.status = DeliveryStatus.FAILED
+                    delivery.failed_at = datetime.now(UTC)
+                    delivery.failure_reason = str(exc)
+                    delivery.attempt_count += 1
+                    await self._delivery_repository.update(delivery)
+                    failed_count += 1
+                    results.append(
+                        DeliveryResult(
+                            recipient=delivery.recipient,
+                            status=DeliveryStatus.FAILED,
+                            failure_reason=str(exc),
+                        )
+                    )
+                except (EmailAuthenticationError, EmailConfigurationError) as exc:
+                    for d in deliveries:
+                        if d.status == DeliveryStatus.PENDING:
+                            try:
+                                d.status = DeliveryStatus.FAILED
+                                d.failed_at = datetime.now(UTC)
+                                d.failure_reason = f"System error: {exc}"
+                                d.attempt_count += 1
+                                await self._delivery_repository.update(d)
+                                failed_count += 1
+                                results.append(
+                                    DeliveryResult(
+                                        recipient=d.recipient,
+                                        status=DeliveryStatus.FAILED,
+                                        failure_reason=d.failure_reason,
+                                    )
+                                )
+                            except Exception:
+                                failed_count += 1
+                                results.append(
+                                    DeliveryResult(
+                                        recipient=d.recipient,
+                                        status=DeliveryStatus.FAILED,
+                                        failure_reason=f"System error: {exc} (update failed)",
+                                    )
+                                )
+                    return DeliverySummary(
+                        digest_id=digest_id,
+                        total_recipients=len(self._recipients),
+                        sent_count=sent_count,
+                        failed_count=failed_count,
+                        skipped_count=skipped_count,
+                        results=results,
+                        has_system_error=True,
+                        system_error=str(exc),
+                    )
+                except (
+                    EmailConnectionError,
+                    EmailTimeoutError,
+                    EmailRateLimitError,
+                ) as exc:
+                    try:
+                        delivery.attempt_count += 1
+                        await self._delivery_repository.increment_attempt(delivery.id)
+                    except Exception:
+                        logger.debug(
+                            "delivery_increment_attempt_failed",
+                            recipient=delivery.recipient,
+                            exc_info=True,
+                        )
+                    raise EmailError(
+                        f"Transient delivery failure for '{delivery.recipient}': {exc}"
+                    ) from exc
+        except Exception:
+            for d in deliveries:
+                if d.status == DeliveryStatus.PENDING:
+                    try:
                         d.status = DeliveryStatus.FAILED
                         d.failed_at = datetime.now(UTC)
-                        d.failure_reason = f"System error: {exc}"
+                        d.failure_reason = "System error: operation failed unexpectedly"
                         d.attempt_count += 1
                         await self._delivery_repository.update(d)
                         failed_count += 1
@@ -174,26 +233,16 @@ class DeliverDigestUseCase:
                                 failure_reason=d.failure_reason,
                             )
                         )
-                return DeliverySummary(
-                    digest_id=digest_id,
-                    total_recipients=len(self._recipients),
-                    sent_count=sent_count,
-                    failed_count=failed_count,
-                    skipped_count=skipped_count,
-                    results=results,
-                    has_system_error=True,
-                    system_error=str(exc),
-                )
-            except (
-                EmailConnectionError,
-                EmailTimeoutError,
-                EmailRateLimitError,
-            ) as exc:
-                delivery.attempt_count += 1
-                await self._delivery_repository.increment_attempt(delivery.id)
-                raise EmailError(
-                    f"Transient delivery failure for '{delivery.recipient}': {exc}"
-                ) from exc
+                    except Exception:
+                        failed_count += 1
+                        results.append(
+                            DeliveryResult(
+                                recipient=d.recipient,
+                                status=DeliveryStatus.FAILED,
+                                failure_reason="System error: update failed",
+                            )
+                        )
+            raise
 
         return DeliverySummary(
             digest_id=digest_id,
@@ -211,21 +260,33 @@ class DeliverDigestUseCase:
         """
         Return existing delivery records for the digest, creating any that
         are missing. The order matches the configured recipient list.
+
+        If creation fails after some deliveries were persisted, the
+        newly-created deliveries are removed so the operation can be
+        retried cleanly.
         """
         deliveries: list[DigestDelivery] = []
-        for recipient in self._recipients:
-            existing = await self._delivery_repository.get_by_digest_and_recipient(
-                digest_id, recipient
-            )
-            if existing is not None:
-                deliveries.append(existing)
-            else:
-                delivery = DigestDelivery.create(
-                    digest_id=digest_id,
-                    recipient=recipient,
+        created_ids: list[UUID] = []
+        try:
+            for recipient in self._recipients:
+                existing = await self._delivery_repository.get_by_digest_and_recipient(
+                    digest_id, recipient
                 )
-                delivery = await self._delivery_repository.create(delivery)
-                deliveries.append(delivery)
+                if existing is not None:
+                    deliveries.append(existing)
+                else:
+                    delivery = DigestDelivery.create(
+                        digest_id=digest_id,
+                        recipient=recipient,
+                    )
+                    delivery = await self._delivery_repository.create(delivery)
+                    deliveries.append(delivery)
+                    created_ids.append(delivery.id)
+        except Exception:
+            for delivery_id in created_ids:
+                with contextlib.suppress(Exception):
+                    await self._delivery_repository.delete(delivery_id)
+            raise
         return deliveries
 
 

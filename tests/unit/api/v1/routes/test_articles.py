@@ -52,7 +52,8 @@ def client(mock_container: MagicMock, mock_user: User) -> TestClient:
     app.dependency_overrides[get_container] = lambda: mock_container
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
     setup_exception_handlers(app)
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 def test_list_articles_default_params(client: TestClient, mock_container: MagicMock) -> None:
@@ -122,7 +123,7 @@ def test_get_article_not_found(client: TestClient, mock_container: MagicMock) ->
 
     assert response.status_code == 404
     data = response.json()
-    assert "not found" in data["detail"].lower()
+    assert "not found" in data["message"].lower()
 
 
 def test_create_article(client: TestClient, mock_container: MagicMock) -> None:
@@ -198,4 +199,4 @@ def test_delete_article_not_found(client: TestClient, mock_container: MagicMock)
 
     assert response.status_code == 404
     data = response.json()
-    assert "not found" in data["detail"].lower()
+    assert "not found" in data["message"].lower()

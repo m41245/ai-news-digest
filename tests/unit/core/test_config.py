@@ -37,6 +37,7 @@ def test_settings_custom_values() -> None:
         app_version="1.0.0",
         environment="production",
         debug=True,
+        jwt_secret_key="a" * 64,
     )
 
     assert test_settings.app_name == "Custom App"
@@ -192,3 +193,127 @@ def test_settings_instance_exists() -> None:
     """Test that global settings instance exists."""
     assert settings is not None
     assert isinstance(settings, Settings)
+
+
+def test_jwt_secret_rejects_weak_defaults() -> None:
+    """Test that JWT secret rejects known weak defaults in production."""
+    weak_secrets = [
+        "change-me",
+        "changeme",
+        "secret",
+        "dev-secret-key-change-me-in-production",
+        "replace-me-with-a-secure-random-string-at-least-32-chars",
+        "your-secret-key-here",
+        "insecure",
+        "password",
+        "12345678901234567890123456789012",
+    ]
+    for weak_secret in weak_secrets:
+        with pytest.raises(ValidationError, match="JWT_SECRET_KEY must be set to a secure value"):
+            Settings(
+                database_url="postgresql://test",
+                redis_url="redis://test",
+                celery_broker_url="redis://broker",
+                celery_result_backend="redis://backend",
+                environment="production",
+                jwt_secret_key=weak_secret,
+            )
+
+
+def test_jwt_secret_rejects_placeholder_patterns() -> None:
+    """Test that JWT secret rejects placeholder patterns in production."""
+    placeholder_secrets = [
+        "change_me_to_a_secure_random_key_at_least_32_chars",
+        "changeme_to_a_secure_random_key_at_least_32_chars",
+        "change-me-to-a-secure-random-key-at-least-32-chars",
+        "replace-me-with-a-secure-random-key-at-least-32-chars",
+        "replace_me_with_a_secure_random_key_at_least_32_chars",
+        "please-replace-with-openssl-rand-hex-32-in-production",
+        "please-replace-with-openssl-rand-hex-32",
+        "test-secret-key-for-local-verification-only",
+        "test_secret_key_for_local_verification_only",
+        "placeholder-jwt-secret-key-for-testing-purposes",
+        "your-secret-key-here-for-production",
+        "your_secret_key_here_for_production",
+        "dev-secret-key-for-testing-only",
+        "dev_secret_key_for_testing_only",
+        "please-replace-with-a-secure-random-string-at-least-32-chars",
+        "do-not-use-in-production-key-1234567890123456789012",
+        "local-prod-verification-key-123456789012345678901234",
+        "local-dev-fake-key-not-for-production-use-only-1234567890",
+        "fake-key-for-testing-not-secure-enough-at-all-yes",
+    ]
+    for placeholder in placeholder_secrets:
+        with pytest.raises(ValidationError, match="JWT_SECRET_KEY must be set to a secure value"):
+            Settings(
+                database_url="postgresql://test",
+                redis_url="redis://test",
+                celery_broker_url="redis://broker",
+                celery_result_backend="redis://backend",
+                environment="production",
+                jwt_secret_key=placeholder,
+            )
+
+
+def test_jwt_secret_rejects_short_values() -> None:
+    """Test that JWT secret rejects values shorter than 32 characters in production."""
+    with pytest.raises(ValidationError, match="at least 32 characters long"):
+        Settings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            environment="production",
+            jwt_secret_key="short-secret-key",  # noqa: S106 - intentional weak secret for test
+        )
+
+
+def test_jwt_secret_accepts_placeholder_in_development() -> None:
+    """Placeholder secrets are accepted in development mode for convenience."""
+    dev_secrets = [
+        "REPLACE_ME_WITH_A_SECURE_RANDOM_KEY_AT_LEAST_32_CHARS",
+        "replace_me_with_a_secure_random_key_at_least_32_chars",
+        "change-me",
+        "please-replace-with-openssl-rand-hex-32-in-production",
+        "please-replace-with-openssl-rand-hex-32",
+        "short",
+    ]
+    for dev_secret in dev_secrets:
+        test_settings = Settings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            environment="development",
+            jwt_secret_key=dev_secret,
+        )
+        assert test_settings.jwt_secret_key == dev_secret
+
+
+def test_jwt_secret_rejects_env_example_placeholder_in_production() -> None:
+    """The .env.example placeholder must be rejected in production/staging/testing."""
+    env_example_placeholders = [
+        "please-replace-with-openssl-rand-hex-32-in-production",
+        "please-replace-with-openssl-rand-hex-32",
+    ]
+    for placeholder in env_example_placeholders:
+        with pytest.raises(ValidationError, match="JWT_SECRET_KEY must be set to a secure value"):
+            Settings(
+                database_url="postgresql://test",
+                redis_url="redis://test",
+                celery_broker_url="redis://broker",
+                celery_result_backend="redis://backend",
+                environment="production",
+                jwt_secret_key=placeholder,
+            )
+
+
+def test_jwt_secret_accepts_strong_random_value() -> None:
+    """Test that JWT secret accepts a strong random value."""
+    strong_secret = "a" * 64
+    test_settings = Settings(
+        database_url="postgresql://test",
+        redis_url="redis://test",
+        jwt_secret_key=strong_secret,
+    )
+    assert test_settings.jwt_secret_key == strong_secret

@@ -4,7 +4,7 @@ A production-oriented AI-powered news aggregation and daily digest platform buil
 
 The project is designed to collect articles from multiple RSS sources, organize and categorize them, generate AI-powered summaries, and produce high-quality daily news digests through a scalable and maintainable architecture.
 
-> **Project Status:** Milestone 10 — Production Deployment & Go-Live ✅
+> **Project Status:** Milestone 28 — Final Production Deployment, Launch Verification & Project Closure 🔄
 
 ---
 
@@ -34,7 +34,7 @@ The project is designed to collect articles from multiple RSS sources, organize 
 * Digest generation pipeline (HTML, Markdown, PDF)
 * Email delivery via SMTP
 * Docker deployment with docker-compose
-* Comprehensive automated testing (819 unit + 14 integration + 15 E2E tests)
+* Comprehensive automated testing (1043+ unit + integration + E2E tests)
 * Digest generation with Markdown, HTML, and PDF renderers
 * Deterministic digest content grouping by source/category
  * Idempotent digest creation via unique title constraint
@@ -48,7 +48,74 @@ The project is designed to collect articles from multiple RSS sources, organize 
  * On-demand digest delivery task (`send_digest_email`)
  * Delivery tracking with attempt counts and failure reasons
 
-## Milestone 7 — API & Dashboard
+## Milestone 11 — UI/UX & Frontend
+
+* React + TypeScript + Vite SPA scaffolded
+* Tailwind CSS design system and component layer
+* Public API routes and schemas added
+* Public pages: landing, news, article detail, digests, digest detail, categories
+* Authentication flow (login/register)
+* User dashboard
+* Admin interface (dashboard, users, sources, digests, operations)
+* Frontend tests (Vitest + React Testing Library)
+* Frontend production build passing
+
+## Milestone 12 — Production Frontend Integration
+
+* Production frontend Docker container (multi-stage Node + Nginx)
+* Frontend integrated into `docker-compose.prod.yml`
+* Environment-variable-driven API base URL configuration
+* Reverse proxy documentation updated for frontend + API routing
+* SEO foundation (meta tags, canonical URLs, robots.txt, Open Graph)
+* Responsive mobile/tablet/desktop layouts verified
+* Security review completed (no secrets in frontend, safe token handling)
+* End-to-end production verification completed
+
+## Milestone 13 — Production Monitoring
+
+* Comprehensive monitoring strategy documentation (`docs/MONITORING.md`)
+* Alert conditions defined for 12 critical monitoring targets:
+  * Application availability
+  * Readiness failures
+  * HTTP 5xx rate
+  * HTTP latency
+  * Database availability
+  * Redis availability
+  * Celery worker health
+  * Celery task failures
+  * Disk usage
+  * Memory usage
+  * CPU usage
+  * Container restart count
+* Operational runbook with 12 procedures (`docs/RUNBOOK.md`)
+* Deployment, rollback, and restart procedures documented
+* Health diagnosis and incident investigation procedures documented
+* Database outage, Redis outage, and Celery failure response procedures
+* Backup restoration and secret rotation procedures
+* Certificate renewal and frontend failure procedures
+* Updated deployment documentation (`docs/DEPLOYMENT.md`)
+
+## Milestone 20 — Production Launch Preparation & Product Completion
+
+* Frontend/UI/UX review completed across all public, authenticated, and admin pages
+* Accessibility review completed: skip links, semantic HTML, ARIA labels, focus management
+* SEO foundations enhanced: `sitemap.xml` added, `robots.txt` updated with sitemap reference
+* Privacy Policy page added (`/privacy`) with comprehensive data protection content
+* Terms of Service page added (`/terms`) with full legal terms
+* Data Retention Policy documentation (`docs/DATA_RETENTION_POLICY.md`)
+* Account Deletion Policy documentation (`docs/ACCOUNT_DELETION_POLICY.md`)
+* Footer updated with Privacy Policy and Terms of Service links
+* Frontend tests expanded: 25/25 passing
+* Dependency security scan completed: `python-multipart` upgraded to fix 7 vulnerabilities
+* Production configuration reviewed: all secrets configurable, debug mode disabled
+* Observability reviewed: health endpoints, metrics, pipeline status all operational
+* CI/CD pipeline reviewed: lint, typecheck, tests, coverage, Docker build, security audit
+* Backup/recovery procedures reviewed and documented
+* Rollback procedures documented in `docs/RUNBOOK.md` and `docs/DEPLOYMENT.md`
+
+---
+
+# Tech Stack
 
 * Versioned REST API under `/api/v1`
 * Stateless JWT authentication (login, register, current-user, logout)
@@ -96,6 +163,23 @@ The project is designed to collect articles from multiple RSS sources, organize 
 | Linting               | Ruff              |
 | Testing               | Pytest            |
 
+## Frontend
+
+| Category              | Technology        |
+| --------------------- | ----------------- |
+| Framework             | React 18          |
+| Language              | TypeScript 5      |
+| Build Tool            | Vite 5            |
+| Styling               | Tailwind CSS 3    |
+| State Management      | TanStack React Query 5 |
+| Routing               | React Router 7    |
+| HTTP Client           | Axios             |
+| SEO                   | React Helmet Async |
+| Testing               | Vitest + React Testing Library |
+
+The frontend is a single-page application served via Nginx in production.
+It communicates with the FastAPI backend through the reverse proxy.
+
 ---
 
 # Architecture
@@ -139,7 +223,7 @@ Digest Generation (08:00 UTC)
 Email Delivery (08:30 UTC)
 ```
 
-Scheduled tasks are registered in `workers/beat_schedule.py` and executed by Celery Beat.
+Scheduled tasks are configured inline in `celery_app.py` (`beat_schedule` dict) and executed by Celery Beat.
 
 ---
 
@@ -207,6 +291,32 @@ docker compose up
 ```
 
 The API will be available at `http://localhost:8000`. Celery worker and beat are started automatically.
+
+## Frontend development
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend dev server runs on `http://localhost:3000` and proxies API requests to `http://localhost:8000`.
+
+## Run frontend tests
+
+```bash
+cd frontend
+npm test
+```
+
+## Build frontend for production
+
+```bash
+cd frontend
+npm run build
+```
+
+The production build outputs to `frontend/dist/`.
 
 ---
 
@@ -308,7 +418,7 @@ Current migration chain:
 - `003` — ArticleStatus enum fix (adds `processed`, `ready`)
 - `004` — User `is_admin` column
 - `005` — Digest title unique constraint (idempotency boundary)
-- `006` — Digest status column
+- `006` — Convert `articles.status` from native PostgreSQL enum to VARCHAR
 - `007` — Digest deliveries table (idempotent email delivery tracking)
 
 ---
@@ -411,6 +521,8 @@ Metrics include:
 - `http_error_total` — error counts by route
 - `task_total` — Celery task success/failure counts (in-process only)
 
+For comprehensive monitoring documentation, see [`docs/MONITORING.md`](docs/MONITORING.md).
+
 > Note: `task_total` metrics track task executions within the API server
 > process. When Celery workers run in separate containers, task metrics are
 > not shared across processes. A shared backend (e.g., Redis or Prometheus
@@ -444,12 +556,12 @@ to `main`/`master` across these stages:
 
 1. **Lint** — Ruff lint and format checks
 2. **Type Check** — MyPy strict type checking
-3. **Unit Tests** — 819 tests with mocked dependencies
-4. **Integration Tests** — 14 tests using testcontainers (PostgreSQL + Redis)
-5. **Coverage** — Full suite with 80% coverage threshold
+3. **Unit Tests** — 1024+ tests with mocked dependencies
+4. **Integration Tests** — 16 tests using testcontainers (PostgreSQL + Redis)
+5. **Coverage** — Full suite with 88%+ coverage
 6. **Docker Build** — Multi-stage production image build verification
 7. **Security Audit** — `pip-audit` dependency vulnerability scan
-8. **E2E Tests** — 15 end-to-end tests against real PostgreSQL + Redis
+8. **E2E Tests** — 19 end-to-end tests against real PostgreSQL + Redis
 
 The deploy workflow (`.github/workflows/deploy.yml`) triggers on GitHub release
 publication and pushes a Docker image to `ghcr.io/<repository>`.
@@ -496,6 +608,8 @@ A production smoke-test suite is included at `tests/smoke_prod.py`. It covers:
 9. Redis-backed operation
 
 ## Incident and Recovery
+
+For operational procedures and incident response, see the [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
 
 - **Container won't start**: Check `docker compose logs web`
 - **Database connection failed**: Verify `DATABASE_URL` and PostgreSQL health

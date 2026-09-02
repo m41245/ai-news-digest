@@ -48,3 +48,12 @@ class CacheStore(ABC):
         Clear all keys from the cache.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    async def ttl(self, key: str) -> int | None:
+        """
+        Return the remaining time-to-live (in seconds) for a key.
+
+        Returns ``None`` if the key does not exist or has no associated TTL.
+        """
+        raise NotImplementedError

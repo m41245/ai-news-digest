@@ -35,8 +35,15 @@ class UserRepository(ABC):
     @abstractmethod
     async def list_all(
         self,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> list[User]:
-        """Return all users ordered by creation time (oldest first)."""
+        """Return users ordered by creation time (oldest first)."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def count(self) -> int:
+        """Return the total number of users."""
         raise NotImplementedError
 
     @abstractmethod

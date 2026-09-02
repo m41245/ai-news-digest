@@ -4,6 +4,7 @@ Unit tests for the digest deliveries API route.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
@@ -39,13 +40,15 @@ def mock_digest_id() -> object:
     return uuid4()
 
 
-def _client(container: MagicMock, mock_user: User) -> TestClient:
+@contextmanager
+def _client(container: MagicMock, mock_user: User):
     app = FastAPI()
     app.include_router(router)
     app.dependency_overrides[get_container] = lambda: container
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
     setup_exception_handlers(app)
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 def test_list_deliveries(
@@ -76,8 +79,8 @@ def test_list_deliveries(
     container.digest_repository.get_by_id = AsyncMock(return_value=digest)
     container.delivery_repository.list_by_digest = AsyncMock(return_value=[delivery])
 
-    client = _client(container, mock_user)
-    response = client.get(f"/digests/{mock_digest_id}/deliveries")
+    with _client(container, mock_user) as client:
+        response = client.get(f"/digests/{mock_digest_id}/deliveries")
 
     assert response.status_code == 200
     data = response.json()
@@ -93,8 +96,8 @@ def test_list_deliveries_unknown_digest(
     container = MagicMock()
     container.digest_repository.get_by_id = AsyncMock(return_value=None)
 
-    client = _client(container, mock_user)
-    response = client.get(f"/digests/{mock_digest_id}/deliveries")
+    with _client(container, mock_user) as client:
+        response = client.get(f"/digests/{mock_digest_id}/deliveries")
 
     assert response.status_code == 404
 
@@ -103,8 +106,7 @@ def test_list_deliveries_requires_auth(mock_digest_id: object) -> None:
     app = FastAPI()
     app.include_router(router)
     setup_exception_handlers(app)
-    client = TestClient(app)
-
-    response = client.get(f"/digests/{mock_digest_id}/deliveries")
+    with TestClient(app) as client:
+        response = client.get(f"/digests/{mock_digest_id}/deliveries")
 
     assert response.status_code == 401

@@ -212,7 +212,7 @@ async def test_rate_limit_middleware_custom_limit(rate_limit_middleware, mock_ca
 async def test_rate_limit_middleware_handles_redis_outage(
     mock_cache_store,
 ) -> None:
-    """Test middleware allows requests when Redis is unavailable."""
+    """Test middleware returns 503 when Redis is unavailable (fail-closed)."""
     from ai_news_digest.api.middleware.rate_limit import RateLimitMiddleware
     from ai_news_digest.core.exceptions import ExternalServiceError
 
@@ -235,8 +235,32 @@ async def test_rate_limit_middleware_handles_redis_outage(
 
     result = await middleware.dispatch(request, call_next)
 
-    assert result == response
-    call_next.assert_called_once_with(request)
+    assert isinstance(result, JSONResponse)
+    assert result.status_code == 503
+    call_next.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_brute_force_protector_fails_closed_when_redis_down(
+    mock_cache_store,
+) -> None:
+    """Test brute-force protector treats requests as locked when Redis is unavailable."""
+    from ai_news_digest.api.middleware.rate_limit import LoginBruteForceProtector
+    from ai_news_digest.core.exceptions import ExternalServiceError
+
+    protector = LoginBruteForceProtector(
+        cache_store=mock_cache_store,
+        max_attempts=5,
+        window_seconds=900,
+        lockout_base_seconds=300,
+    )
+
+    mock_cache_store.ttl.side_effect = ExternalServiceError("Redis unavailable")
+
+    locked, retry_after = await protector.is_locked_out("test-key")
+
+    assert locked is True
+    assert retry_after == 300
 
 
 __all__ = [

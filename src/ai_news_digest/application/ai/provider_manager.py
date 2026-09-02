@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 from ai_news_digest.application.ai.models import (
     AIRequest,
     AIResponse,
@@ -11,6 +13,11 @@ from ai_news_digest.application.ai.providers.base import (
     AIProvider,
 )
 from ai_news_digest.core.exceptions import ExternalServiceError
+from ai_news_digest.core.metrics import (
+    record_ai_failure,
+    record_ai_latency,
+    record_ai_request,
+)
 
 
 class ProviderManager:
@@ -35,11 +42,18 @@ class ProviderManager:
         last_exception: Exception | None = None
 
         for provider in providers:
+            provider_name = provider.provider_name
+            record_ai_request(provider_name)
+            start = time.monotonic()
             try:
-                return await provider.generate(request)
-
+                response = await provider.generate(request)
             except Exception as exc:
+                record_ai_failure(provider_name)
                 last_exception = exc
+                continue
+
+            record_ai_latency(provider_name, time.monotonic() - start)
+            return response
 
         raise ExternalServiceError("Every AI provider failed.") from last_exception
 

@@ -25,6 +25,8 @@ from ai_news_digest.infrastructure.auth.jwt import create_access_token
 from ai_news_digest.infrastructure.auth.password import hash_password, verify_password
 from ai_news_digest.infrastructure.database.session import get_db_session
 
+_DUMMY_HASH = hash_password("DummyHash1234567890")
+
 router = APIRouter(
     prefix="/auth",
     tags=["Authentication"],
@@ -46,7 +48,11 @@ async def login(
     container = Container(session)
     user = await container.user_repository.get_by_email(request.username)
 
-    if user is None or not verify_password(request.password, user.hashed_password):
+    if user is None:
+        verify_password(request.password, _DUMMY_HASH)
+        raise AuthenticationError("Invalid email or password.")
+
+    if not verify_password(request.password, user.hashed_password):
         raise AuthenticationError("Invalid email or password.")
 
     if not user.is_active:

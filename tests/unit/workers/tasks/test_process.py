@@ -179,8 +179,7 @@ async def test_summarize_pending_articles_queues_new(
     """Only NEW articles are queued via ``summarize_article.delay``."""
     # Arrange
     new = make_article(ArticleStatus.NEW)
-    ready = make_article(ArticleStatus.READY)
-    mock_container.article_repository.list_recent.return_value = [new, ready]
+    mock_container.article_repository.list_by_status.return_value = [new]
 
     # Act
     with (
@@ -191,7 +190,9 @@ async def test_summarize_pending_articles_queues_new(
 
     # Assert
     assert result == {"queued": 1}
-    mock_container.article_repository.list_recent.assert_awaited_once_with(limit=100)
+    mock_container.article_repository.list_by_status.assert_awaited_once_with(
+        ArticleStatus.NEW, limit=100
+    )
     mock_task.delay.assert_called_once_with(new.id)
 
 
@@ -200,8 +201,7 @@ async def test_summarize_pending_articles_none_queued(
 ) -> None:
     """When there are no NEW articles, nothing is queued."""
     # Arrange
-    ready = make_article(ArticleStatus.READY)
-    mock_container.article_repository.list_recent.return_value = [ready]
+    mock_container.article_repository.list_by_status.return_value = []
 
     # Act
     with (
@@ -220,7 +220,7 @@ async def test_summarize_pending_articles_failure_propagates(
 ) -> None:
     """A repository error is re-raised by the task wrapper."""
     # Arrange
-    mock_container.article_repository.list_recent.side_effect = RuntimeError("boom")
+    mock_container.article_repository.list_by_status.side_effect = RuntimeError("boom")
 
     # Act / Assert
     with (
@@ -241,8 +241,7 @@ async def test_categorize_pending_articles_queues_summarized(
     """Only SUMMARIZED articles are queued via ``categorize_article.delay``."""
     # Arrange
     summarized = make_article(ArticleStatus.SUMMARIZED)
-    new = make_article(ArticleStatus.NEW)
-    mock_container.article_repository.list_recent.return_value = [summarized, new]
+    mock_container.article_repository.list_by_status.return_value = [summarized]
 
     # Act
     with (
@@ -253,7 +252,9 @@ async def test_categorize_pending_articles_queues_summarized(
 
     # Assert
     assert result == {"queued": 1}
-    mock_container.article_repository.list_recent.assert_awaited_once_with(limit=100)
+    mock_container.article_repository.list_by_status.assert_awaited_once_with(
+        ArticleStatus.SUMMARIZED, limit=100
+    )
     mock_task.delay.assert_called_once_with(summarized.id)
 
 
@@ -262,8 +263,7 @@ async def test_categorize_pending_articles_none_queued(
 ) -> None:
     """When there are no SUMMARIZED articles, nothing is queued."""
     # Arrange
-    new = make_article(ArticleStatus.NEW)
-    mock_container.article_repository.list_recent.return_value = [new]
+    mock_container.article_repository.list_by_status.return_value = []
 
     # Act
     with (
@@ -362,7 +362,7 @@ def test_process_task_registration() -> None:
     ):
         assert task.name in celery_app.tasks
         assert task.max_retries == 3
-        assert task.default_retry_delay == 120
+        assert task.default_retry_delay == 60
 
     for task in (
         process.summarize_pending_articles,

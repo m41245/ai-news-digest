@@ -2,18 +2,20 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+import structlog
 from celery import Celery
 from celery.app.task import _task_stack
+from celery.schedules import crontab
+from celery.signals import task_postrun, task_prerun, task_retry
 
 from ai_news_digest.core.config import settings
+from ai_news_digest.core.metrics import record_celery_task_retry
 
 if TYPE_CHECKING:
 
     class Task:
-        """Celery task base class."""
-
         abstract: bool
 
         def run(self, *args: object, **kwargs: object) -> object: ...
@@ -28,18 +30,8 @@ else:
 
 
 class AwaitableTask(Task):
-    """Celery task base class that executes coroutine task functions.
-
-    Celery does not natively await coroutine task functions, so this base
-    class detects a coroutine returned by ``run`` and runs it to completion
-    with :func:`asyncio.run` before the result is stored.
-
-    When an event loop is already running (for example during tests or
-    inside certain async frameworks), the coroutine is returned directly
-    so the caller can await it.
-    """
-
     abstract = True
+    _background_loop: asyncio.AbstractEventLoop | None = None
 
     def __call__(self, *args: object, **kwargs: object) -> object:
         _task_stack.push(self)
@@ -50,12 +42,63 @@ class AwaitableTask(Task):
                 try:
                     asyncio.get_running_loop()
                 except RuntimeError:
-                    return asyncio.run(result)
+                    if self._background_loop is None or self._background_loop.is_closed():
+                        self._background_loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(self._background_loop)
+                    return self._background_loop.run_until_complete(result)
                 return result
             return result
         finally:
             self.pop_request()
             _task_stack.pop()
+
+
+@task_prerun.connect
+def bind_task_id_on_start(
+    sender: Any = None,
+    task_id: str | None = None,
+    task: Any = None,
+    **kwargs: object,
+) -> None:
+    structlog.contextvars.bind_contextvars(task_id=task_id)
+
+
+@task_postrun.connect
+def unbind_task_id_on_end(
+    sender: Any = None,
+    task_id: str | None = None,
+    task: Any = None,
+    **kwargs: object,
+) -> None:
+    structlog.contextvars.unbind_contextvars("task_id")
+
+
+@task_retry.connect
+def log_task_retry(
+    sender: Any = None,
+    task_id: str | None = None,
+    exception: BaseException | None = None,
+    einfo: Any = None,
+    **kwargs: object,
+) -> None:
+    """Log when a task is being retried, including backoff delay."""
+    retries = getattr(sender, "request", None)
+    retry_count = retries.retries if retries else 0
+    structlog.get_logger().warning(
+        "Task retry scheduled",
+        task_id=task_id,
+        task=sender.name if sender else None,
+        retry_count=retry_count,
+        exception=str(exception) if exception else None,
+    )
+    try:
+        loop = asyncio.get_running_loop()
+        if loop.is_running():
+            loop.create_task(  # noqa: RUF006
+                record_celery_task_retry(str(sender.name) if sender and sender.name else "")
+            )
+    except RuntimeError:
+        pass
 
 
 celery_app = Celery(
@@ -87,12 +130,59 @@ celery_app.conf.update(
     task_reject_on_worker_lost=True,
     task_default_retry_delay=60,
     task_max_retries=3,
+    task_retry_delay=lambda retries: 60 * (2 ** (retries - 1)),
+    worker_cancel_long_running_tasks_on_connection_loss=True,
+    worker_shutdown_timeout=30,
+    worker_term_timeout=30,
+    beat_max_loop_interval=60,
+    worker_send_task_events=True,
+    task_send_sent_event=True,
+    beat_schedule={
+        "daily-rss-ingestion": {
+            "task": "workers.tasks.ingest.fetch_all_sources",
+            "schedule": crontab(hour=6, minute=0),
+            "options": {
+                "expires": 3600,
+                "send_events": True,
+            },
+        },
+        "daily-article-summarization": {
+            "task": "workers.tasks.process.summarize_pending_articles",
+            "schedule": crontab(hour=6, minute=30),
+            "options": {
+                "expires": 7200,
+                "send_events": True,
+            },
+        },
+        "daily-article-categorization": {
+            "task": "workers.tasks.process.categorize_pending_articles",
+            "schedule": crontab(hour=7, minute=0),
+            "options": {
+                "expires": 7200,
+                "send_events": True,
+            },
+        },
+        "daily-digest-generation": {
+            "task": "workers.tasks.digest.generate_daily_digest",
+            "schedule": crontab(
+                hour=settings.digest_schedule_hour,
+                minute=settings.digest_schedule_minute,
+            ),
+            "options": {
+                "expires": 3600,
+                "send_events": True,
+            },
+        },
+        "daily-email-delivery": {
+            "task": "workers.tasks.deliver.send_latest_digest",
+            "schedule": crontab(hour=8, minute=30),
+            "options": {
+                "expires": 3600,
+                "send_events": True,
+            },
+        },
+    },
 )
 
-# Load beat schedule so scheduled tasks are registered.
-from ai_news_digest.workers.beat_schedule import celery_app as _beat_app  # noqa: E402
-
-if _beat_app is not celery_app:
-    raise RuntimeError("Beat schedule must configure the same Celery app.")
 
 __all__ = ["celery_app"]

@@ -36,7 +36,8 @@ def client(mock_user: User) -> TestClient:
     app.include_router(router)
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
     setup_exception_handlers(app)
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 @pytest.fixture
@@ -44,7 +45,8 @@ def unauth_client() -> TestClient:
     app = FastAPI()
     app.include_router(router)
     setup_exception_handlers(app)
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 def test_get_me(client: TestClient, mock_user: User) -> None:
@@ -68,14 +70,24 @@ def _patch_users_deps(
     client: TestClient,
     mock_session: MagicMock,
     mock_container: MagicMock,
-) -> None:
+):
     import ai_news_digest.api.v1.routes.users as users_module
 
     async def _gen() -> MagicMock:
         yield mock_session
 
     client.app.dependency_overrides[users_module.get_db_session] = lambda: _gen()
+    original_container = getattr(users_module, "Container", None)
     users_module.Container = lambda s: mock_container  # type: ignore[misc]
+
+    def _restore() -> None:
+        if original_container is not None:
+            users_module.Container = original_container
+        else:
+            if hasattr(users_module, "Container"):
+                delattr(users_module, "Container")
+
+    return _restore
 
 
 def test_update_me_password(client: TestClient, mock_user: User) -> None:
@@ -92,9 +104,11 @@ def test_update_me_password(client: TestClient, mock_user: User) -> None:
     mock_container = MagicMock()
     mock_container.user_repository.get_by_id = AsyncMock(return_value=mock_user)
     mock_container.user_repository.update = AsyncMock(return_value=updated)
-    _patch_users_deps(client, mock_session, mock_container)
-
-    response = client.patch("/users/me", json={"password": "NewPassword123"})
+    restore = _patch_users_deps(client, mock_session, mock_container)
+    try:
+        response = client.patch("/users/me", json={"password": "NewPassword123"})
+    finally:
+        restore()
 
     assert response.status_code == 200
     data = response.json()
@@ -116,9 +130,11 @@ def test_update_me_duplicate_email(client: TestClient, mock_user: User) -> None:
     mock_container = MagicMock()
     mock_container.user_repository.get_by_id = AsyncMock(return_value=mock_user)
     mock_container.user_repository.get_by_email = AsyncMock(return_value=other)
-    _patch_users_deps(client, mock_session, mock_container)
-
-    response = client.patch("/users/me", json={"email": "taken@example.com"})
+    restore = _patch_users_deps(client, mock_session, mock_container)
+    try:
+        response = client.patch("/users/me", json={"email": "taken@example.com"})
+    finally:
+        restore()
 
     assert response.status_code == 409
 
@@ -128,8 +144,10 @@ def test_update_me_weak_password(client: TestClient, mock_user: User) -> None:
     mock_container = MagicMock()
     mock_container.user_repository.get_by_id = AsyncMock(return_value=mock_user)
     mock_container.user_repository.get_by_email = AsyncMock(return_value=None)
-    _patch_users_deps(client, mock_session, mock_container)
-
-    response = client.patch("/users/me", json={"password": "short"})
+    restore = _patch_users_deps(client, mock_session, mock_container)
+    try:
+        response = client.patch("/users/me", json={"password": "short"})
+    finally:
+        restore()
 
     assert response.status_code == 422

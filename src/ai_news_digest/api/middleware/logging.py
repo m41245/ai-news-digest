@@ -19,7 +19,6 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: RequestResponseEndpoint,
     ) -> Response:
-        """Process the request and log details."""
         start_time = time.time()
 
         logger.info(
@@ -27,6 +26,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             method=request.method,
             path=request.url.path,
             client=request.client.host if request.client else None,
+            request_id=getattr(request.state, "request_id", None),
         )
 
         response = await call_next(request)
@@ -39,6 +39,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             path=request.url.path,
             status_code=response.status_code,
             process_time_ms=round(process_time * 1000, 2),
+            request_id=getattr(request.state, "request_id", None),
         )
 
         response.headers["X-Process-Time"] = str(process_time)

@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +11,7 @@ from ai_news_digest.api.middleware.exception_handler import setup_exception_hand
 from ai_news_digest.api.middleware.logging import LoggingMiddleware
 from ai_news_digest.api.middleware.rate_limit import RateLimitMiddleware
 from ai_news_digest.api.middleware.request_id import RequestIDMiddleware
+from ai_news_digest.api.middleware.request_size import MaxBodySizeMiddleware
 from ai_news_digest.api.middleware.security_headers import SecurityHeadersMiddleware
 from ai_news_digest.api.v1.routes.admin import router as admin_router
 from ai_news_digest.api.v1.routes.articles import router as articles_router
@@ -17,6 +19,7 @@ from ai_news_digest.api.v1.routes.auth import router as auth_router
 from ai_news_digest.api.v1.routes.categories import router as categories_router
 from ai_news_digest.api.v1.routes.digests import router as digests_router
 from ai_news_digest.api.v1.routes.health import router as health_router
+from ai_news_digest.api.v1.routes.public import router as public_router
 from ai_news_digest.api.v1.routes.sources import router as sources_router
 from ai_news_digest.api.v1.routes.users import router as users_router
 from ai_news_digest.core.config import Settings, get_settings
@@ -30,6 +33,12 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app_settings = _get_app_settings(app)
+    startup_time = datetime.now(UTC).timestamp()
+    app_settings = app_settings.model_copy(
+        update={"app_startup_time": startup_time},
+    )
+    app.extra["settings"] = app_settings
+
     logger.info(
         "Application starting",
         app_name=app_settings.app_name,
@@ -37,9 +46,32 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         environment=app_settings.environment,
     )
 
-    yield
+    app.state.redis_store = RedisStore(app_settings.redis_url)
 
-    logger.info("Application shutting down")
+    try:
+        yield
+    finally:
+        shutdown_reason = "normal_shutdown"
+        logger.info(
+            "Application shutting down",
+            reason=shutdown_reason,
+        )
+
+        redis_store: RedisStore | None = getattr(app.state, "redis_store", None)
+        if redis_store is not None:
+            try:
+                await redis_store.close()
+            except Exception as exc:
+                logger.error("Failed to close RedisStore during shutdown: %s", exc)
+
+        try:
+            from ai_news_digest.infrastructure.database.session import engine
+
+            await engine.dispose()
+        except Exception as exc:
+            logger.error("Failed to dispose database engine during shutdown: %s", exc)
+
+        logger.info("Application shutdown complete")
 
 
 def _get_app_settings(app: FastAPI) -> Settings:
@@ -83,20 +115,26 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
 
     application.add_middleware(SecurityHeadersMiddleware)
 
-    # Middleware order: the first registered middleware runs outermost.
-    # Request-ID must wrap logging so every logged request carries an ID;
-    # rate limiting is applied last so limited requests are still logged.
     application.add_middleware(RequestIDMiddleware)
     application.add_middleware(LoggingMiddleware)
     application.add_middleware(
         RateLimitMiddleware,
         cache_store=RedisStore(app_settings.redis_url),
     )
+    application.add_middleware(
+        MaxBodySizeMiddleware,
+        max_content_length=app_settings.max_request_size_bytes,
+    )
     application.add_middleware(MetricsMiddleware)
 
     application.include_router(health_router)
 
     application.include_router(metrics_router)
+
+    application.include_router(
+        public_router,
+        prefix=app_settings.api_prefix,
+    )
 
     application.include_router(
         auth_router,

@@ -60,5 +60,13 @@ class DeliveryRepository(ABC):
         """Atomically increment the attempt counter for a delivery."""
         raise NotImplementedError
 
+    @abstractmethod
+    async def delete(
+        self,
+        delivery_id: UUID,
+    ) -> None:
+        """Delete a delivery record."""
+        raise NotImplementedError
+
 
 __all__ = ["DeliveryRepository"]

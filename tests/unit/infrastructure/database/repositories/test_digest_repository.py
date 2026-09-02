@@ -233,3 +233,27 @@ async def test_digest_repository_delete_not_found(
     mock_session.execute.return_value = mock_result
 
     await repository.delete(digest_id)  # Should not raise
+
+
+@pytest.mark.asyncio
+async def test_digest_repository_rollback(
+    repository: DigestRepository, mock_session: AsyncMock
+) -> None:
+    """Test rollback delegates to session rollback."""
+    with patch.object(mock_session, "rollback", new_callable=AsyncMock) as mock_rollback:
+        await repository.rollback()
+        mock_rollback.assert_awaited_once()
+
+
+__all__ = [
+    "test_digest_repository_create",
+    "test_digest_repository_create_no_articles",
+    "test_digest_repository_delete_found",
+    "test_digest_repository_delete_not_found",
+    "test_digest_repository_get_by_id_found",
+    "test_digest_repository_get_by_id_not_found",
+    "test_digest_repository_list_recent",
+    "test_digest_repository_rollback",
+    "test_digest_repository_update_found",
+    "test_digest_repository_update_not_found",
+]

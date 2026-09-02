@@ -4,6 +4,8 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import Response
 
+from ai_news_digest.core.config import settings
+
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Middleware for adding security headers to HTTP responses."""
@@ -19,15 +21,24 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-        # Only add HSTS when not in development mode
-        from ai_news_digest.core.config import settings
-
-        if settings.environment != "development":
+        is_production = settings.environment == "production"
+        # Only add HSTS in production (served over HTTPS)
+        if is_production:
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        # CSP: restrict to self and needed resources for API responses
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; script-src 'none'; object-src 'none'; frame-ancestors 'none'"
-        )
+        # CSP: restrict scripts and frames to prevent XSS.
+        # In production, the API serves JSON only so 'none' is safe.
+        # In non-production, allow 'self' so Swagger UI works.
+        if is_production:
+            csp = (
+                "default-src 'self'; script-src 'none'; "
+                "object-src 'none'; frame-ancestors 'none'"
+            )
+        else:
+            csp = (
+                "default-src 'self'; script-src 'self'; "
+                "object-src 'none'; frame-ancestors 'none'"
+            )
+        response.headers["Content-Security-Policy"] = csp
         return response
 
 

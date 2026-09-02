@@ -221,8 +221,49 @@ async def test_delivery_repository_update_not_found(
         await repository.update(delivery)
 
 
+@pytest.mark.asyncio
+async def test_delivery_repository_delete(
+    repository: DeliveryRepository, mock_session: AsyncMock
+) -> None:
+    delivery_id = uuid4()
+    mock_model = MagicMock()
+    mock_model.id = str(delivery_id)
+    mock_model.digest_id = str(uuid4())
+    mock_model.recipient = "a@b.com"
+    mock_model.status = "pending"
+    mock_model.attempt_count = 0
+    mock_model.sent_at = None
+    mock_model.failed_at = None
+    mock_model.failure_reason = None
+    mock_model.provider_message_id = None
+    mock_model.created_at = datetime.now(UTC)
+    mock_model.updated_at = datetime.now(UTC)
+
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = mock_model
+    mock_session.execute.return_value = mock_result
+
+    with patch.object(repository, "_commit", new_callable=AsyncMock):
+        await repository.delete(delivery_id)
+        mock_session.delete.assert_called_once_with(mock_model)
+
+
+@pytest.mark.asyncio
+async def test_delivery_repository_delete_not_found(
+    repository: DeliveryRepository, mock_session: AsyncMock
+) -> None:
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = None
+    mock_session.execute.return_value = mock_result
+
+    with pytest.raises(ResourceNotFoundError, match="was not found"):
+        await repository.delete(uuid4())
+
+
 __all__ = [
     "test_delivery_repository_create",
+    "test_delivery_repository_delete",
+    "test_delivery_repository_delete_not_found",
     "test_delivery_repository_get_by_digest_and_recipient",
     "test_delivery_repository_get_by_id_found",
     "test_delivery_repository_get_by_id_not_found",

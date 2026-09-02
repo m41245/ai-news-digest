@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from ai_news_digest.application.services.rss.parser.models import ParsedArticle
 from ai_news_digest.core.exceptions import ResourceNotFoundError
@@ -106,6 +110,32 @@ class ArticleRepository(
     ) -> list[Article]:
         statement = (
             select(ArticleModel)
+            .options(
+                selectinload(ArticleModel.source),
+                selectinload(ArticleModel.category),
+            )
+            .order_by(ArticleModel.published_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+
+        result = await self._session.execute(statement)
+
+        return [ArticleMapper.to_domain(model) for model in result.scalars().all()]
+
+    async def list_by_status(
+        self,
+        status: ArticleStatus,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[Article]:
+        statement = (
+            select(ArticleModel)
+            .options(
+                selectinload(ArticleModel.source),
+                selectinload(ArticleModel.category),
+            )
+            .where(ArticleModel.status == status.value)
             .order_by(ArticleModel.published_at.desc())
             .limit(limit)
             .offset(offset)
@@ -121,6 +151,10 @@ class ArticleRepository(
     ) -> list[Article]:
         statement = (
             select(ArticleModel)
+            .options(
+                selectinload(ArticleModel.source),
+                selectinload(ArticleModel.category),
+            )
             .where(
                 ArticleModel.status.in_(
                     [
@@ -141,6 +175,29 @@ class ArticleRepository(
         result = await self._session.execute(statement)
 
         return [ArticleMapper.to_domain(model) for model in result.scalars().all()]
+
+    async def mark_status_bulk(
+        self,
+        article_ids: list[UUID],
+        status: ArticleStatus,
+    ) -> int:
+        """Bulk-update the status of multiple articles in a single transaction."""
+        if not article_ids:
+            return 0
+
+        statement = (
+            update(ArticleModel)
+            .where(
+                ArticleModel.id.in_([str(a) for a in article_ids]),
+                ArticleModel.status.not_in(
+                    [ArticleStatus.READY.value, ArticleStatus.FAILED.value],
+                ),
+            )
+            .values(status=status.value)
+        )
+        result = cast(CursorResult[Any], await self._session.execute(statement))
+        await self._commit()
+        return result.rowcount
 
     async def update(
         self,
@@ -186,8 +243,128 @@ class ArticleRepository(
         await self._delete(model)
 
     async def count(self) -> int:
-        statement = select(ArticleModel)
+        statement = select(func.count()).select_from(ArticleModel)
+        result = await self._session.execute(statement)
+        return int(result.scalar_one())
+
+    async def list_public_articles(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        category_id: UUID | None = None,
+        source_id: UUID | None = None,
+        search: str | None = None,
+    ) -> list[Article]:
+        statement = (
+            select(ArticleModel)
+            .options(
+                selectinload(ArticleModel.source),
+                selectinload(ArticleModel.category),
+            )
+            .where(
+                ArticleModel.status.not_in(
+                    [ArticleStatus.NEW, ArticleStatus.FAILED],
+                ),
+            )
+            .order_by(ArticleModel.published_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+
+        if category_id is not None:
+            statement = statement.where(ArticleModel.category_id == str(category_id))
+
+        if source_id is not None:
+            statement = statement.where(ArticleModel.source_id == str(source_id))
+
+        if search:
+            pattern = f"%{search}%"
+            statement = statement.where(
+                or_(
+                    ArticleModel.title.ilike(pattern),
+                    ArticleModel.summary.ilike(pattern),
+                ),
+            )
 
         result = await self._session.execute(statement)
 
-        return len(result.scalars().all())
+        return [ArticleMapper.to_domain(model) for model in result.scalars().all()]
+
+    async def count_public_articles(
+        self,
+        category_id: UUID | None = None,
+        source_id: UUID | None = None,
+        search: str | None = None,
+    ) -> int:
+        statement = (
+            select(func.count())
+            .select_from(ArticleModel)
+            .where(
+                ArticleModel.status.not_in(
+                    [ArticleStatus.NEW, ArticleStatus.FAILED],
+                ),
+            )
+        )
+
+        if category_id is not None:
+            statement = statement.where(ArticleModel.category_id == str(category_id))
+
+        if source_id is not None:
+            statement = statement.where(ArticleModel.source_id == str(source_id))
+
+        if search:
+            pattern = f"%{search}%"
+            statement = statement.where(
+                or_(
+                    ArticleModel.title.ilike(pattern),
+                    ArticleModel.summary.ilike(pattern),
+                ),
+            )
+
+        result = await self._session.execute(statement)
+
+        return int(result.scalar_one())
+
+    async def get_public_article(
+        self,
+        article_id: UUID,
+    ) -> Article | None:
+        statement = (
+            select(ArticleModel)
+            .options(
+                selectinload(ArticleModel.source),
+                selectinload(ArticleModel.category),
+            )
+            .where(
+                ArticleModel.id == str(article_id),
+                ArticleModel.status.not_in(
+                    [ArticleStatus.NEW, ArticleStatus.FAILED],
+                ),
+            )
+        )
+
+        result = await self._session.execute(statement)
+
+        model = result.scalar_one_or_none()
+
+        if model is None:
+            return None
+
+        return ArticleMapper.to_domain(model)
+
+    async def delete_older_than(
+        self,
+        cutoff_date: datetime,
+        limit: int = 1000,
+    ) -> int:
+        statement = select(ArticleModel).where(ArticleModel.published_at < cutoff_date).limit(limit)
+
+        result = await self._session.execute(statement)
+        models = result.scalars().all()
+
+        for model in models:
+            await self._session.delete(model)
+
+        await self._commit()
+
+        return len(models)

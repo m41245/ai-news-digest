@@ -4,6 +4,7 @@ Unit tests for RequestIDMiddleware.
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -69,3 +70,29 @@ async def test_request_id_middleware_assigns_to_state(request_id_middleware) -> 
     await request_id_middleware.dispatch(request, call_next)
 
     assert hasattr(request.state, "request_id")
+
+
+@pytest.mark.asyncio
+async def test_request_id_middleware_concurrent_isolation() -> None:
+    """Test middleware isolates concurrent requests with different IDs."""
+    from ai_news_digest.api.middleware.request_id import RequestIDMiddleware
+
+    middleware = RequestIDMiddleware(app=MagicMock())
+
+    async def make_request(headers: dict[str, str]) -> str:
+        request = MagicMock(spec=Request)
+        request.headers = headers
+        request.url.path = "/test"
+        request.state = MagicMock()
+
+        response = Response(status_code=200)
+        call_next = AsyncMock(return_value=response)
+
+        await middleware.dispatch(request, call_next)
+        return request.state.request_id
+
+    ids = await asyncio.gather(make_request({}), make_request({}))
+
+    assert ids[0] is not None
+    assert ids[1] is not None
+    assert ids[0] != ids[1]

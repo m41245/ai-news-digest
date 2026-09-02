@@ -13,11 +13,24 @@ from ai_news_digest.infrastructure.rss.feedparser_fetcher import (
     FeedparserFetcher,
 )
 
+# A dummy feed body returned by the mocked _download step.
+_FAKE_BODY = b"<?xml version='1.0'?><rss><channel></channel></rss>"
+_FAKE_HEADERS = {"content-type": "application/xml"}
+
 
 @pytest.fixture
 def fetcher() -> FeedparserFetcher:
     """Create a FeedparserFetcher instance."""
     return FeedparserFetcher()
+
+
+def _download_mock(body: bytes = _FAKE_BODY):
+    """Return an async function that mimics ``FeedparserFetcher._download``."""
+
+    async def _download(url: str) -> tuple[bytes, dict[str, str]]:
+        return (body, dict(_FAKE_HEADERS))
+
+    return _download
 
 
 def _make_entry(
@@ -70,7 +83,10 @@ async def test_feedparser_fetch_success(fetcher: FeedparserFetcher) -> None:
         status=200,
     )
 
-    with patch("feedparser.parse", return_value=mock_feed):
+    with (
+        patch.object(fetcher, "_download", _download_mock()),
+        patch("feedparser.parse", return_value=mock_feed),
+    ):
         result = await fetcher.fetch("https://example.com/feed.xml")
 
         assert len(result) == 2
@@ -85,7 +101,10 @@ async def test_feedparser_fetch_success(fetcher: FeedparserFetcher) -> None:
 @pytest.mark.asyncio
 async def test_feedparser_fetch_empty_feed(fetcher: FeedparserFetcher) -> None:
     """Test fetch with empty feed."""
-    with patch("feedparser.parse", return_value=_make_feed(entries=[])):
+    with (
+        patch.object(fetcher, "_download", _download_mock()),
+        patch("feedparser.parse", return_value=_make_feed(entries=[])),
+    ):
         result = await fetcher.fetch("https://example.com/feed.xml")
 
         assert len(result) == 0
@@ -94,9 +113,12 @@ async def test_feedparser_fetch_empty_feed(fetcher: FeedparserFetcher) -> None:
 @pytest.mark.asyncio
 async def test_feedparser_fetch_missing_fields(fetcher: FeedparserFetcher) -> None:
     """Test fetch with entries missing optional fields."""
-    with patch(
-        "feedparser.parse",
-        return_value=_make_feed(entries=[_make_entry(published=None)]),
+    with (
+        patch.object(fetcher, "_download", _download_mock()),
+        patch(
+            "feedparser.parse",
+            return_value=_make_feed(entries=[_make_entry(published=None)]),
+        ),
     ):
         result = await fetcher.fetch("https://example.com/feed.xml")
 
@@ -148,10 +170,18 @@ def test_parse_datetime_without_timezone(fetcher: FeedparserFetcher) -> None:
 @pytest.mark.asyncio
 async def test_feedparser_fetch_with_whitespace_fields(fetcher: FeedparserFetcher) -> None:
     """Test fetch with fields containing whitespace."""
-    with patch(
-        "feedparser.parse",
-        return_value=_make_feed(
-            entries=[_make_entry(title="  Article 1  ", link="  https://example.com/article1  ")]
+    with (
+        patch.object(fetcher, "_download", _download_mock()),
+        patch(
+            "feedparser.parse",
+            return_value=_make_feed(
+                entries=[
+                    _make_entry(
+                        title="  Article 1  ",
+                        link="  https://example.com/article1  ",
+                    )
+                ]
+            ),
         ),
     ):
         result = await fetcher.fetch("https://example.com/feed.xml")
@@ -162,8 +192,9 @@ async def test_feedparser_fetch_with_whitespace_fields(fetcher: FeedparserFetche
 
 @pytest.mark.asyncio
 async def test_feedparser_fetch_http_error_raises(fetcher: FeedparserFetcher) -> None:
-    """Test that an HTTP 404 feed raises FeedFetchError."""
+    """A 4xx/5xx status on the parsed feed raises FeedFetchError."""
     with (
+        patch.object(fetcher, "_download", _download_mock()),
         patch("feedparser.parse", return_value=_make_feed(status=404)),
         pytest.raises(FeedFetchError, match="HTTP 404"),
     ):
@@ -172,8 +203,8 @@ async def test_feedparser_fetch_http_error_raises(fetcher: FeedparserFetcher) ->
 
 @pytest.mark.asyncio
 async def test_feedparser_fetch_not_modified_returns_empty(fetcher: FeedparserFetcher) -> None:
-    """A 304 Not Modified response yields no entries."""
-    with patch("feedparser.parse", return_value=_make_feed(status=304)):
+    """An empty body (304 Not Modified) yields no entries."""
+    with patch.object(fetcher, "_download", _download_mock(body=b"")):
         result = await fetcher.fetch("https://example.com/feed.xml")
 
         assert result == []
@@ -183,6 +214,7 @@ async def test_feedparser_fetch_not_modified_returns_empty(fetcher: FeedparserFe
 async def test_feedparser_fetch_bozo_irreparable_raises(fetcher: FeedparserFetcher) -> None:
     """A feed with a non-recoverable parse error raises FeedFetchError."""
     with (
+        patch.object(fetcher, "_download", _download_mock()),
         patch(
             "feedparser.parse",
             return_value=_make_feed(
@@ -198,12 +230,15 @@ async def test_feedparser_fetch_bozo_irreparable_raises(fetcher: FeedparserFetch
 @pytest.mark.asyncio
 async def test_feedparser_fetch_bozo_recoverable_ok(fetcher: FeedparserFetcher) -> None:
     """Recoverable encoding issues do not abort parsing."""
-    with patch(
-        "feedparser.parse",
-        return_value=_make_feed(
-            entries=[_make_entry()],
-            bozo=True,
-            bozo_exception=UnicodeDecodeError("utf-8", b"", 0, 1, "invalid start byte"),
+    with (
+        patch.object(fetcher, "_download", _download_mock()),
+        patch(
+            "feedparser.parse",
+            return_value=_make_feed(
+                entries=[_make_entry()],
+                bozo=True,
+                bozo_exception=UnicodeDecodeError("utf-8", b"", 0, 1, "invalid start byte"),
+            ),
         ),
     ):
         result = await fetcher.fetch("https://example.com/feed.xml")
@@ -213,9 +248,9 @@ async def test_feedparser_fetch_bozo_recoverable_ok(fetcher: FeedparserFetcher) 
 
 @pytest.mark.asyncio
 async def test_feedparser_fetch_timeout(fetcher: FeedparserFetcher) -> None:
-    """A feed that exceeds the timeout raises FeedFetchError."""
+    """A parse that exceeds the timeout raises FeedFetchError."""
 
-    def slow_parse(url: str) -> MagicMock:
+    def slow_parse(*_args: object, **_kwargs: object) -> MagicMock:
         import time
 
         time.sleep(5)
@@ -224,6 +259,7 @@ async def test_feedparser_fetch_timeout(fetcher: FeedparserFetcher) -> None:
     fetcher_short = FeedparserFetcher(timeout=0.1)
 
     with (
+        patch.object(fetcher_short, "_download", _download_mock()),
         patch("feedparser.parse", side_effect=slow_parse),
         pytest.raises(FeedFetchError, match="Timed out"),
     ):
@@ -241,9 +277,12 @@ async def test_feedparser_fetch_malformed_entry_skipped(fetcher: FeedparserFetch
 
     good_entry = _make_entry(link="https://example.com/good")
 
-    with patch(
-        "feedparser.parse",
-        return_value=_make_feed(entries=[bad_entry, good_entry]),
+    with (
+        patch.object(fetcher, "_download", _download_mock()),
+        patch(
+            "feedparser.parse",
+            return_value=_make_feed(entries=[bad_entry, good_entry]),
+        ),
     ):
         result = await fetcher.fetch("https://example.com/feed.xml")
 
@@ -254,9 +293,12 @@ async def test_feedparser_fetch_malformed_entry_skipped(fetcher: FeedparserFetch
 @pytest.mark.asyncio
 async def test_feedparser_fetch_no_url_entry_skipped(fetcher: FeedparserFetcher) -> None:
     """Entries that normalize to an empty URL are dropped."""
-    with patch(
-        "feedparser.parse",
-        return_value=_make_feed(entries=[_make_entry(link="   ")]),
+    with (
+        patch.object(fetcher, "_download", _download_mock()),
+        patch(
+            "feedparser.parse",
+            return_value=_make_feed(entries=[_make_entry(link="   ")]),
+        ),
     ):
         result = await fetcher.fetch("https://example.com/feed.xml")
 
@@ -269,9 +311,12 @@ async def test_feedparser_fetch_respects_max_articles() -> None:
     entries = [_make_entry(link=f"https://example.com/a{i}") for i in range(5)]
     fetcher_capped = FeedparserFetcher(max_articles=3)
 
-    with patch(
-        "feedparser.parse",
-        return_value=_make_feed(entries=entries),
+    with (
+        patch.object(fetcher_capped, "_download", _download_mock()),
+        patch(
+            "feedparser.parse",
+            return_value=_make_feed(entries=entries),
+        ),
     ):
         result = await fetcher_capped.fetch("https://example.com/feed.xml")
 

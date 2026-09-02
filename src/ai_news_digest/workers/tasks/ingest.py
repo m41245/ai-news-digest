@@ -1,16 +1,26 @@
 from __future__ import annotations
 
-from celery.utils.log import get_task_logger
+import time
 
 from ai_news_digest.application.use_cases.article.ingest_all_sources import (
     IngestionSummary,
 )
 from ai_news_digest.core.logging import get_logger
+from ai_news_digest.core.metrics import (
+    record_article_collected,
+    record_article_deduplicated,
+    record_celery_task_duration,
+    record_celery_task_failure,
+    record_celery_task_success,
+    record_rss_ingestion_failure,
+    record_rss_ingestion_success,
+)
 from ai_news_digest.workers._container import get_container
 from ai_news_digest.workers.celery_app import celery_app
 
-task_logger = get_task_logger(__name__)
 logger = get_logger(__name__)
+
+_TASK_NAME = "workers.tasks.ingest.fetch_all_sources"
 
 
 async def _fetch_all_sources_impl() -> dict[str, int]:
@@ -56,15 +66,25 @@ async def fetch_all_sources() -> dict[str, int]:
     This task is idempotent and can be safely retried.
     This is a thin wrapper that calls the typed implementation function.
     """
+    start = time.monotonic()
     try:
-        return await _fetch_all_sources_impl()
+        result = await _fetch_all_sources_impl()
+        record_article_collected(result["fetched"])
+        record_article_deduplicated(result["skipped"])
+        record_rss_ingestion_success("all_sources")
+        await record_celery_task_success(_TASK_NAME)
+        return result
     except Exception as exc:
         logger.error(
             "RSS ingestion failed",
             error=str(exc),
             exc_info=True,
         )
+        record_rss_ingestion_failure("all_sources")
+        await record_celery_task_failure(_TASK_NAME)
         raise
+    finally:
+        await record_celery_task_duration(_TASK_NAME, time.monotonic() - start)
 
 
 __all__ = ["fetch_all_sources"]
