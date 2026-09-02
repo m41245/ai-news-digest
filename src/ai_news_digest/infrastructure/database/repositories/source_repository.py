@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ai_news_digest.core.exceptions import ResourceNotFoundError
 from ai_news_digest.domain.models.source import Source
 from ai_news_digest.domain.ports.source_repository import (
     SourceRepository as SourceRepositoryPort,
@@ -81,17 +82,30 @@ class SourceRepository(
 
         return SourceMapper.to_domain(model)
 
-    async def list_all(self) -> list[Source]:
+    async def list_all(
+        self,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[Source]:
         """
         Return all configured news sources ordered by name.
         """
         statement = select(SourceModel).order_by(SourceModel.name.asc())
+
+        if limit is not None:
+            statement = statement.limit(limit).offset(offset)
 
         result = await self._session.execute(statement)
 
         models = result.scalars().all()
 
         return [SourceMapper.to_domain(model) for model in models]
+
+    async def count(self) -> int:
+        """Return the total number of sources."""
+        statement = select(func.count()).select_from(SourceModel)
+        result = await self._session.execute(statement)
+        return int(result.scalar_one())
 
     async def list_enabled(self) -> list[Source]:
         """
@@ -129,7 +143,7 @@ class SourceRepository(
         model = result.scalar_one_or_none()
 
         if model is None:
-            raise ValueError(f"Source with id '{source.id}' was not found.")
+            raise ResourceNotFoundError(f"Source with id '{source.id}' was not found.")
 
         SourceMapper.update_model(
             model,

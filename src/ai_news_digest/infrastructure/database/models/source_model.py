@@ -10,7 +10,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ai_news_digest.infrastructure.database.base import Base
 
 if TYPE_CHECKING:
-
     from ai_news_digest.infrastructure.database.models.article_model import (
         ArticleModel,
     )
@@ -76,4 +75,3 @@ class SourceModel(Base):
         onupdate=func.now(),
         nullable=False,
     )
-

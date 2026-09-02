@@ -1,0 +1,504 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+  POETRY_VERSION: "2.1.0"
+  NODE_VERSION: "20"
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        run: |
+          pip install --upgrade pip
+          pip install "poetry==${{ env.POETRY_VERSION }}"
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-ansi
+
+      - name: Run Ruff lint
+        run: poetry run ruff check .
+
+      - name: Run Ruff format check
+        run: poetry run ruff format --check .
+
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        run: |
+          pip install --upgrade pip
+          pip install "poetry==${{ env.POETRY_VERSION }}"
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-ansi
+
+      - name: Run MyPy
+        run: poetry run mypy src
+
+  secret-scanning:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          fail-mode: strict
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, secret-scanning]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        run: |
+          pip install --upgrade pip
+          pip install "poetry==${{ env.POETRY_VERSION }}"
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-ansi
+
+      - name: Run unit tests
+        run: |
+          poetry run pytest tests/unit -q --no-cov --junitxml=reports/unit-tests.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: reports/unit-tests.xml
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, secret-scanning]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ai_news_digest_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/ai_news_digest_test
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/1
+      CELERY_RESULT_BACKEND: redis://localhost:6379/2
+      JWT_SECRET_KEY: ci-only-fake-key-not-for-production-use-1234567890
+      ENVIRONMENT: testing
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        run: |
+          pip install --upgrade pip
+          pip install "poetry==${{ env.POETRY_VERSION }}"
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-ansi
+
+      - name: Run integration tests
+        run: |
+          poetry run pytest tests/integration -q --no-cov --junitxml=reports/integration-tests.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: reports/integration-tests.xml
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        run: |
+          pip install --upgrade pip
+          pip install "poetry==${{ env.POETRY_VERSION }}"
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-ansi
+
+      - name: Run full test suite with coverage
+        run: |
+          poetry run pytest --cov=ai_news_digest --cov-report=term-missing --cov-report=xml --cov-report=html -q
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            htmlcov/
+            coverage.xml
+
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ai-news-digest:ci-${{ env.IMAGE_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build frontend Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: false
+          load: true
+          tags: ai-news-digest-frontend:ci-${{ env.IMAGE_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify backend image builds
+        run: |
+          docker image inspect ai-news-digest:ci-${{ env.IMAGE_TAG }}
+
+      - name: Verify frontend image builds
+        run: |
+          docker image inspect ai-news-digest-frontend:ci-${{ env.IMAGE_TAG }}
+
+  container-scanning:
+    name: Container Vulnerability Scan
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend Docker image for scanning
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ai-news-digest:ci-${{ env.IMAGE_TAG }}
+          cache-from: type=gha
+
+      - name: Build frontend Docker image for scanning
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: false
+          load: true
+          tags: ai-news-digest-frontend:ci-${{ env.IMAGE_TAG }}
+          cache-from: type=gha
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
+      - name: Scan backend image for vulnerabilities
+        run: |
+          trivy image --exit-code 1 --severity HIGH,CRITICAL ai-news-digest:ci-${{ env.IMAGE_TAG }}
+
+      - name: Scan frontend image for vulnerabilities
+        run: |
+          trivy image --exit-code 1 --severity HIGH,CRITICAL ai-news-digest-frontend:ci-${{ env.IMAGE_TAG }}
+
+      - name: Scan backend image for vulnerabilities (full report)
+        if: always()
+        run: |
+          trivy image --format table ai-news-digest:ci-${{ env.IMAGE_TAG }}
+
+      - name: Scan frontend image for vulnerabilities (full report)
+        if: always()
+        run: |
+          trivy image --format table ai-news-digest-frontend:ci-${{ env.IMAGE_TAG }}
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    needs: [lint]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        run: |
+          pip install --upgrade pip
+          pip install "poetry==${{ env.POETRY_VERSION }}"
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-ansi
+
+      - name: Run pip-audit
+        run: poetry run pip-audit
+
+  frontend-tests:
+    name: Frontend Tests & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      - name: Run typecheck
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Run tests
+        working-directory: frontend
+        run: npm test
+
+      - name: Run production build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/dist/
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, frontend-tests]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ai_news_digest_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/ai_news_digest_test
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/1
+      CELERY_RESULT_BACKEND: redis://localhost:6379/2
+      JWT_SECRET_KEY: ci-only-fake-key-not-for-production-use-1234567890
+      ENVIRONMENT: testing
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        run: |
+          pip install --upgrade pip
+          pip install "poetry==${{ env.POETRY_VERSION }}"
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-ansi
+
+      - name: Run e2e tests
+        run: |
+          poetry run pytest tests/e2e -q --no-cov --junitxml=reports/e2e-tests.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: reports/e2e-tests.xml
+
+  docker-compose-config:
+    name: Docker Compose Config
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate docker-compose.yml
+        run: docker compose config
+
+      - name: Validate production docker-compose.yml
+        run: docker compose -f docker-compose.prod.yml config
+
+  secret-hygiene:
+    name: Secret Hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run secret hygiene check
+        run: python scripts/check_secret_hygiene.py
+
+  migration-validation:
+    name: Migration Validation
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ai_news_digest_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/ai_news_digest_test
+      JWT_SECRET_KEY: ci-only-fake-key-not-for-production-use-1234567890
+      ENVIRONMENT: testing
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        run: |
+          pip install --upgrade pip
+          pip install "poetry==${{ env.POETRY_VERSION }}"
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-ansi
+
+      - name: Run migrations
+        run: poetry run alembic upgrade head
+
+      - name: Verify migration head
+        run: poetry run alembic current

@@ -54,12 +54,7 @@ class RSSClient:
             follow_redirects=True,
             headers={
                 "User-Agent": user_agent,
-                "Accept": (
-                    "application/rss+xml,"
-                    "application/atom+xml,"
-                    "application/xml,"
-                    "text/xml"
-                ),
+                "Accept": ("application/rss+xml,application/atom+xml,application/xml,text/xml"),
             },
         )
 
@@ -110,10 +105,7 @@ class RSSClient:
 
                 response.raise_for_status()
 
-                content_type = (
-                    response.headers.get("Content-Type", "")
-                    .lower()
-                )
+                content_type = response.headers.get("Content-Type", "").lower()
 
                 self._validate_content_type(content_type)
 
@@ -142,20 +134,14 @@ class RSSClient:
 
             except httpx.HTTPStatusError as exc:
                 raise RSSRequestError(
-                    f"HTTP {exc.response.status_code} "
-                    f"while requesting '{url}'."
+                    f"HTTP {exc.response.status_code} while requesting '{url}'."
                 ) from exc
 
             except httpx.HTTPError as exc:
-                raise RSSRequestError(
-                    f"Unexpected HTTP error while requesting '{url}'."
-                ) from exc
+                raise RSSRequestError(f"Unexpected HTTP error while requesting '{url}'.") from exc
 
             if attempt < self._max_retries:
-                delay = (
-                    self._backoff_factor
-                    * (2 ** (attempt - 1))
-                )
+                delay = self._backoff_factor * (2 ** (attempt - 1))
 
                 logger.debug(
                     "Retrying '%s' in %.1f seconds...",
@@ -166,18 +152,12 @@ class RSSClient:
                 await asyncio.sleep(delay)
 
         if isinstance(last_exception, httpx.TimeoutException):
-            raise RSSTimeoutError(
-                f"Timed out while requesting '{url}'."
-            ) from last_exception
+            raise RSSTimeoutError(f"Timed out while requesting '{url}'.") from last_exception
 
         if isinstance(last_exception, httpx.ConnectError):
-            raise RSSConnectionError(
-                f"Unable to connect to '{url}'."
-            ) from last_exception
+            raise RSSConnectionError(f"Unable to connect to '{url}'.") from last_exception
 
-        raise RSSRequestError(
-            f"Failed to fetch '{url}'."
-        ) from last_exception
+        raise RSSRequestError(f"Failed to fetch '{url}'.") from last_exception
 
     @staticmethod
     def _validate_content_type(
@@ -201,13 +181,9 @@ class RSSClient:
             "text/plain",
         )
 
-        if any(
-            media_type in content_type
-            for media_type in valid_types
-        ):
+        if any(media_type in content_type for media_type in valid_types):
             return
 
         raise RSSInvalidResponseError(
-            "Server returned an unexpected "
-            f"Content-Type: '{content_type}'."
+            f"Server returned an unexpected Content-Type: '{content_type}'."
         )

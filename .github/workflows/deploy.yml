@@ -1,0 +1,115 @@
+name: Deploy
+
+on:
+  release:
+    types: [published]
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  build-and-push:
+    name: Build and Push
+    runs-on: ubuntu-latest
+    outputs:
+      backend-image: ${{ steps.meta.outputs.tags }}
+      backend-digest: ${{ steps.push-backend.outputs.digest }}
+      frontend-image: ${{ steps.meta.outputs.tags }}
+      frontend-digest: ${{ steps.push-frontend.outputs.digest }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        run: |
+          pip install --upgrade pip
+          pip install "poetry==2.1.0"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}
+            ghcr.io/${{ github.repository }}-frontend
+          tags: |
+            type=ref,event=tag,suffix={{sha}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push backend Docker image
+        id: push-backend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            PYTHON_VERSION=3.12
+
+      - name: Build and push frontend Docker image
+        id: push-frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VITE_API_BASE_URL=
+
+      - name: Image digests
+        run: |
+          echo "Backend image digest: ${{ steps.push-backend.outputs.digest }}"
+          echo "Frontend image digest: ${{ steps.push-frontend.outputs.digest }}"
+
+  deployment-status:
+    name: Deployment Status
+    runs-on: ubuntu-latest
+    needs: [build-and-push]
+    if: always()
+    steps:
+      - name: Check deployment result
+        run: |
+          if [ "${{ needs.build-and-push.result }}" != "success" ]; then
+            echo "::error::Deployment failed for commit ${{ github.sha }}"
+            echo "::warning::Rollback instructions:"
+            echo "1. Identify the last known good image tag:"
+            echo "   docker pull ghcr.io/${{ github.repository }}:previous-stable-tag"
+            echo "2. Update your deployment to use the previous tag:"
+            echo "   kubectl set image deployment/ai-news-digest-backend backend=ghcr.io/${{ github.repository }}:previous-stable-tag"
+            echo "3. Verify the rollback:"
+            echo "   kubectl rollout status deployment/ai-news-digest-backend"
+            echo "4. Review the deployment logs for the root cause:"
+            echo "   gh run view ${{ github.run_id }}"
+            exit 1
+          fi

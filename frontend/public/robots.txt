@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /$
+Allow: /news
+Allow: /news/
+Allow: /digests
+Allow: /digests/
+Allow: /categories
+Allow: /privacy
+Allow: /terms
+Disallow: /admin
+Disallow: /login
+Disallow: /register
+Disallow: /me
+Disallow: /api/
+
+Sitemap: https://ai-news-digest.com/sitemap.xml

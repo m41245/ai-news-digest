@@ -1,17 +1,29 @@
 from __future__ import annotations
 
-import time
+import logging
 
 from ai_news_digest.application.services.ingestion.models import IngestionResult
+from ai_news_digest.application.services.rss.exceptions import RSSException
 from ai_news_digest.application.services.rss.feed_service import FeedService
 from ai_news_digest.application.services.rss.models import FeedResult
 from ai_news_digest.domain.ports.article_repository import ArticleRepository
 from ai_news_digest.domain.ports.source_repository import SourceRepository
 
+logger = logging.getLogger(__name__)
+
 
 class IngestionService:
     """
     Coordinates the complete RSS ingestion workflow.
+
+    Responsibilities:
+        - Retrieve active sources.
+        - Download and parse RSS feeds.
+        - Skip duplicate articles.
+        - Persist new articles.
+        - Return ingestion statistics.
+
+    This service intentionally contains no HTTP, XML, or database logic.
     """
 
     def __init__(
@@ -25,75 +37,74 @@ class IngestionService:
         self._feed_service = feed_service
 
     async def ingest(self) -> IngestionResult:
-        feeds_processed = 0
-        failed_feeds = 0
-        articles_fetched = 0
-        articles_inserted = 0
-        articles_skipped = 0
+        """
+        Execute a full ingestion cycle for all active sources.
+        """
+
+        processed_sources = 0
+        failed_sources = 0
+        fetched_articles = 0
+        new_articles = 0
+        existing_articles = 0
 
         sources = await self._source_repository.list_active()
 
-        print(f"Sources: {len(sources)}")
+        logger.info(
+            "Starting ingestion for %d active sources.",
+            len(sources),
+        )
 
         for source in sources:
-            print(f"\n=== {source.name} ===")
-
             try:
-                t0 = time.perf_counter()
+                logger.info(
+                    "Fetching feed: %s",
+                    source.name,
+                )
 
                 result: FeedResult = await self._feed_service.fetch(
                     source.feed_url,
                 )
 
-                print(f"Fetch: {time.perf_counter() - t0:.3f}s")
-
-                feeds_processed += 1
-                articles_fetched += len(result.articles)
+                processed_sources += 1
+                fetched_articles += len(result.articles)
 
                 for article in result.articles:
-                    t1 = time.perf_counter()
-
                     existing = await self._article_repository.get_by_url(
                         article.url,
                     )
 
-                    lookup_time = time.perf_counter() - t1
-
-                    if lookup_time > 1:
-                        print(
-                            f"Lookup took {lookup_time:.2f}s\n"
-                            f"{article.url}"
-                        )
-
-                    if existing:
-                        articles_skipped += 1
+                    if existing is not None:
+                        existing_articles += 1
                         continue
-
-                    t2 = time.perf_counter()
 
                     await self._article_repository.create_from_parsed(
                         source_id=source.id,
                         article=article,
                     )
 
-                    insert_time = time.perf_counter() - t2
+                    new_articles += 1
 
-                    if insert_time > 1:
-                        print(
-                            f"Insert took {insert_time:.2f}s\n"
-                            f"{article.url}"
-                        )
+            except RSSException:
+                failed_sources += 1
 
-                    articles_inserted += 1
+                logger.exception(
+                    "Failed to ingest feed '%s'.",
+                    source.name,
+                )
 
-            except Exception as exc:
-                failed_feeds += 1
-                print(exc)
+        logger.info(
+            ("Ingestion complete. Processed=%d Failed=%d Fetched=%d New=%d Existing=%d"),
+            processed_sources,
+            failed_sources,
+            fetched_articles,
+            new_articles,
+            existing_articles,
+        )
 
         return IngestionResult(
-            feeds_processed=feeds_processed,
-            articles_fetched=articles_fetched,
-            articles_inserted=articles_inserted,
-            articles_skipped=articles_skipped,
-            failed_feeds=failed_feeds,
+            feeds_processed=processed_sources,
+            failed_feeds=failed_sources,
+            articles_fetched=fetched_articles,
+            articles_inserted=new_articles,
+            articles_skipped=existing_articles,
         )

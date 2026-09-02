@@ -18,6 +18,20 @@ class EmailSender(ABC):
         text: str | None = None,
     ) -> None:
         """
-        Send an email message.
+        Send an email message to a single recipient.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def send_email(
+        self,
+        *,
+        to: list[str],
+        subject: str,
+        html_body: str,
+        text_body: str | None = None,
+    ) -> None:
+        """
+        Send an email message to multiple recipients.
         """
         raise NotImplementedError

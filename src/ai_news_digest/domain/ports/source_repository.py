@@ -38,6 +38,8 @@ class SourceRepository(ABC):
     @abstractmethod
     async def list_all(
         self,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> list[Source]:
         raise NotImplementedError
 
@@ -73,4 +75,13 @@ class SourceRepository(ABC):
         self,
         source_id: UUID,
     ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def count(
+        self,
+    ) -> int:
+        """
+        Return the total number of sources.
+        """
         raise NotImplementedError

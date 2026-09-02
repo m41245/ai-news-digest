@@ -10,12 +10,10 @@ class ArticleStatus(StrEnum):
 
     NEW = "new"
 
-    FETCHED = "fetched"
+    CATEGORIZED = "categorized"
 
     SUMMARIZED = "summarized"
 
-    CATEGORIZED = "categorized"
-
-    PUBLISHED = "published"
+    READY = "ready"
 
     FAILED = "failed"

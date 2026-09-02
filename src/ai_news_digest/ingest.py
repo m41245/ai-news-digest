@@ -23,9 +23,7 @@ async def main() -> None:
     async for session in get_db_session():
         container = Container(session)
 
-        summary = await (
-            container.ingest_all_sources.execute()
-        )
+        summary = await container.ingest_all_sources.execute()
 
         ConsolePrinter.print_summary(
             summary,

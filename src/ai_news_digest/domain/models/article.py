@@ -27,6 +27,22 @@ class Article:
 
     status: ArticleStatus
 
+    def mark_summarized(self) -> None:
+        """Mark the article as summarized."""
+        self.status = ArticleStatus.SUMMARIZED
+
+    def mark_categorized(self) -> None:
+        """Mark the article as categorized."""
+        self.status = ArticleStatus.CATEGORIZED
+
+    def mark_ready(self) -> None:
+        """Mark the article as ready for digest inclusion."""
+        self.status = ArticleStatus.READY
+
+    def mark_failed(self) -> None:
+        """Mark the article as failed."""
+        self.status = ArticleStatus.FAILED
+
     @classmethod
     def create(
         cls,

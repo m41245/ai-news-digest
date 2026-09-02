@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from ai_news_digest.domain.enums.article_status import ArticleStatus
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.infrastructure.database.models.article_model import (
     ArticleModel,
@@ -63,7 +64,7 @@ class ArticleMapper:
             url=model.url,
             summary=model.summary,
             content=model.content,
-            status=model.status,
+            status=ArticleStatus(model.status) if model.status is not None else ArticleStatus.NEW,
             published_at=model.published_at,
             fetched_at=model.fetched_at,
         )
