@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 def _is_production() -> bool:
-    return settings.environment == "production"
+    return bool(settings.environment == "production")
 
 
 def _build_error_content(

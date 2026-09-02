@@ -196,9 +196,7 @@ async def _summarize_pending_articles_impl() -> dict[str, int]:
 
     async for container in get_container():
         article_repository: ArticleRepository = container.article_repository
-        pending_articles = await article_repository.list_by_status(
-            ArticleStatus.NEW, limit=100
-        )
+        pending_articles = await article_repository.list_by_status(ArticleStatus.NEW, limit=100)
 
         if not pending_articles:
             logger.info("No pending articles found for summarization")

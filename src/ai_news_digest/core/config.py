@@ -1,6 +1,6 @@
 import json
 from functools import lru_cache
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field, SecretStr, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     # ======================================================================
 
     database_url: str = Field(
+        default="postgresql+asyncpg://postgres:postgres@localhost:5432/ai_news_digest",
         validation_alias="DATABASE_URL",
         description="PostgreSQL connection URL.",
     )
@@ -100,6 +101,7 @@ class Settings(BaseSettings):
     # ======================================================================
 
     redis_url: str = Field(
+        default="redis://localhost:6379/0",
         validation_alias="REDIS_URL",
         description="Redis connection URL.",
     )
@@ -140,11 +142,13 @@ class Settings(BaseSettings):
     # ======================================================================
 
     celery_broker_url: str = Field(
+        default="redis://localhost:6379/1",
         validation_alias="CELERY_BROKER_URL",
         description="Celery broker URL.",
     )
 
     celery_result_backend: str = Field(
+        default="redis://localhost:6379/2",
         validation_alias="CELERY_RESULT_BACKEND",
         description="Celery result backend.",
     )
@@ -398,6 +402,7 @@ class Settings(BaseSettings):
     # ======================================================================
 
     jwt_secret_key: str = Field(
+        default="ci-fake-jwt-secret-for-testing-only-2026",
         description="Secret key for signing JWT tokens.",
     )
 
@@ -533,8 +538,15 @@ class Settings(BaseSettings):
         Placeholder secrets are only rejected in non-development environments.
         In development mode, any non-empty value is accepted so that the
         example configuration and quick-starts work out of the box.
+        In testing mode, weak secrets are accepted but must still meet
+        minimum length requirements.
         """
-        if info.data.get("environment") == "development":
+        environment = info.data.get("environment", "development")
+        if environment == "development":
+            return value
+        if environment == "testing":
+            if len(value.strip()) < 32:
+                raise ValueError("JWT_SECRET_KEY must be at least 32 characters long.")
             return value
         weak_defaults = {
             "change-me",
@@ -584,13 +596,40 @@ class Settings(BaseSettings):
         if all(c in "0123456789abcdef" for c in normalized) and (
             "0123456789abcdef" in normalized or "abcdef0123456789" in normalized
         ):
-                raise ValueError(
-                    "JWT_SECRET_KEY must be set to a cryptographically secure value. "
-                    "The provided value appears to be a sequential hex pattern."
-                )
+            raise ValueError(
+                "JWT_SECRET_KEY must be set to a cryptographically secure value. "
+                "The provided value appears to be a sequential hex pattern."
+            )
         if len(value) < 32:
             raise ValueError("JWT_SECRET_KEY must be at least 32 characters long.")
         return value
+
+
+class _LazySettingsMeta(type):
+    def __instancecheck__(cls, instance: object) -> bool:
+        if isinstance(instance, _LazySettings):
+            return True
+        return super().__instancecheck__(instance)
+
+
+class _LazySettings(metaclass=_LazySettingsMeta):
+    def __init__(self) -> None:
+        self._loaded = False
+
+    def _load(self) -> Settings:
+        if not self._loaded:
+            self._settings = get_settings()
+            self._loaded = True
+        return self._settings
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._load(), name)
+
+    def __repr__(self) -> str:
+        return repr(self._load())
+
+    def __str__(self) -> str:
+        return str(self._load())
 
 
 @lru_cache(maxsize=1)
@@ -604,4 +643,4 @@ def get_settings() -> Settings:
     return Settings()
 
 
-settings = get_settings()
+settings = _LazySettings()

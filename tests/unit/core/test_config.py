@@ -7,7 +7,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from ai_news_digest.core.config import Settings, get_settings, settings
+from ai_news_digest.core.config import Settings, _LazySettings, get_settings, settings
 
 
 def test_settings_default_values() -> None:
@@ -192,7 +192,8 @@ def test_get_settings_cached() -> None:
 def test_settings_instance_exists() -> None:
     """Test that global settings instance exists."""
     assert settings is not None
-    assert isinstance(settings, Settings)
+    assert isinstance(settings, _LazySettings)
+    assert settings.app_name == "AI News Digest"
 
 
 def test_jwt_secret_rejects_weak_defaults() -> None:
