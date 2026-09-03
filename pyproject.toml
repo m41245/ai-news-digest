@@ -151,6 +151,7 @@ module = [
     "ai_news_digest.api.v1.routes.auth",
     "ai_news_digest.api.v1.routes.users",
     "ai_news_digest.api.v1.routes.admin",
+    "ai_news_digest.api.v1.schemas.auth",
 ]
 disable_error_code = ["import-untyped"]
 

@@ -29,6 +29,16 @@ from sqlalchemy.ext.asyncio import (
 
 from ai_news_digest.core.config import get_settings
 from ai_news_digest.infrastructure.cache.redis_store import RedisStore
+from ai_news_digest.infrastructure.database.base import Base
+from ai_news_digest.infrastructure.database.models import (
+    article_model,  # noqa: F401
+    category_model,  # noqa: F401
+    digest_article_model,  # noqa: F401
+    digest_delivery_model,  # noqa: F401
+    digest_model,  # noqa: F401
+    source_model,  # noqa: F401
+    user_model,  # noqa: F401
+)
 from ai_news_digest.infrastructure.database.session import (
     SessionLocal as _original_SessionLocal,
 )
@@ -39,9 +49,10 @@ from ai_news_digest.main import app
 
 
 @pytest.fixture(autouse=True)
-async def _isolated_db_engine() -> AsyncGenerator[None, None]:
+async def _isolated_db_engine(postgres_container) -> AsyncGenerator[None, None]:
     """
-    Give each E2E test its own database engine/connection pool.
+    Give each E2E test its own database engine/connection pool backed by
+    a dedicated PostgreSQL testcontainer.
 
     The global engine in ``session.py`` is shared across the entire test
     session. On Windows, asyncpg connection pools can leak state across
@@ -49,14 +60,20 @@ async def _isolated_db_engine() -> AsyncGenerator[None, None]:
     and dispose it deterministically.
     """
     import ai_news_digest.infrastructure.database.session as _session_module
+    from ai_news_digest.core.config import settings as lazy_settings
 
     old_engine = _session_module.engine
     if old_engine is not None and old_engine is not _original_engine:
         await old_engine.dispose()
 
-    settings = get_settings()
+    container_url = postgres_container.get_connection_url(driver="asyncpg")
+    real_settings = get_settings()
+    original_db_url = real_settings.database_url
+    object.__setattr__(lazy_settings, "database_url", container_url)
+    object.__setattr__(real_settings, "database_url", container_url)
+
     test_engine = create_async_engine(
-        settings.database_url,
+        container_url,
         echo=False,
         future=True,
         pool_pre_ping=True,
@@ -71,11 +88,19 @@ async def _isolated_db_engine() -> AsyncGenerator[None, None]:
     _session_module.engine = test_engine
     _session_module.SessionLocal = test_session_factory
 
+    async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
     try:
         yield
     finally:
+        async with test_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+
         _session_module.engine = _original_engine
         _session_module.SessionLocal = _original_SessionLocal
+        object.__setattr__(lazy_settings, "database_url", original_db_url)
+        object.__setattr__(real_settings, "database_url", original_db_url)
         await test_engine.dispose()
 
 

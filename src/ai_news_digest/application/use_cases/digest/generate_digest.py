@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from ai_news_digest.application.dto.digest_article_view import DigestArticleView
+from ai_news_digest.core.config import get_settings
 from ai_news_digest.core.exceptions import ValidationError
 from ai_news_digest.domain.enums.article_status import ArticleStatus
 from ai_news_digest.domain.enums.digest_format import DigestFormat
@@ -49,8 +50,10 @@ class GenerateDigestUseCase:
         limit: int | None = None,
     ) -> DigestGenerationResult:
         """Create a digest from eligible articles and persist it."""
+        settings = get_settings()
+        effective_limit = limit if limit is not None else settings.digest_max_articles
         eligible_articles = await self._article_repository.list_digest_eligible(
-            limit=limit,
+            limit=effective_limit,
         )
 
         if not eligible_articles:
@@ -86,6 +89,8 @@ class GenerateDigestUseCase:
                 selected_ids,
                 ArticleStatus.READY,
             )
+
+            await self._digest_repository.commit()
         except Exception:
             if persisted_digest is not None:
                 with contextlib.suppress(Exception):

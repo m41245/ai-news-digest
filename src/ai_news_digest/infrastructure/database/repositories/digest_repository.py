@@ -72,8 +72,7 @@ class DigestRepository(
 
         if links:
             await self._add_all(links)
-
-        await self._commit()
+            await self._flush()
 
         await self._refresh(model)
 
@@ -311,3 +310,7 @@ class DigestRepository(
     async def rollback(self) -> None:
         """Roll back the current transaction."""
         await self._session.rollback()
+
+    async def commit(self) -> None:
+        """Commit the current transaction."""
+        await self._session.commit()

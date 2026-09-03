@@ -44,9 +44,7 @@ def _looks_placeholder(value: str) -> bool:
     )
     return any(marker in lowered for marker in placeholder_markers) or (
         all(c in "0123456789abcdef" for c in lowered)
-        and (
-            "0123456789abcdef" in lowered or "abcdef0123456789" in lowered
-        )
+        and ("0123456789abcdef" in lowered or "abcdef0123456789" in lowered)
     )
 
 

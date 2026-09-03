@@ -52,7 +52,6 @@ async def test_digest_repository_create(
         patch.object(repository, "_add", new_callable=AsyncMock),
         patch.object(repository, "_flush", new_callable=AsyncMock),
         patch.object(repository, "_add_all", new_callable=AsyncMock),
-        patch.object(repository, "_commit", new_callable=AsyncMock),
         patch(
             "ai_news_digest.infrastructure.database.repositories.digest_repository.DigestMapper.to_model"
         ) as mock_to_model,
@@ -89,7 +88,6 @@ async def test_digest_repository_create_no_articles(
     with (
         patch.object(repository, "_add", new_callable=AsyncMock),
         patch.object(repository, "_flush", new_callable=AsyncMock),
-        patch.object(repository, "_commit", new_callable=AsyncMock),
         patch(
             "ai_news_digest.infrastructure.database.repositories.digest_repository.DigestMapper.to_model"
         ) as mock_to_model,

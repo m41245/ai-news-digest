@@ -110,3 +110,4 @@ node_modules/
 # Staging environment
 
 .env.staging
+.env.test

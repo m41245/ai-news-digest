@@ -107,7 +107,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
 
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=app_settings.cors_origins,
+        allow_origins=app_settings.cors_origins or [],
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],

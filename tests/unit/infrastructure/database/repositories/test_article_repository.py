@@ -323,4 +323,4 @@ async def test_mark_status_bulk_updates_in_transaction(
     assert result == 3
     mock_session.execute.assert_called_once()
     commit_calls = [c for c in mock_session.method_calls if c[0] == "commit"]
-    assert len(commit_calls) == 1
+    assert len(commit_calls) == 0

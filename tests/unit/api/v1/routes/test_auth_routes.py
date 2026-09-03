@@ -431,3 +431,51 @@ def test_me_malformed_token() -> None:
         )
 
     assert response.status_code == 401
+
+
+def test_register_rejects_weak_password() -> None:
+    user_repo = MagicMock()
+    user_repo.get_by_email = AsyncMock(return_value=None)
+    with _build_app(user_repo=user_repo) as client:
+        response = client.post(
+            "/auth/register",
+            json={"email": "weak@example.com", "password": "weak"},
+        )
+
+    assert response.status_code == 422
+
+
+def test_register_rejects_short_password() -> None:
+    user_repo = MagicMock()
+    user_repo.get_by_email = AsyncMock(return_value=None)
+    with _build_app(user_repo=user_repo) as client:
+        response = client.post(
+            "/auth/register",
+            json={"email": "short@example.com", "password": "Short1"},
+        )
+
+    assert response.status_code == 422
+
+
+def test_register_rejects_password_without_uppercase() -> None:
+    user_repo = MagicMock()
+    user_repo.get_by_email = AsyncMock(return_value=None)
+    with _build_app(user_repo=user_repo) as client:
+        response = client.post(
+            "/auth/register",
+            json={"email": "noupper@example.com", "password": "nouppercase1"},
+        )
+
+    assert response.status_code == 422
+
+
+def test_register_rejects_password_without_digit() -> None:
+    user_repo = MagicMock()
+    user_repo.get_by_email = AsyncMock(return_value=None)
+    with _build_app(user_repo=user_repo) as client:
+        response = client.post(
+            "/auth/register",
+            json={"email": "nodigit@example.com", "password": "NoDigitPassword"},
+        )
+
+    assert response.status_code == 422

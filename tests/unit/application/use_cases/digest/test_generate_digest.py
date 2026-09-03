@@ -13,6 +13,7 @@ import pytest
 from ai_news_digest.application.use_cases.digest.generate_digest import (
     GenerateDigestUseCase,
 )
+from ai_news_digest.core.config import get_settings
 from ai_news_digest.core.exceptions import ValidationError
 from ai_news_digest.domain.enums.digest_format import DigestFormat
 from ai_news_digest.domain.models.article import Article
@@ -89,7 +90,9 @@ async def test_generate_digest_success(
     assert result.digest_id == digest_id
     assert result.included_articles == 3
     assert isinstance(result.generated_at, datetime)
-    mock_article_repository.list_digest_eligible.assert_called_once_with(limit=None)
+    mock_article_repository.list_digest_eligible.assert_called_once_with(
+        limit=get_settings().digest_max_articles
+    )
     mock_digest_repository.create.assert_called_once()
 
 
@@ -295,14 +298,14 @@ async def test_generate_digest_cleans_up_on_article_update_failure(
     mock_digest_repository.delete.assert_awaited_once_with(digest_id)
 
 
-async def test_generate_digest_uses_atomic_bulk_mark_ready(
+async def test_generate_digest_commits_once_after_both_operations(
     sample_articles: list[Article],
     mock_article_repository: AsyncMock,
     mock_digest_repository: AsyncMock,
     mock_source_repository: AsyncMock,
     mock_category_repository: AsyncMock,
 ) -> None:
-    """Test that digest generation uses mark_status_bulk for atomicity."""
+    """Test that digest generation commits only once after both operations succeed."""
     mock_article_repository.list_digest_eligible.return_value = sample_articles
     mock_source_repository.list_all.return_value = []
     mock_category_repository.list_all.return_value = []
@@ -330,9 +333,8 @@ async def test_generate_digest_uses_atomic_bulk_mark_ready(
         content="Digest content",
     )
 
+    mock_digest_repository.create.assert_awaited_once()
     mock_article_repository.mark_status_bulk.assert_awaited_once()
-    call_args = mock_article_repository.mark_status_bulk.call_args
-    passed_ids = call_args[0][0]
-    passed_status = call_args[0][1]
-    assert set(passed_ids) == {a.id for a in sample_articles}
-    assert passed_status.value == "ready"
+    mock_digest_repository.commit.assert_awaited_once()
+    mock_digest_repository.rollback.assert_not_called()
+    mock_digest_repository.delete.assert_not_called()

@@ -196,7 +196,6 @@ class ArticleRepository(
             .values(status=status.value)
         )
         result = cast(CursorResult[Any], await self._session.execute(statement))
-        await self._commit()
         return result.rowcount
 
     async def update(

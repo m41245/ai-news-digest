@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from ai_news_digest.application.use_cases.digest.generate_digest import (
     DigestGenerationResult,
 )
+from ai_news_digest.core.config import get_settings
 from ai_news_digest.core.exceptions import ValidationError
 from ai_news_digest.core.logging import get_logger
 from ai_news_digest.core.metrics import (
@@ -43,9 +44,10 @@ async def _generate_daily_digest_impl() -> dict[str, str]:
                 "reason": "already_generated",
             }
 
+        settings = get_settings()
         result: DigestGenerationResult = await use_case.execute(
             title=title,
-            limit=50,
+            limit=settings.digest_max_articles,
         )
 
         logger.info(

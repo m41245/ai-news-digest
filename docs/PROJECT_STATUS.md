@@ -4,7 +4,7 @@
 
 Milestone 29 — Final Production Validation, Operational Hardening & Launch Gate: **Complete**.
 
-Production-readiness validation completed across all dimensions: backend correctness, database migrations, Docker deployment, security, Celery/Redis operations, frontend production build, documentation consistency, and adversarial testing. Key fixes applied: admin user pagination implemented, batch processing fixed to use database-level status queries, `.env.prod.local` CORS origins corrected, ruff lint issues resolved, frontend eslint configuration added. All quality gates pass: 1043 backend tests pass, 25 frontend tests pass, ruff clean, mypy clean, frontend build passing.
+Production-readiness validation completed. Key fixes applied: E2E tests migrated to testcontainers PostgreSQL (6 failures fixed), RegisterRequest password validation added, `.env.test` removed and gitignored, unnecessary config test change reverted, MyPy schema override added. All quality gates pass: 1047 backend tests pass, 25 frontend tests pass, ruff clean, mypy clean, frontend build passing, Docker build passing, pip-audit clean.
 
 ## Current Focus
 
@@ -816,6 +816,26 @@ Security hardening verified and applied: timing-attack-resistant login, strength
 - [x] Final validation: All quality gates pass
 - [x] Final report: `docs/MILESTONE_28_FINAL_PRODUCTION_LAUNCH_AND_CLOSURE_REPORT.md` created
 - [x] Final verdict: **PRODUCTION READY — STAGING VERIFICATION REQUIRED**
+
+### Milestone 29 — Final Production Validation, Operational Hardening & Launch Gate
+
+- [x] **E2E test failures fixed**: Migrated `tests/e2e/test_pipeline.py` from hardcoded `settings.database_url` to testcontainers PostgreSQL. All 18 E2E tests now pass (previously 6 failed with `InvalidPasswordError`).
+- [x] **Password validation defect fixed**: Added `field_validator` to `RegisterRequest` schema that enforces minimum password strength (8+ chars, uppercase, lowercase, digit). Weak passwords like `"weak"` are now rejected at schema validation time with 422.
+- [x] **`.env.test` handled safely**: File contained staging PostgreSQL credentials, was untracked and not gitignored. Added `.env.test` to `.gitignore` and removed the untracked file.
+- [x] **Unnecessary config test change reverted**: Removed redundant `environment="development"` parameter from `test_settings_default_values()` in `tests/unit/core/test_config.py`. Test still passes via default value.
+- [x] **MyPy schema override added**: Added `ai_news_digest.api.v1.schemas.auth` to `pyproject.toml` mypy overrides to suppress `import-untyped` for the password module (consistent with existing auth module overrides).
+- [x] **Ruff verified**: `ruff check .` and `ruff format --check .` both pass.
+- [x] **Full backend validation**: 1047 tests passed, 0 failed, 30 warnings, 88.48% coverage (exceeds 80% threshold).
+- [x] **Frontend validation**: 25 tests passed, typecheck passes, lint passes, production build passes.
+- [x] **Docker build verified**: Backend image builds successfully.
+- [x] **pip-audit**: No known vulnerabilities found.
+- [x] **npm audit**: 5 vulnerabilities in dev dependencies (esbuild/vite/vitest) — requires deliberate major-version upgrade to resolve; does not affect production bundle.
+- [x] **Migration verification**: 7 migrations (001→007) reviewed. Fresh upgrade verified via integration tests. 001 downgrade explicitly drops `articlestatus` enum. 006 converts status to VARCHAR.
+- [x] **Article status state machine verified**: NEW → SUMMARIZED → CATEGORIZED → READY. Public API excludes NEW/FAILED. Digest eligibility picks SUMMARIZED/CATEGORIZED. No invalid transitions found.
+- [x] **Admin pagination verified**: `list_users` endpoint already implements `limit`/`offset` pagination with `MAX_PAGE_LIMIT=100`.
+- [x] **Security review**: JWT none-algorithm rejection, bcrypt password hashing, rate limiting fail-closed, brute-force lockout, security headers, CORS, request size limiting, SSRF protection verified.
+- [x] **Final report**: `docs/MILESTONE_29_FINAL_PRODUCTION_VALIDATION_AND_LAUNCH_GATE_REPORT.md` created
+- [x] **Final verdict**: **PRODUCTION READY — STAGING VERIFICATION REQUIRED**
 
 ---
 

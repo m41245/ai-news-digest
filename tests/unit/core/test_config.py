@@ -318,3 +318,62 @@ def test_jwt_secret_accepts_strong_random_value() -> None:
         jwt_secret_key=strong_secret,
     )
     assert test_settings.jwt_secret_key == strong_secret
+
+
+def test_cors_origins_production_default_is_empty() -> None:
+    """Production CORS defaults to an empty allow-list (fail closed)."""
+    test_settings = Settings(
+        database_url="postgresql://test",
+        redis_url="redis://test",
+        celery_broker_url="redis://broker",
+        celery_result_backend="redis://backend",
+        environment="production",
+        jwt_secret_key="a" * 64,
+    )
+    assert test_settings.cors_origins == []
+
+
+def test_cors_origins_development_defaults_to_localhost() -> None:
+    """Development CORS defaults to localhost origins."""
+    test_settings = Settings(
+        database_url="postgresql://test",
+        redis_url="redis://test",
+        celery_broker_url="redis://broker",
+        celery_result_backend="redis://backend",
+        environment="development",
+        jwt_secret_key="a" * 64,
+    )
+    assert test_settings.cors_origins == [
+        "http://localhost:3000",
+        "http://localhost:8000",
+    ]
+
+
+def test_cors_origins_staging_defaults_to_localhost() -> None:
+    """Staging CORS defaults to localhost origins."""
+    test_settings = Settings(
+        database_url="postgresql://test",
+        redis_url="redis://test",
+        celery_broker_url="redis://broker",
+        celery_result_backend="redis://backend",
+        environment="staging",
+        jwt_secret_key="a" * 64,
+    )
+    assert test_settings.cors_origins == [
+        "http://localhost:3000",
+        "http://localhost:8000",
+    ]
+
+
+def test_cors_origins_explicit_value_overrides_default() -> None:
+    """Explicit CORS_ORIGINs value is respected in all environments."""
+    test_settings = Settings(
+        database_url="postgresql://test",
+        redis_url="redis://test",
+        celery_broker_url="redis://broker",
+        celery_result_backend="redis://backend",
+        environment="production",
+        jwt_secret_key="a" * 64,
+        cors_origins=["https://example.com"],
+    )
+    assert test_settings.cors_origins == ["https://example.com"]

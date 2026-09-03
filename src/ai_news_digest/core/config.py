@@ -437,9 +437,12 @@ class Settings(BaseSettings):
     # mechanism should be implemented.
     #
 
-    cors_origins: str | list[str] = Field(
-        default=["http://localhost:3000", "http://localhost:8000"],
-        description="Allowed CORS origins.",
+    cors_origins: str | list[str] | None = Field(
+        default=None,
+        description=(
+            "Allowed CORS origins. Defaults to localhost in development "
+            "and an empty list in production."
+        ),
     )
 
     rate_limit: int = Field(
@@ -508,7 +511,9 @@ class Settings(BaseSettings):
         mode="before",
     )
     @classmethod
-    def parse_list_from_env(cls, value: str | list[str]) -> list[str]:
+    def parse_list_from_env(cls, value: str | list[str] | None) -> list[str]:
+        if value is None:
+            return []
         if isinstance(value, str):
             stripped = value.strip()
             if not stripped:
@@ -602,6 +607,36 @@ class Settings(BaseSettings):
             )
         if len(value) < 32:
             raise ValueError("JWT_SECRET_KEY must be at least 32 characters long.")
+        return value
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def validate_cors_origins(
+        cls,
+        value: str | list[str] | None,
+        info: ValidationInfo,
+    ) -> list[str]:
+        """Set CORS defaults based on environment.
+
+        Development and staging default to localhost origins.
+        Production defaults to an empty list (fail closed).
+        """
+        if value is None or (isinstance(value, str) and not value.strip()):
+            environment = info.data.get("environment", "development")
+            if environment == "production":
+                return []
+            return ["http://localhost:3000", "http://localhost:8000"]
+        if isinstance(value, str):
+            stripped = value.strip()
+            if not stripped:
+                return []
+            try:
+                parsed = json.loads(stripped)
+                if isinstance(parsed, list):
+                    return parsed
+            except json.JSONDecodeError:
+                pass
+            return [item.strip() for item in stripped.split(",") if item.strip()]
         return value
 
 
