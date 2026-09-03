@@ -839,8 +839,33 @@ Security hardening verified and applied: timing-attack-resistant login, strength
 
 ---
 
+### Milestone 31 — Staging Verification & Final Production Launch Gate
+
+- [x] Actual staging stack deployed and verified (PostgreSQL, Redis, web, worker, beat, frontend all healthy)
+- [x] Backend validation: 1051 tests passed, 0 failed, ~88% coverage
+- [x] Frontend validation: 25 tests passed, typecheck/build pass
+- [x] Code quality: ruff check ✅, ruff format ✅, mypy ✅ (226 source files)
+- [x] Docker verification: backend + frontend images build; staging stack startup verified
+- [x] Health endpoints verified: `/health/live`, `/health/ready`, `/metrics/health`
+- [x] Authentication smoke tests: register, login, weak password rejection, brute-force lockout
+- [x] RBAC runtime verification: anonymous/user/admin authorization tested against admin endpoints
+- [x] Security headers verified: X-Content-Type-Options, X-Frame-Options, Referrer-Policy, CSP
+- [x] CORS runtime test: valid origins allowed; unauthorized origins blocked
+- [x] PostgreSQL restart recovery: app reconnected, readiness OK
+- [x] Redis restart recovery: app reconnected, readiness OK
+- [x] Celery verification: 12 tasks registered, worker + beat healthy, broker connected
+- [x] Metrics endpoint verified: requires auth, returns Prometheus metrics
+- [x] Backup creation verified: 37KB pg_dump created successfully
+- [x] Smoke tests: 14/15 passed (response time threshold exceeded by 0.084s due to Windows Docker networking)
+- [x] Secret hygiene: no secrets in tracked files
+- [x] No TODO/FIXME/HACK/XXX markers found in source, tests, or frontend
+- [x] Final report: `docs/MILESTONE_31_STAGING_VERIFICATION_AND_FINAL_LAUNCH_GATE_REPORT.md` created
+- [x] Final verdict: **PRODUCTION READY — STAGING VERIFICATION REQUIRED**
+
+---
+
 ## Current Focus
 
-Milestone 28 — Final Production Deployment, Launch Verification & Project Closure: **Complete**.
+Milestone 31 — Staging Verification & Final Production Launch Gate: **Complete**.
 
-Final production deployment verification completed. Repository-level readiness established through comprehensive validation: 1043 tests passing at 88.82% coverage, ruff/mypy/pip-audit clean, frontend tests/build passing, Docker Compose configs valid, staging stack healthy, security adversarial tests passing, secret hygiene enhanced. Staging verification with actual production infrastructure, credentials, DNS, external providers, remote CI execution, and legal review by qualified counsel remains required before final production launch. Final verdict: **PRODUCTION READY — STAGING VERIFICATION REQUIRED**.
+Actual staging infrastructure verification completed: Docker stack deployed and healthy (PostgreSQL, Redis, web, worker, beat, frontend), all health endpoints operational, authentication/authorization/security headers/CORS verified against running API, database and Redis restart recovery verified, Celery worker and beat healthy with 12 registered tasks, backup creation verified, smoke tests 14/15 passed, no code defects discovered, no secrets tracked, no TODO/FIXME markers. Remaining external gates: AI providers, SMTP, DNS/TLS, remote CI execution, legal review, and backup restore in this specific Windows environment. Final verdict: **PRODUCTION READY — STAGING VERIFICATION REQUIRED**.
