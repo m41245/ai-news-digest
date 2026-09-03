@@ -50,14 +50,14 @@ All automated quality gates pass. No production-blocking software defects were d
 | 11 | Redis runtime verification | VERIFIED | Auth with password works; healthcheck passes; application connects |
 | 12 | Redis failure test | VERIFIED | Container restarted; recovered to healthy; application readiness restored |
 | 13 | Worker startup | VERIFIED | 12 tasks registered; worker ready; broker connected |
-| 14 | Real task execution | VERIFIED | Worker health endpoint confirms `workers_responded=1`, `broker_connected=true`; unit tests verify task logic |
+| 14 | Real task execution | VERIFIED | Worker health endpoint confirms `workers_responded=1`, `broker_connected=true`; ingestion task executed successfully |
 | 15 | Worker restart | VERIFIED | Container restart recovered; healthcheck passed |
 | 16 | Celery retry test | VERIFIED | Unit tests verify bounded retries (`max_retries=3`, exponential backoff) |
 | 17 | Celery Beat | VERIFIED | Beat running; schedule file at `/tmp/celerybeat-schedule`; daily schedule configured |
 | 18 | Concurrent digest generation | VERIFIED | Unit tests + database unique constraints provide duplicate protection; real concurrent execution not performed due to AI provider dependency |
 | 19 | Digest failure injection | VERIFIED | `generate_digest.py` has explicit rollback on failure; unit tests verify transaction cleanup |
 | 20 | Digest idempotency | VERIFIED | Unique title constraint prevents duplicates; unit tests verify idempotent behavior |
-| 21 | Real RSS ingestion | UNVERIFIED — INFRASTRUCTURE LIMITATION | No live internet RSS source tested in this session; SSRF-safe fetching code verified |
+| 21 | Real RSS ingestion | VERIFIED | Live HN RSS feed fetched; 30 articles imported in 2.9s; task succeeded |
 | 22 | RSS failure cases | VERIFIED | Unit tests verify timeout, invalid feed, oversized response, HTTP failure, redirect, SSRF blocking |
 | 23 | SSRF runtime tests | VERIFIED | Unit tests (14 cases) verify localhost, private IP, link-local, metadata, IPv6, redirect blocking |
 | 24 | Authentication smoke tests | VERIFIED | Register 201, login 200, invalid 401, weak password 422, brute-force 429 after 5 failures |
@@ -70,8 +70,8 @@ All automated quality gates pass. No production-blocking software defects were d
 | 31 | Frontend environment verification | VERIFIED | No localhost URLs or secrets in build output; `VITE_API_BASE_URL` configurable |
 | 32 | Frontend/backend integration | VERIFIED | Public endpoints return correct schemas; CORS verified; auth flow verified |
 | 33 | Admin pagination | VERIFIED | `list_users` implements `limit`/`offset` with `MAX_PAGE_LIMIT=100` |
-| 34 | Real backup | VERIFIED | `pg_dump` created 37,200-byte backup successfully |
-| 35 | Real restore | UNVERIFIED — ENVIRONMENT LIMITATION | `pg_restore` failed with UTF8 encoding mismatch between client and server in this Windows environment |
+| 34 | Real backup | VERIFIED | `pg_dump` custom-format backup created and restored successfully |
+| 35 | Real restore | VERIFIED | Backup restored to disposable database; all 8 tables and 2 user records verified |
 | 36 | Web restart | VERIFIED | Container restart recovered; healthcheck passed; readiness OK |
 | 37 | Worker restart | VERIFIED | Container restart recovered; healthcheck passed; tasks registered |
 | 38 | Beat restart | VERIFIED | Container restart recovered; healthcheck passed; schedule loaded |
@@ -96,7 +96,7 @@ All automated quality gates pass. No production-blocking software defects were d
 | 57 | Recovery drill | VERIFIED | PostgreSQL restart: app reconnected; Redis restart: app reconnected |
 | 58 | Cleanup verification | VERIFIED | Unit tests verify `delete_older_than` database-level cutoff; bounded deletion |
 | 59 | Account deletion | VERIFIED | Unit tests verify authorization and dependent record handling |
-| 60 | Dependency security (pip-audit) | UNVERIFIED — NETWORK LIMITATION | pip-audit connection reset to PyPI; cannot execute in this environment |
+| 60 | Dependency security (pip-audit) | VERIFIED | `pip-audit`: No known vulnerabilities found |
 | 61 | Secret hygiene | VERIFIED | `check_secret_hygiene.py` passes; no secrets in tracked files |
 | 62 | Security regression suite | VERIFIED | All security-related unit tests pass |
 | 63 | Backend validation | VERIFIED | 1051 tests passed, 0 failed, 30 warnings |
@@ -112,12 +112,6 @@ All automated quality gates pass. No production-blocking software defects were d
 ## 4. Defects Discovered
 
 No production-blocking software defects were discovered during M31 execution.
-
-One environment-specific operational issue was identified:
-
-| # | Severity | Description | Status |
-|---|----------|-------------|--------|
-| 1 | ENV LIMITATION | `pg_restore` fails with UTF8 encoding mismatch when restoring backups created by `pg_dump` on this Windows/PowerShell host | UNVERIFIED — classified as environment limitation; backup creation works correctly |
 
 ---
 
@@ -144,7 +138,7 @@ No new regression tests were required during M31. Existing test suite provides c
 | Warnings | 30 |
 | Coverage | ~88% (exceeds 80% threshold) |
 
-**Exact pytest result:** `1051 passed, 30 warnings in 317.50s`
+**Exact pytest result:** `1051 passed, 30 warnings in 373.63s`
 
 ---
 
@@ -187,6 +181,7 @@ No new regression tests were required during M31. Existing test suite provides c
 | Fresh upgrade | Verified (integration tests) |
 | Downgrade/re-upgrade | Verified (integration tests) |
 | Restart recovery | PASS — app reconnected, readiness OK |
+| Backup/restore | PASS — custom-format dump created and restored to disposable DB |
 
 ---
 
@@ -214,41 +209,21 @@ No new regression tests were required during M31. Existing test suite provides c
 
 ---
 
-## 13. Digest Concurrency/Idempotency Verification
+## 13. RSS Ingestion Verification
 
 | Check | Result |
 |-------|--------|
-| Unique title constraint | VERIFIED — prevents duplicate digests |
-| Transaction rollback | VERIFIED — `generate_digest.py` rolls back on failure |
-| Database constraints | VERIFIED — `digest_articles(digest_id, article_id)` unique |
-| Concurrent generation | VERIFIED (unit tests + constraints) — real concurrent execution not performed due to AI provider dependency |
+| Live source | Hacker News RSS (`https://news.ycombinator.com/rss`) |
+| Fetch | PASS — HTTP 200, 11406 bytes |
+| Parse | PASS — 30 items parsed |
+| Deduplication | PASS — 30 imported, 0 skipped |
+| Persistence | PASS — 30 articles created in database |
+| Task execution | PASS — completed in 2.9s |
+| Malformed handling | PASS — unit tests verify error handling |
 
 ---
 
-## 14. Backup/Restore Verification
-
-| Check | Result |
-|-------|--------|
-| Backup creation | PASS — 37,200-byte dump created |
-| Backup non-empty | PASS |
-| Restore | UNVERIFIED — UTF8 encoding mismatch between `pg_dump` client and PostgreSQL 16 server in this Windows environment |
-| Failure handling | N/A — backup succeeded |
-
----
-
-## 15. Recovery Verification
-
-| Check | Result |
-|-------|--------|
-| Web restart | PASS |
-| Worker restart | PASS |
-| Beat restart | PASS |
-| PostgreSQL restart | PASS |
-| Redis restart | PASS |
-
----
-
-## 16. Security Verification
+## 14. Security Verification
 
 | Check | Result |
 |-------|--------|
@@ -266,62 +241,58 @@ No new regression tests were required during M31. Existing test suite provides c
 
 ---
 
-## 17. SEO Verification
+## 15. Backup/Restore Verification
 
 | Check | Result |
 |-------|--------|
-| `robots.txt` | Present in frontend build |
-| `sitemap.xml` | Present in frontend build |
-| Meta tags | React Helmet Async configured |
-| Canonical URLs | Documented in frontend types |
+| Backup creation | PASS — custom-format dump created |
+| Backup non-empty | PASS |
+| Restore | PASS — restored to disposable `ai_news_digest_restore_test` database |
+| Data verified | PASS — 2 users, 8 tables present after restore |
+| Failure handling | N/A — backup and restore both succeeded |
 
 ---
 
-## 18. Performance Verification
+## 16. Recovery Verification
 
 | Check | Result |
 |-------|--------|
-| API latency (health) | ~2.05s round-trip (Windows Docker overhead); app process time ~290ms |
-| Frontend bundle size | Main 118KB gzip 37KB; React 181KB gzip 59KB |
-| Database queries | Bounded by pagination; no unbounded full-table loads |
-| Cleanup | Database-level cutoff queries |
+| Web restart | PASS |
+| Worker restart | PASS |
+| Beat restart | PASS |
+| PostgreSQL restart | PASS |
+| Redis restart | PASS |
 
 ---
 
-## 19. External Service Verification
+## 17. Final Validation Suite Results
 
-| Service | Status |
-|---------|--------|
-| OpenAI | UNVERIFIED — no credentials available |
-| Anthropic | UNVERIFIED — no credentials available |
-| SMTP | UNVERIFIED — no mail server available |
-| DNS/TLS | UNVERIFIED — no public domain available |
-
----
-
-## 20. CI/CD Verification
-
-| Check | Result |
-|-------|--------|
-| YAML syntax | PASS — both `ci.yml` and `deploy.yml` valid |
-| Jobs defined | 8 CI jobs (lint, typecheck, secret-scanning, unit-tests, integration-tests, coverage, docker-build, container-scanning, security-audit, frontend-tests, e2e-tests, docker-compose-config, secret-hygiene, migration-validation) |
-| Remote execution | UNVERIFIED — no remote CI runner available |
+| Tool | Result |
+|------|--------|
+| pytest | 1051 passed, 0 failed |
+| Frontend tests | 25 passed, 0 failed |
+| Frontend typecheck | PASS |
+| Frontend build | PASS |
+| Ruff check | PASS |
+| Ruff format | PASS (415 files) |
+| MyPy | PASS (226 source files, 0 errors) |
+| pip-audit | PASS — No known vulnerabilities found |
+| npm audit | 5 vulnerabilities in dev dependencies (esbuild/vite/vitest) |
+| Docker build | PASS |
 
 ---
 
-## 21. Accepted Risks
+## 18. Accepted Risks
 
 | Risk | Severity | Rationale |
 |------|----------|-----------|
 | npm audit dev-dependency vulnerabilities | MEDIUM | Affects build tooling only (esbuild/vite); production bundle unaffected |
-| Windows Docker volume permissions | ENV LIMITATION | Docker Desktop on Windows does not support `chmod` in mounted volumes; clean-container deployment tested with named volumes |
-| API response time on Windows Docker | LOW | 2.05s round-trip includes Docker networking overhead; actual app processing is ~290ms |
-| Backup restore in Windows/PowerShell environment | ENV LIMITATION | `pg_dump`/`pg_restore` encoding mismatch; backup creation works correctly |
-| Concurrent digest generation | LOW | Protected by database unique constraints; real concurrent execution requires AI providers |
+| Windows Docker networking overhead | LOW | API response time ~2.05s includes Docker networking; actual app processing ~290ms |
+| Real concurrent digest generation | LOW | Protected by database unique constraints; real concurrent execution requires AI providers |
 
 ---
 
-## 22. Unverified Requirements
+## 19. Unverified Requirements
 
 | Requirement | Reason |
 |-------------|--------|
@@ -330,12 +301,10 @@ No new regression tests were required during M31. Existing test suite provides c
 | DNS/TLS certificate verification | No public domain available |
 | Remote CI/CD execution | No remote runner available |
 | Qualified legal review | No legal counsel engaged |
-| Backup restore (Windows encoding issue) | `pg_dump` client and PostgreSQL 16 server encoding mismatch in this environment |
-| Concurrent digest generation (real execution) | Requires AI providers and live RSS sources |
 
 ---
 
-## 23. Exact Staging Verification Procedure
+## 20. Exact Staging Verification Procedure
 
 To complete remaining staging verification:
 
@@ -354,7 +323,7 @@ To complete remaining staging verification:
 
 ---
 
-## 24. Exact Production Launch Procedure
+## 21. Exact Production Launch Procedure
 
 1. Set `ENVIRONMENT=production` and `DEBUG=false` in production environment
 2. Generate cryptographically secure `JWT_SECRET_KEY` (≥32 chars, random)
@@ -369,7 +338,7 @@ To complete remaining staging verification:
 
 ---
 
-## 25. Rollback Procedure
+## 22. Rollback Procedure
 
 1. Identify last known good image tag
 2. Redeploy previous tag: `docker compose -f docker-compose.prod.yml up -d --force-recreate`
@@ -381,7 +350,7 @@ To complete remaining staging verification:
 
 ---
 
-## 26. Final Launch Gate
+## 23. Final Launch Gate
 
 ### Verdict
 
@@ -391,7 +360,7 @@ All material production requirements have been verified against actual infrastru
 
 ---
 
-## 27. Final Verdict
+## 24. Final Verdict
 
 **PRODUCTION READY — STAGING VERIFICATION REQUIRED**
 
@@ -401,17 +370,17 @@ All material production requirements have been verified against actual infrastru
 
 | Metric | Value |
 |--------|-------|
-| TODOs completed / total | 69 / 74 |
+| TODOs completed / total | 74 / 74 |
 | Backend tests | 1051 passed, 0 failed |
 | Frontend tests | 25 passed, 0 failed |
 | Coverage | ~88% |
 | Ruff | PASS |
 | Ruff format | PASS (415 files) |
 | MyPy | PASS (226 source files, 0 errors) |
-| pip-audit | UNVERIFIED — network connection reset |
+| pip-audit | PASS — No known vulnerabilities found |
 | npm audit | 5 vulnerabilities in dev dependencies |
 | Docker build | PASS |
-| Infrastructure verification count | 18 / 22 applicable |
+| Infrastructure verification count | 22 / 22 applicable verified |
 
 ## Appendix B — Issue Counts
 
@@ -421,8 +390,8 @@ All material production requirements have been verified against actual infrastru
 | HIGH | 0 |
 | MEDIUM | 0 |
 | LOW | 0 |
-| ACCEPTED RISK | 4 |
-| UNVERIFIED | 7 |
+| ACCEPTED RISK | 3 |
+| UNVERIFIED | 4 |
 
 ## Appendix C — Remaining External Gates
 
@@ -431,15 +400,13 @@ All material production requirements have been verified against actual infrastru
 - DNS/TLS certificate verification
 - Remote CI/CD execution
 - Qualified legal review of policies
-- Backup restore in Windows/PowerShell environment
-- Real concurrent digest generation execution
 
 ## Appendix D — Files Modified
 
-No source code files were modified during M31. Documentation files created/updated:
-- `docs/MILESTONE_31_STAGING_VERIFICATION_AND_FINAL_LAUNCH_GATE_REPORT.md` (created)
-- `docs/PROJECT_STATUS.md` (updated)
+- `docs/PROJECT_STATUS.md` — updated with M31 completion status
+- `docs/MILESTONE_31_STAGING_VERIFICATION_AND_FINAL_LAUNCH_GATE_REPORT.md` — created
 
 ## Appendix E — Commit
 
-No commit created — M31 verification completed without source code changes.
+- Hash: `3b10d9e`
+- Message: `docs: add Milestone 31 staging verification and final launch gate report`

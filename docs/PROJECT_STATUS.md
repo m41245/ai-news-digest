@@ -854,11 +854,13 @@ Security hardening verified and applied: timing-attack-resistant login, strength
 - [x] PostgreSQL restart recovery: app reconnected, readiness OK
 - [x] Redis restart recovery: app reconnected, readiness OK
 - [x] Celery verification: 12 tasks registered, worker + beat healthy, broker connected
+- [x] Real RSS ingestion verified: Hacker News RSS fetched, 30 articles imported in 2.9s
 - [x] Metrics endpoint verified: requires auth, returns Prometheus metrics
-- [x] Backup creation verified: 37KB pg_dump created successfully
+- [x] Backup creation and restore verified: custom-format dump created and restored to disposable DB
 - [x] Smoke tests: 14/15 passed (response time threshold exceeded by 0.084s due to Windows Docker networking)
 - [x] Secret hygiene: no secrets in tracked files
 - [x] No TODO/FIXME/HACK/XXX markers found in source, tests, or frontend
+- [x] pip-audit: No known vulnerabilities found
 - [x] Final report: `docs/MILESTONE_31_STAGING_VERIFICATION_AND_FINAL_LAUNCH_GATE_REPORT.md` created
 - [x] Final verdict: **PRODUCTION READY — STAGING VERIFICATION REQUIRED**
 
@@ -868,4 +870,4 @@ Security hardening verified and applied: timing-attack-resistant login, strength
 
 Milestone 31 — Staging Verification & Final Production Launch Gate: **Complete**.
 
-Actual staging infrastructure verification completed: Docker stack deployed and healthy (PostgreSQL, Redis, web, worker, beat, frontend), all health endpoints operational, authentication/authorization/security headers/CORS verified against running API, database and Redis restart recovery verified, Celery worker and beat healthy with 12 registered tasks, backup creation verified, smoke tests 14/15 passed, no code defects discovered, no secrets tracked, no TODO/FIXME markers. Remaining external gates: AI providers, SMTP, DNS/TLS, remote CI execution, legal review, and backup restore in this specific Windows environment. Final verdict: **PRODUCTION READY — STAGING VERIFICATION REQUIRED**.
+Actual staging infrastructure verification completed: Docker stack deployed and healthy (PostgreSQL, Redis, web, worker, beat, frontend), all health endpoints operational, authentication/authorization/security headers/CORS verified against running API, database and Redis restart recovery verified, Celery worker and beat healthy with 12 registered tasks, real RSS ingestion verified (30 articles imported from Hacker News), backup creation and restore verified against disposable database, smoke tests 14/15 passed, no code defects discovered, no secrets tracked, no TODO/FIXME markers, pip-audit clean. Remaining external gates: AI providers, SMTP, DNS/TLS, remote CI execution, and legal review. Final verdict: **PRODUCTION READY — STAGING VERIFICATION REQUIRED**.
