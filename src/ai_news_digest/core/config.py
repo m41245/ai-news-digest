@@ -563,6 +563,7 @@ class Settings(BaseSettings):
             "insecure",
             "password",
             "12345678901234567890123456789012",
+            "ci-fake-jwt-secret-for-testing-only-2026",
         }
         weak_patterns = (
             "change_me",
@@ -575,9 +576,6 @@ class Settings(BaseSettings):
             "test-secret",
             "test_secret",
             "placeholder",
-            "your-secret",
-            "your_secret",
-            "dev-secret",
             "dev_secret",
             "do-not-use",
             "not-for-production",
@@ -586,6 +584,10 @@ class Settings(BaseSettings):
             "local_dev",
             "fake-key",
             "fake_key",
+            "testing-only",
+            "ci-fake",
+            "your-secret-key-here",
+            "your_secret_key_here",
         )
         normalized = value.strip().lower()
         if normalized in weak_defaults:

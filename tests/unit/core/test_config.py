@@ -208,6 +208,7 @@ def test_jwt_secret_rejects_weak_defaults() -> None:
         "insecure",
         "password",
         "12345678901234567890123456789012",
+        "ci-fake-jwt-secret-for-testing-only-2026",
     ]
     for weak_secret in weak_secrets:
         with pytest.raises(ValidationError, match="JWT_SECRET_KEY must be set to a secure value"):
@@ -243,6 +244,7 @@ def test_jwt_secret_rejects_placeholder_patterns() -> None:
         "local-prod-verification-key-123456789012345678901234",
         "local-dev-fake-key-not-for-production-use-only-1234567890",
         "fake-key-for-testing-not-secure-enough-at-all-yes",
+        "ci-fake-jwt-secret-for-testing-only-2026",
     ]
     for placeholder in placeholder_secrets:
         with pytest.raises(ValidationError, match="JWT_SECRET_KEY must be set to a secure value"):

@@ -67,5 +67,5 @@ def scan(path: str) -> None:
 
 
 if __name__ == "__main__":
-    for env_file in (".env", ".env.prod.local"):
+    for env_file in (".env", ".env.prod.local", ".env.staging"):
         scan(env_file)
