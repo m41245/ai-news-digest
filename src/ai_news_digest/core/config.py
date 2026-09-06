@@ -318,7 +318,16 @@ class Settings(BaseSettings):
     # Digest
     # ======================================================================
 
-    digest_timezone: str = "UTC"
+    digest_timezone: str = Field(
+        default="UTC",
+        description=(
+            "IANA timezone name used by digest scheduling and digest titles. "
+            "Must be a valid IANA timezone (e.g. 'UTC', 'Europe/London', "
+            "'Asia/Kolkata'). The default of UTC is the safest choice for "
+            "backwards compatibility; the digest schedule runs at "
+            "DIGEST_SCHEDULE_HOUR:DIGEST_SCHEDULE_MINUTE in this timezone."
+        ),
+    )
 
     digest_schedule_hour: int = Field(
         default=8,
@@ -342,6 +351,105 @@ class Settings(BaseSettings):
     # ======================================================================
     # Email / SMTP
     # ======================================================================
+
+    email_enabled: bool = Field(
+        default=True,
+        description="Enable email notification delivery.",
+    )
+
+    email_provider: Literal["console", "smtp", "test"] = Field(
+        default="console",
+        description="Email provider backend: console (dev), smtp (production), test (testing).",
+    )
+
+    email_from_address: str = Field(
+        default="noreply@ai-news-digest.com",
+        description="From address for outgoing emails.",
+    )
+
+    email_from_name: str = Field(
+        default="AI News Digest",
+        description="From display name for outgoing emails.",
+    )
+
+    email_reply_to: str | None = Field(
+        default=None,
+        description="Reply-to address for outgoing emails.",
+    )
+
+    email_base_url: str = Field(
+        default="http://localhost:8000",
+        description="Base URL used in email links.",
+    )
+
+    email_max_retries: int = Field(
+        default=3,
+        ge=0,
+        le=10,
+        description="Maximum retry attempts for transient email delivery failures.",
+    )
+
+    email_retry_delay: int = Field(
+        default=60,
+        ge=1,
+        le=3600,
+        description="Base retry delay in seconds for email delivery retries.",
+    )
+
+    email_batch_size: int = Field(
+        default=50,
+        ge=1,
+        le=1000,
+        description="Maximum number of emails sent in a single batch.",
+    )
+
+    email_rate_limit: int = Field(
+        default=100,
+        ge=1,
+        le=10000,
+        description="Maximum emails per rate limit window.",
+    )
+
+    email_timeout: int = Field(
+        default=30,
+        ge=1,
+        le=300,
+        description="Timeout in seconds for individual email delivery operations.",
+    )
+
+    email_development_mode: bool = Field(
+        default=True,
+        description="Force console email sender even in non-development environments.",
+    )
+
+    @field_validator("email_provider")
+    @classmethod
+    def validate_email_provider(cls, value: str) -> str:
+        allowed = {"console", "smtp", "test"}
+        normalized = value.strip().lower()
+        if normalized not in allowed:
+            raise ValueError(
+                f"EMAIL_PROVIDER must be one of {sorted(allowed)}, got '{value}'."
+            )
+        return normalized
+
+    # ======================================================================
+    # Notification Retention
+    # ======================================================================
+
+    notification_retention_days: int = Field(
+        default=90,
+        ge=1,
+        le=3650,
+        description="Number of days to retain notification records.",
+    )
+
+    notification_delivery_retention_days: int = Field(
+        default=30,
+        ge=1,
+        le=3650,
+        description="Number of days to retain notification delivery records.",
+    )
 
     @field_validator("smtp_port", mode="before")
     @classmethod
@@ -640,6 +748,23 @@ class Settings(BaseSettings):
                 pass
             return [item.strip() for item in stripped.split(",") if item.strip()]
         return value
+
+    @field_validator("digest_timezone")
+    @classmethod
+    def validate_digest_timezone(cls, value: str) -> str:
+        """Validate that ``digest_timezone`` is a usable IANA timezone name."""
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+        candidate = (value or "").strip()
+        if not candidate:
+            raise ValueError("DIGEST_TIMEZONE must not be empty.")
+        try:
+            ZoneInfo(candidate)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError(
+                f"DIGEST_TIMEZONE '{candidate}' is not a valid IANA timezone name."
+            ) from exc
+        return candidate
 
 
 class _LazySettingsMeta(type):

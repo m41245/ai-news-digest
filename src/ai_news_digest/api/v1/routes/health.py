@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from typing import Any
 
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
@@ -125,4 +126,31 @@ async def readiness() -> JSONResponse:
     )
 
 
+@router.get(
+    "/notifications",
+    summary="Notification system health check",
+)
+async def notification_health() -> dict[str, Any]:
+    try:
+        from ai_news_digest.bootstrap.container import Container
+        from ai_news_digest.infrastructure.database.session import SessionLocal
+        async with SessionLocal() as session:
+            container = Container(session)
+            delivery_repo = container.notification_delivery_repository
+            pending = await delivery_repo.list_pending(limit=1)
+            return {
+                "status": "ok",
+                "notification_system": "healthy",
+                "pending_deliveries_sample": len(pending),
+            }
+    except Exception as exc:
+        logger.error("Notification health check failed", error=str(exc))
+        return {
+            "status": "degraded",
+            "notification_system": "unhealthy",
+            "error": str(exc),
+        }
+
+
 __all__ = ["router"]
+

@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from ai_news_digest.domain.enums.article_status import ArticleStatus
+from ai_news_digest.domain.enums.extraction_method import ExtractionMethod
+from ai_news_digest.domain.enums.extraction_quality import ExtractionQuality
 
 
 @dataclass(slots=True)
@@ -26,6 +28,26 @@ class Article:
     fetched_at: datetime
 
     status: ArticleStatus
+
+    extraction_method: ExtractionMethod = ExtractionMethod.RSS
+    extraction_quality: ExtractionQuality = ExtractionQuality.NONE
+    extracted_at: datetime | None = None
+    content_char_count: int | None = None
+
+    importance_score: float | None = None
+    confidence: float | None = None
+    ai_provider: str | None = None
+    ai_model: str | None = None
+    ai_processed_at: datetime | None = None
+    key_takeaways: tuple[str, ...] = ()
+    why_it_matters: str | None = None
+    topics: tuple[str, ...] = ()
+    companies: tuple[str, ...] = ()
+    categories: tuple[str, ...] = ()
+    topic_ids: tuple[UUID, ...] = ()
+    company_ids: tuple[UUID, ...] = ()
+    category_ids: tuple[UUID, ...] = ()
+    cluster_id: UUID | None = None
 
     def mark_summarized(self) -> None:
         """Mark the article as summarized."""
@@ -55,9 +77,7 @@ class Article:
         published_at: datetime,
         category_id: UUID | None = None,
     ) -> Article:
-        """
-        Factory method for creating a newly ingested article.
-        """
+        """Factory method for creating a newly ingested article."""
 
         return cls(
             id=uuid4(),

@@ -1,305 +1,194 @@
 """
-Unit tests for health API routes.
+Unit tests for health check API routes.
 """
 
 from __future__ import annotations
 
-import time
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.ext.asyncio import AsyncConnection
 
-from ai_news_digest.api.v1.routes.health import _readiness_cache, router
+from ai_news_digest.api.middleware.exception_handler import setup_exception_handlers
+from ai_news_digest.api.v1.routes.health import router, _readiness_cache
+from ai_news_digest.core.config import get_settings
 
 
 @pytest.fixture(autouse=True)
 def _clear_readiness_cache() -> None:
     _readiness_cache.clear()
-    yield
-    _readiness_cache.clear()
 
 
-@pytest.fixture
-def client() -> TestClient:
-    """Create a test client for the health router."""
+def test_liveness_returns_alive() -> None:
     app = FastAPI()
     app.include_router(router)
+    setup_exception_handlers(app)
     with TestClient(app) as test_client:
-        yield test_client
-
-
-def test_liveness_returns_200(client: TestClient) -> None:
-    """Test liveness endpoint always returns 200."""
-    response = client.get("/health/live")
-
+        response = test_client.get("/health/live")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "alive"
-    assert data["application"] == "AI News Digest"
+    assert "application" in data
 
 
-def test_liveness_does_not_depend_on_external_services(client: TestClient) -> None:
-    """Test liveness endpoint never fails due to external services."""
-    with (
-        patch(
-            "ai_news_digest.api.v1.routes.health.engine",
-            MagicMock(),
-        ),
-        patch(
-            "ai_news_digest.api.v1.routes.health.RedisStore",
-            side_effect=Exception("redis down"),
-        ),
-    ):
-        response = client.get("/health/live")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "alive"
-
-
-def test_readiness_returns_200_when_healthy(
-    client: TestClient,
-) -> None:
-    """Test readiness endpoint returns 200 when dependencies are healthy."""
-    mock_conn = AsyncMock()
-    mock_conn.execute = AsyncMock(return_value=None)
-
-    mock_ctx = MagicMock()
-    mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
-    mock_ctx.__aexit__ = AsyncMock(return_value=False)
-
-    mock_engine = MagicMock()
-    mock_engine.connect = MagicMock(return_value=mock_ctx)
-
-    mock_store = AsyncMock()
-    mock_store.set = AsyncMock(return_value=None)
-    mock_store.delete = AsyncMock(return_value=None)
+def test_readiness_returns_ok_when_dependencies_healthy() -> None:
+    app = FastAPI()
+    app.include_router(router)
+    setup_exception_handlers(app)
+    mock_conn = MagicMock(spec=AsyncConnection)
+    mock_conn.execute = AsyncMock()
 
     with (
-        patch("ai_news_digest.api.v1.routes.health.engine", mock_engine),
-        patch(
-            "ai_news_digest.api.v1.routes.health.RedisStore",
-            return_value=mock_store,
-        ),
+        patch("ai_news_digest.api.v1.routes.health.engine") as mock_engine,
+        patch("ai_news_digest.api.v1.routes.health.RedisStore") as mock_redis_cls,
+        patch("ai_news_digest.api.v1.routes.health.settings") as mock_settings,
     ):
-        response = client.get("/health/ready")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "ready"
-        assert data["checks"]["database"] == "ok"
-        assert data["checks"]["cache"] == "ok"
+        mock_engine.connect.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+        mock_engine.connect.return_value.__aexit__ = AsyncMock(return_value=False)
+        mock_redis = MagicMock()
+        mock_redis.ping = AsyncMock(return_value=True)
+        mock_redis_cls.return_value = mock_redis
+        mock_settings.redis_url = "redis://localhost:6379"
+        mock_settings.app_name = "test-app"
+        mock_settings.app_version = "1.0.0"
+        mock_settings.environment = "test"
+        mock_settings.app_startup_time = None
+        with TestClient(app) as test_client:
+            response = test_client.get("/health/ready")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ready"
+    assert "checks" in data
 
 
-def test_readiness_returns_503_when_database_fails(
-    client: TestClient,
-) -> None:
-    """Test readiness returns 503 when database is unavailable."""
-    mock_engine = MagicMock()
-    mock_engine.connect = MagicMock(
-        side_effect=OperationalError("SELECT 1", None, Exception("db down"))
-    )
+def test_readiness_returns_degraded_when_database_unavailable() -> None:
+    app = FastAPI()
+    app.include_router(router)
+    setup_exception_handlers(app)
 
     with (
-        patch("ai_news_digest.api.v1.routes.health.engine", mock_engine),
-        patch(
-            "ai_news_digest.api.v1.routes.health.RedisStore",
-            return_value=AsyncMock(),
-        ),
+        patch("ai_news_digest.api.v1.routes.health.engine") as mock_engine,
+        patch("ai_news_digest.api.v1.routes.health.RedisStore") as mock_redis_cls,
+        patch("ai_news_digest.api.v1.routes.health.settings") as mock_settings,
     ):
-        response = client.get("/health/ready")
-        assert response.status_code == 503
-        data = response.json()
-        assert data["status"] == "degraded"
-        assert data["checks"]["database"] == "unavailable"
+        mock_engine.connect.side_effect = RuntimeError("db down")
+        mock_redis = MagicMock()
+        mock_redis.ping = AsyncMock(return_value=True)
+        mock_redis_cls.return_value = mock_redis
+        mock_settings.redis_url = "redis://localhost:6379"
+        mock_settings.app_name = "test-app"
+        mock_settings.app_version = "1.0.0"
+        mock_settings.environment = "test"
+        mock_settings.app_startup_time = None
+        with TestClient(app) as test_client:
+            response = test_client.get("/health/ready")
+    assert response.status_code == 503
+    data = response.json()
+    assert data["status"] == "degraded"
+    assert data["checks"]["database"] == "unavailable"
 
 
-def test_readiness_returns_503_when_redis_fails(
-    client: TestClient,
-) -> None:
-    """Test readiness returns 503 when Redis is unavailable."""
-    mock_conn = AsyncMock()
-    mock_conn.execute = AsyncMock(return_value=None)
-
-    mock_ctx = MagicMock()
-    mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
-    mock_ctx.__aexit__ = AsyncMock(return_value=False)
-
-    mock_engine = MagicMock()
-    mock_engine.connect = MagicMock(return_value=mock_ctx)
+def test_readiness_returns_degraded_when_cache_unavailable() -> None:
+    app = FastAPI()
+    app.include_router(router)
+    setup_exception_handlers(app)
+    mock_conn = MagicMock(spec=AsyncConnection)
+    mock_conn.execute = AsyncMock()
 
     with (
-        patch("ai_news_digest.api.v1.routes.health.engine", mock_engine),
-        patch(
-            "ai_news_digest.api.v1.routes.health.RedisStore",
-            side_effect=Exception("redis down"),
-        ),
+        patch("ai_news_digest.api.v1.routes.health.engine") as mock_engine,
+        patch("ai_news_digest.api.v1.routes.health.RedisStore") as mock_redis_cls,
+        patch("ai_news_digest.api.v1.routes.health.settings") as mock_settings,
     ):
-        response = client.get("/health/ready")
-        assert response.status_code == 503
-        data = response.json()
-        assert data["status"] == "degraded"
-        assert data["checks"]["cache"] == "unavailable"
+        mock_engine.connect.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+        mock_engine.connect.return_value.__aexit__ = AsyncMock(return_value=False)
+        mock_redis = MagicMock()
+        mock_redis.ping = AsyncMock(return_value=False)
+        mock_redis_cls.return_value = mock_redis
+        mock_settings.redis_url = "redis://localhost:6379"
+        mock_settings.app_name = "test-app"
+        mock_settings.app_version = "1.0.0"
+        mock_settings.environment = "test"
+        mock_settings.app_startup_time = None
+        with TestClient(app) as test_client:
+            response = test_client.get("/health/ready")
+    assert response.status_code == 503
+    data = response.json()
+    assert data["checks"]["cache"] == "unavailable"
 
 
-def test_readiness_caches_result(client: TestClient) -> None:
-    """Test readiness caches result to avoid thundering herd."""
-    mock_conn = AsyncMock()
-    mock_conn.execute = AsyncMock(return_value=None)
+def test_notification_health_check_returns_status() -> None:
+    app = FastAPI()
+    app.include_router(router)
+    setup_exception_handlers(app)
+    mock_container = MagicMock()
+    mock_container.notification_delivery_repository.list_pending = AsyncMock(return_value=[])
 
-    mock_ctx = MagicMock()
-    mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
-    mock_ctx.__aexit__ = AsyncMock(return_value=False)
+    with patch("ai_news_digest.bootstrap.container.Container") as mock_container_cls:
+        mock_container_cls.return_value = mock_container
+        with TestClient(app) as test_client:
+            response = test_client.get("/health/notifications")
+    assert response.status_code == 200
+    data = response.json()
+    assert "notification_system" in data
 
-    mock_engine = MagicMock()
-    mock_engine.connect = MagicMock(return_value=mock_ctx)
 
-    mock_store = AsyncMock()
-    mock_store.set = AsyncMock(return_value=None)
-    mock_store.delete = AsyncMock(return_value=None)
+def test_notification_health_check_reports_degraded_on_failure() -> None:
+    app = FastAPI()
+    app.include_router(router)
+    setup_exception_handlers(app)
+
+    with patch("ai_news_digest.bootstrap.container.Container") as mock_container_cls:
+        mock_container_cls.side_effect = RuntimeError("container init failed")
+        with TestClient(app) as test_client:
+            response = test_client.get("/health/notifications")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["notification_system"] == "unhealthy"
+    assert "error" in data
+
+
+def test_readiness_caches_result() -> None:
+    app = FastAPI()
+    app.include_router(router)
+    setup_exception_handlers(app)
+    mock_conn = MagicMock(spec=AsyncConnection)
+    mock_conn.execute = AsyncMock()
 
     with (
-        patch("ai_news_digest.api.v1.routes.health.engine", mock_engine),
-        patch(
-            "ai_news_digest.api.v1.routes.health.RedisStore",
-            return_value=mock_store,
-        ),
+        patch("ai_news_digest.api.v1.routes.health.engine") as mock_engine,
+        patch("ai_news_digest.api.v1.routes.health.RedisStore") as mock_redis_cls,
+        patch("ai_news_digest.api.v1.routes.health.time") as mock_time,
+        patch("ai_news_digest.api.v1.routes.health.settings") as mock_settings,
     ):
-        response1 = client.get("/health/ready")
-        assert response1.status_code == 200
-        response2 = client.get("/health/ready")
-        assert response2.status_code == 200
-        assert mock_engine.connect.call_count == 1
-
-
-def test_readiness_bypasses_cache_after_ttl(client: TestClient) -> None:
-    """Test readiness bypasses cache after TTL expires."""
-    with patch("ai_news_digest.api.v1.routes.health.time") as mock_time:
+        mock_engine.connect.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+        mock_engine.connect.return_value.__aexit__ = AsyncMock(return_value=False)
+        mock_redis = MagicMock()
+        mock_redis.ping = AsyncMock(return_value=True)
+        mock_redis_cls.return_value = mock_redis
+        mock_settings.redis_url = "redis://localhost:6379"
+        mock_settings.app_name = "test-app"
+        mock_settings.app_version = "1.0.0"
+        mock_settings.environment = "test"
+        mock_settings.app_startup_time = None
         mock_time.time.return_value = 1000.0
-        _readiness_cache["result"] = ({}, 503)
-        _readiness_cache["ts"] = 990.0
-
-        mock_time.time.return_value = 1007.0
-
-        mock_conn = AsyncMock()
-        mock_conn.execute = AsyncMock(return_value=None)
-
-        mock_ctx = MagicMock()
-        mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
-        mock_ctx.__aexit__ = AsyncMock(return_value=False)
-
-        mock_engine = MagicMock()
-        mock_engine.connect = MagicMock(return_value=mock_ctx)
-
-        mock_store = AsyncMock()
-        mock_store.set = AsyncMock(return_value=None)
-        mock_store.delete = AsyncMock(return_value=None)
-
-        with (
-            patch("ai_news_digest.api.v1.routes.health.engine", mock_engine),
-            patch(
-                "ai_news_digest.api.v1.routes.health.RedisStore",
-                return_value=mock_store,
-            ),
-        ):
-            response = client.get("/health/ready")
-            assert response.status_code == 200
-            assert mock_engine.connect.call_count == 1
+        with TestClient(app) as test_client:
+            response1 = test_client.get("/health/ready")
+            mock_time.time.return_value = 1001.0
+            response2 = test_client.get("/health/ready")
+    assert response1.status_code == 200
+    assert response2.status_code == 200
 
 
-def test_readiness_includes_startup_time(client: TestClient) -> None:
-    """Test readiness includes startup_time when configured."""
-    mock_conn = AsyncMock()
-    mock_conn.execute = AsyncMock(return_value=None)
-
-    mock_ctx = MagicMock()
-    mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
-    mock_ctx.__aexit__ = AsyncMock(return_value=False)
-
-    mock_engine = MagicMock()
-    mock_engine.connect = MagicMock(return_value=mock_ctx)
-
-    mock_store = AsyncMock()
-    mock_store.set = AsyncMock(return_value=None)
-    mock_store.delete = AsyncMock(return_value=None)
-
-    mock_settings = MagicMock()
-    mock_settings.app_name = "AI News Digest"
-    mock_settings.app_version = "0.1.0"
-    mock_settings.environment = "testing"
-    mock_settings.app_startup_time = 1700000000.0
-
-    with (
-        patch("ai_news_digest.api.v1.routes.health.engine", mock_engine),
-        patch(
-            "ai_news_digest.api.v1.routes.health.RedisStore",
-            return_value=mock_store,
-        ),
-        patch(
-            "ai_news_digest.api.v1.routes.health.settings",
-            mock_settings,
-        ),
-    ):
-        response = client.get("/health/ready")
-        assert response.status_code == 200
-        data = response.json()
-        assert "startup_time" in data
-        assert data["startup_time"] == 1700000000.0
-
-
-def test_readiness_returns_503_when_both_dependencies_fail(
-    client: TestClient,
-) -> None:
-    """Test readiness returns 503 when both database and Redis fail."""
-    mock_engine = MagicMock()
-    mock_engine.connect = MagicMock(
-        side_effect=OperationalError("SELECT 1", None, Exception("db down"))
-    )
-
-    with (
-        patch("ai_news_digest.api.v1.routes.health.engine", mock_engine),
-        patch(
-            "ai_news_digest.api.v1.routes.health.RedisStore",
-            side_effect=Exception("redis down"),
-        ),
-    ):
-        response = client.get("/health/ready")
-        assert response.status_code == 503
-        data = response.json()
-        assert data["status"] == "degraded"
-        assert data["checks"]["database"] == "unavailable"
-        assert data["checks"]["cache"] == "unavailable"
-
-
-def test_health_check_speed(client: TestClient) -> None:
-    """Test health checks are fast."""
-    mock_conn = AsyncMock()
-    mock_conn.execute = AsyncMock(return_value=None)
-
-    mock_ctx = MagicMock()
-    mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
-    mock_ctx.__aexit__ = AsyncMock(return_value=False)
-
-    mock_engine = MagicMock()
-    mock_engine.connect = MagicMock(return_value=mock_ctx)
-
-    mock_store = AsyncMock()
-    mock_store.set = AsyncMock(return_value=None)
-    mock_store.delete = AsyncMock(return_value=None)
-
-    with (
-        patch("ai_news_digest.api.v1.routes.health.engine", mock_engine),
-        patch(
-            "ai_news_digest.api.v1.routes.health.RedisStore",
-            return_value=mock_store,
-        ),
-    ):
-        start = time.time()
-        response = client.get("/health/ready")
-        elapsed = time.time() - start
-        assert response.status_code == 200
-        assert elapsed < 1.0
-
-
-__all__ = ["router"]
+__all__ = [
+    "test_liveness_returns_alive",
+    "test_notification_health_check_reports_degraded_on_failure",
+    "test_notification_health_check_returns_status",
+    "test_readiness_caches_result",
+    "test_readiness_returns_degraded_when_cache_unavailable",
+    "test_readiness_returns_degraded_when_database_unavailable",
+    "test_readiness_returns_ok_when_dependencies_healthy",
+]

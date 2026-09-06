@@ -126,13 +126,21 @@ class ArticleRepository(ABC):
         offset: int = 0,
         category_id: UUID | None = None,
         source_id: UUID | None = None,
+        company_id: UUID | None = None,
+        topic_id: UUID | None = None,
+        min_importance: float | None = None,
+        published_from: datetime | None = None,
+        published_to: datetime | None = None,
         search: str | None = None,
+        order_by: str = "published_at",
     ) -> list[Article]:
         """
         Return publicly visible articles with optional filtering.
 
         Only articles beyond the NEW/FAILED processing stages are returned so
         the public surface never exposes raw, unprocessed items.
+
+        `order_by` accepts ``"published_at"`` (default) or ``"importance"``.
         """
         raise NotImplementedError
 
@@ -141,6 +149,11 @@ class ArticleRepository(ABC):
         self,
         category_id: UUID | None = None,
         source_id: UUID | None = None,
+        company_id: UUID | None = None,
+        topic_id: UUID | None = None,
+        min_importance: float | None = None,
+        published_from: datetime | None = None,
+        published_to: datetime | None = None,
         search: str | None = None,
     ) -> int:
         """Count publicly visible articles matching the given filters."""
@@ -166,4 +179,138 @@ class ArticleRepository(ABC):
         limit: int = 1000,
     ) -> int:
         """Delete articles older than the cutoff date, returning the count deleted."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def replace_companies(
+        self,
+        article_id: UUID,
+        company_ids: list[UUID],
+    ) -> None:
+        """Replace the company links for an article with the given company ids."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def replace_topics(
+        self,
+        article_id: UUID,
+        topic_ids: list[UUID],
+    ) -> None:
+        """Replace the topic links for an article with the given topic ids."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def replace_categories(
+        self,
+        article_id: UUID,
+        category_ids: list[UUID],
+    ) -> None:
+        """Replace the category links for an article with the given category ids."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def list_by_cluster_id(
+        self,
+        cluster_id: UUID,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[Article]:
+        """
+        Return articles belonging to the given cluster, ordered by published_at desc.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def set_cluster(
+        self,
+        article_id: UUID,
+        cluster_id: UUID | None,
+    ) -> None:
+        """Set or clear the cluster for an article."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def list_public_articles_for_feed(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        min_importance: float | None = None,
+        min_confidence: float | None = None,
+        published_from: datetime | None = None,
+        published_to: datetime | None = None,
+    ) -> list[Article]:
+        """
+        Return publicly visible articles with all relationships loaded for
+        personalized feed ranking.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def list_personalized_feed_story_candidates(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        min_importance: float | None = None,
+        min_confidence: float | None = None,
+        published_from: datetime | None = None,
+        published_to: datetime | None = None,
+        muted_company_ids: list[UUID] | None = None,
+        muted_topic_ids: list[UUID] | None = None,
+        muted_category_ids: list[UUID] | None = None,
+        followed_company_ids: list[UUID] | None = None,
+        followed_topic_ids: list[UUID] | None = None,
+        followed_category_ids: list[UUID] | None = None,
+        preferred_source_type_ids: list[UUID] | None = None,
+    ) -> list[Article]:
+        """
+        Return story-level candidates for the personalized feed.
+
+        Prefers the latest article per story cluster when clusters exist,
+        falling back to standalone articles. Database-level filtering is
+        applied where practical.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def list_personalized_feed_candidates(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        min_importance: float | None = None,
+        min_confidence: float | None = None,
+        published_from: datetime | None = None,
+        published_to: datetime | None = None,
+        muted_company_ids: list[UUID] | None = None,
+        muted_topic_ids: list[UUID] | None = None,
+        muted_category_ids: list[UUID] | None = None,
+        followed_company_ids: list[UUID] | None = None,
+        followed_topic_ids: list[UUID] | None = None,
+        followed_category_ids: list[UUID] | None = None,
+        preferred_source_type_ids: list[UUID] | None = None,
+    ) -> list[Article]:
+        """
+        Return candidate articles for the personalized feed with database-level
+        filtering applied where practical.
+
+        The implementation should push as much filtering as possible into the
+        database to avoid loading unbounded result sets into application memory.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def count_personalized_feed_candidates(
+        self,
+        min_importance: float | None = None,
+        min_confidence: float | None = None,
+        published_from: datetime | None = None,
+        published_to: datetime | None = None,
+        muted_company_ids: list[UUID] | None = None,
+        muted_topic_ids: list[UUID] | None = None,
+        muted_category_ids: list[UUID] | None = None,
+        followed_company_ids: list[UUID] | None = None,
+        followed_topic_ids: list[UUID] | None = None,
+        followed_category_ids: list[UUID] | None = None,
+        preferred_source_type_ids: list[UUID] | None = None,
+    ) -> int:
+        """Count personalized feed candidates matching the given filters."""
         raise NotImplementedError

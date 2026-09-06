@@ -14,6 +14,15 @@ from ai_news_digest.workers.tasks.cleanup import (
 from ai_news_digest.workers.tasks.deliver import send_digest_email, send_latest_digest
 from ai_news_digest.workers.tasks.digest import generate_daily_digest
 from ai_news_digest.workers.tasks.ingest import fetch_all_sources
+from ai_news_digest.workers.tasks.notifications import (
+    cleanup_old_notification_deliveries,
+    cleanup_old_notifications,
+    process_immediate_deliveries,
+    process_scheduled_deliveries,
+    recover_stuck_deliveries,
+    retry_failed_deliveries,
+    schedule_notifications,
+)
 from ai_news_digest.workers.tasks.process import (
     categorize_article,
     categorize_pending_articles,
@@ -76,7 +85,7 @@ class TestBeatSchedule:
 
     def test_beat_schedule_is_configured(self) -> None:
         assert celery_app.conf.beat_schedule is not None
-        assert len(celery_app.conf.beat_schedule) == 5
+        assert len(celery_app.conf.beat_schedule) == 12
 
     def test_schedule_names_are_unique(self) -> None:
         names = list(celery_app.conf.beat_schedule.keys())
@@ -101,6 +110,13 @@ class TestBeatSchedule:
             "workers.tasks.process.categorize_pending_articles",
             "workers.tasks.digest.generate_daily_digest",
             "workers.tasks.deliver.send_latest_digest",
+            "workers.tasks.notifications.schedule_notifications",
+            "workers.tasks.notifications.process_scheduled_deliveries",
+            "workers.tasks.notifications.process_immediate_deliveries",
+            "workers.tasks.notifications.retry_failed_deliveries",
+            "workers.tasks.notifications.recover_stuck_deliveries",
+            "workers.tasks.notifications.cleanup_old_notification_deliveries",
+            "workers.tasks.notifications.cleanup_old_notifications",
         }
         actual_tasks = {entry["task"] for entry in celery_app.conf.beat_schedule.values()}
         assert expected_tasks == actual_tasks
@@ -126,6 +142,13 @@ class TestTaskRegistration:
             "workers.tasks.deliver.send_latest_digest",
             "workers.tasks.cleanup.cleanup_old_articles",
             "workers.tasks.cleanup.cleanup_old_digests",
+            "workers.tasks.notifications.schedule_notifications",
+            "workers.tasks.notifications.process_scheduled_deliveries",
+            "workers.tasks.notifications.process_immediate_deliveries",
+            "workers.tasks.notifications.retry_failed_deliveries",
+            "workers.tasks.notifications.recover_stuck_deliveries",
+            "workers.tasks.notifications.cleanup_old_notification_deliveries",
+            "workers.tasks.notifications.cleanup_old_notifications",
         }
         registered = set(celery_app.tasks.keys())
         missing = expected_tasks - registered
@@ -144,6 +167,13 @@ class TestTaskRegistration:
             send_latest_digest,
             cleanup_old_articles,
             cleanup_old_digests,
+            schedule_notifications,
+            process_scheduled_deliveries,
+            process_immediate_deliveries,
+            retry_failed_deliveries,
+            recover_stuck_deliveries,
+            cleanup_old_notification_deliveries,
+            cleanup_old_notifications,
         ]
         for task in task_names:
             assert task.max_retries == 3, f"{task.name} max_retries != 3"
@@ -161,6 +191,13 @@ class TestTaskRegistration:
             send_latest_digest.name,
             cleanup_old_articles.name,
             cleanup_old_digests.name,
+            schedule_notifications.name,
+            process_scheduled_deliveries.name,
+            process_immediate_deliveries.name,
+            retry_failed_deliveries.name,
+            recover_stuck_deliveries.name,
+            cleanup_old_notification_deliveries.name,
+            cleanup_old_notifications.name,
         ]
         assert len(task_names) == len(set(task_names))
 

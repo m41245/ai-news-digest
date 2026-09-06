@@ -111,15 +111,18 @@ celery_app = Celery(
         "ai_news_digest.workers.tasks.digest",
         "ai_news_digest.workers.tasks.deliver",
         "ai_news_digest.workers.tasks.cleanup",
+        "ai_news_digest.workers.tasks.notifications",
     ],
     task_cls=AwaitableTask,
 )
+
+_celery_timezone = settings.digest_timezone
 
 celery_app.conf.update(
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",
-    timezone="UTC",
+    timezone=_celery_timezone,
     enable_utc=True,
     task_track_started=True,
     task_time_limit=30 * 60,  # 30 minutes
@@ -176,6 +179,62 @@ celery_app.conf.update(
         "daily-email-delivery": {
             "task": "workers.tasks.deliver.send_latest_digest",
             "schedule": crontab(hour=8, minute=30),
+            "options": {
+                "expires": 3600,
+                "send_events": True,
+            },
+        },
+        "notification-scheduling": {
+            "task": "workers.tasks.notifications.schedule_notifications",
+            "schedule": crontab(minute="*/15"),
+            "options": {
+                "expires": 1800,
+                "send_events": True,
+            },
+        },
+        "notification-immediate-delivery": {
+            "task": "workers.tasks.notifications.process_immediate_deliveries",
+            "schedule": crontab(minute="*/5"),
+            "options": {
+                "expires": 900,
+                "send_events": True,
+            },
+        },
+        "notification-scheduled-delivery": {
+            "task": "workers.tasks.notifications.process_scheduled_deliveries",
+            "schedule": crontab(minute="*/10"),
+            "options": {
+                "expires": 1800,
+                "send_events": True,
+            },
+        },
+        "notification-retry-failed": {
+            "task": "workers.tasks.notifications.retry_failed_deliveries",
+            "schedule": crontab(minute="*/30"),
+            "options": {
+                "expires": 1800,
+                "send_events": True,
+            },
+        },
+        "notification-recover-stuck": {
+            "task": "workers.tasks.notifications.recover_stuck_deliveries",
+            "schedule": crontab(minute="*/15"),
+            "options": {
+                "expires": 1800,
+                "send_events": True,
+            },
+        },
+        "notification-cleanup-deliveries": {
+            "task": "workers.tasks.notifications.cleanup_old_notification_deliveries",
+            "schedule": crontab(hour=3, minute=0),
+            "options": {
+                "expires": 3600,
+                "send_events": True,
+            },
+        },
+        "notification-cleanup-notifications": {
+            "task": "workers.tasks.notifications.cleanup_old_notifications",
+            "schedule": crontab(hour=2, minute=0),
             "options": {
                 "expires": 3600,
                 "send_events": True,

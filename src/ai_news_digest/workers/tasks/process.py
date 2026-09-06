@@ -188,6 +188,79 @@ async def _process_article_impl(article_id: UUID) -> dict[str, str]:
     return {"status": "not_found"}
 
 
+async def _analyze_article_impl(article_id: UUID) -> dict[str, str]:
+    """
+    Typed implementation function for structured article analysis.
+    """
+    logger.info(
+        "Starting article analysis",
+        article_id=str(article_id),
+    )
+
+    async for container in get_container():
+        article_repository = container.article_repository
+        article = await article_repository.get_by_id(article_id)
+
+        if article is None:
+            logger.warning(
+                "Article not found for analysis",
+                article_id=str(article_id),
+            )
+            return {"status": "not_found"}
+
+        if article.status == ArticleStatus.ANALYZED:
+            logger.info(
+                "Article already analyzed, skipping",
+                article_id=str(article_id),
+                status=article.status,
+            )
+            return {"status": "already_processed"}
+
+        if article.status not in (
+            ArticleStatus.CATEGORIZED,
+            ArticleStatus.SUMMARIZED,
+            ArticleStatus.NEW,
+        ):
+            logger.info(
+                "Article not ready for analysis, skipping",
+                article_id=str(article_id),
+                status=article.status,
+            )
+            return {"status": "not_ready"}
+
+        analyze_use_case = container.analyze_article
+        if analyze_use_case is None:
+            logger.warning(
+                "No AI provider available for analysis",
+                article_id=str(article_id),
+            )
+            return {"status": "no_provider"}
+
+        materialize_use_case = container.analyze_and_materialize
+        if materialize_use_case is None:
+            logger.warning(
+                "Analysis materializer unavailable",
+                article_id=str(article_id),
+            )
+            return {"status": "no_provider"}
+
+        updated_article = await materialize_use_case.execute(article)
+
+        logger.info(
+            "Article analysis completed",
+            article_id=str(article_id),
+            status=updated_article.status,
+        )
+
+        return {
+            "status": "completed",
+            "article_id": str(updated_article.id),
+            "article_status": updated_article.status,
+        }
+
+    return {"status": "not_found"}
+
+
 async def _summarize_pending_articles_impl() -> dict[str, int]:
     """
     Typed implementation function for batch article summarization.
@@ -336,7 +409,75 @@ async def categorize_pending_articles() -> dict[str, int]:
     )
 
 
+@celery_app.task(
+    name="workers.tasks.process.analyze_article",
+    max_retries=3,
+    default_retry_delay=60,
+)
+async def analyze_article(article_id: UUID) -> dict[str, str]:
+    """
+    Run structured AI analysis on a single article and materialize results.
+
+    This task is idempotent and can be safely retried.
+    """
+    return await _record_task_outcome(  # type: ignore[return-value]
+        "workers.tasks.process.analyze_article",
+        _analyze_article_impl(article_id),
+        count_article_on_completed=True,
+    )
+
+
+@celery_app.task(
+    name="workers.tasks.process.analyze_pending_articles",
+    max_retries=3,
+    default_retry_delay=60,
+)
+async def analyze_pending_articles() -> dict[str, int]:
+    """
+    Analyze all CATEGORIZED articles that have not yet been analyzed.
+
+    This task chains individual analysis tasks for each article.
+    """
+    return await _record_task_outcome(  # type: ignore[return-value]
+        "workers.tasks.process.analyze_pending_articles",
+        _analyze_pending_articles_impl(),
+    )
+
+
+async def _analyze_pending_articles_impl() -> dict[str, int]:
+    """
+    Typed implementation function for batch article analysis.
+    """
+    logger.info("Starting batch analysis of categorized articles")
+
+    async for container in get_container():
+        article_repository: ArticleRepository = container.article_repository
+        categorized_articles = await article_repository.list_by_status(
+            ArticleStatus.CATEGORIZED, limit=100
+        )
+
+        if not categorized_articles:
+            logger.info("No categorized articles found for analysis")
+            return {"queued": 0}
+
+        logger.info(
+            "Found categorized articles for analysis",
+            count=len(categorized_articles),
+        )
+
+        for article in categorized_articles:
+            analyze_article.delay(article.id)
+
+        return {
+            "queued": len(categorized_articles),
+        }
+
+    return {"queued": 0}
+
+
 __all__ = [
+    "analyze_article",
+    "analyze_pending_articles",
     "categorize_article",
     "categorize_pending_articles",
     "process_article",

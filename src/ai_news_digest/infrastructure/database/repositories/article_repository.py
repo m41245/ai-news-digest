@@ -19,8 +19,17 @@ from ai_news_digest.domain.ports.article_repository import (
 from ai_news_digest.infrastructure.database.mappers.article_mapper import (
     ArticleMapper,
 )
+from ai_news_digest.infrastructure.database.models.article_category_model import (
+    ArticleCategoryModel,
+)
+from ai_news_digest.infrastructure.database.models.article_company_model import (
+    ArticleCompanyModel,
+)
 from ai_news_digest.infrastructure.database.models.article_model import (
     ArticleModel,
+)
+from ai_news_digest.infrastructure.database.models.article_topic_model import (
+    ArticleTopicModel,
 )
 from ai_news_digest.infrastructure.database.repositories.base_repository import (
     BaseRepository,
@@ -73,8 +82,16 @@ class ArticleRepository(
         self,
         article_id: UUID,
     ) -> Article | None:
-        statement = select(ArticleModel).where(
-            ArticleModel.id == str(article_id),
+        statement = (
+            select(ArticleModel)
+            .options(
+                selectinload(ArticleModel.source),
+                selectinload(ArticleModel.category),
+                selectinload(ArticleModel.company_links),
+                selectinload(ArticleModel.topic_links),
+                selectinload(ArticleModel.category_links),
+            )
+            .where(ArticleModel.id == str(article_id))
         )
 
         result = await self._session.execute(statement)
@@ -113,6 +130,9 @@ class ArticleRepository(
             .options(
                 selectinload(ArticleModel.source),
                 selectinload(ArticleModel.category),
+                selectinload(ArticleModel.company_links),
+                selectinload(ArticleModel.topic_links),
+                selectinload(ArticleModel.category_links),
             )
             .order_by(ArticleModel.published_at.desc())
             .limit(limit)
@@ -134,6 +154,9 @@ class ArticleRepository(
             .options(
                 selectinload(ArticleModel.source),
                 selectinload(ArticleModel.category),
+                selectinload(ArticleModel.company_links),
+                selectinload(ArticleModel.topic_links),
+                selectinload(ArticleModel.category_links),
             )
             .where(ArticleModel.status == status.value)
             .order_by(ArticleModel.published_at.desc())
@@ -154,12 +177,16 @@ class ArticleRepository(
             .options(
                 selectinload(ArticleModel.source),
                 selectinload(ArticleModel.category),
+                selectinload(ArticleModel.company_links),
+                selectinload(ArticleModel.topic_links),
+                selectinload(ArticleModel.category_links),
             )
             .where(
                 ArticleModel.status.in_(
                     [
                         ArticleStatus.SUMMARIZED,
                         ArticleStatus.CATEGORIZED,
+                        ArticleStatus.ANALYZED,
                     ]
                 )
             )
@@ -246,44 +273,82 @@ class ArticleRepository(
         result = await self._session.execute(statement)
         return int(result.scalar_one())
 
-    async def list_public_articles(
+    async def list_by_cluster_id(
         self,
+        cluster_id: UUID,
         limit: int = 100,
         offset: int = 0,
-        category_id: UUID | None = None,
-        source_id: UUID | None = None,
-        search: str | None = None,
     ) -> list[Article]:
         statement = (
             select(ArticleModel)
             .options(
                 selectinload(ArticleModel.source),
                 selectinload(ArticleModel.category),
+                selectinload(ArticleModel.company_links),
+                selectinload(ArticleModel.topic_links),
+                selectinload(ArticleModel.category_links),
+            )
+            .where(ArticleModel.cluster_id == str(cluster_id))
+            .order_by(ArticleModel.published_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+
+        result = await self._session.execute(statement)
+
+        return [ArticleMapper.to_domain(model) for model in result.scalars().all()]
+
+    async def list_public_articles(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        category_id: UUID | None = None,
+        source_id: UUID | None = None,
+        company_id: UUID | None = None,
+        topic_id: UUID | None = None,
+        min_importance: float | None = None,
+        published_from: datetime | None = None,
+        published_to: datetime | None = None,
+        search: str | None = None,
+        order_by: str = "published_at",
+    ) -> list[Article]:
+        statement = (
+            select(ArticleModel)
+            .options(
+                selectinload(ArticleModel.source),
+                selectinload(ArticleModel.category),
+                selectinload(ArticleModel.company_links),
+                selectinload(ArticleModel.topic_links),
+                selectinload(ArticleModel.category_links),
             )
             .where(
                 ArticleModel.status.not_in(
                     [ArticleStatus.NEW, ArticleStatus.FAILED],
                 ),
             )
-            .order_by(ArticleModel.published_at.desc())
-            .limit(limit)
-            .offset(offset)
         )
 
-        if category_id is not None:
-            statement = statement.where(ArticleModel.category_id == str(category_id))
+        statement = self._apply_public_filters(
+            statement,
+            category_id=category_id,
+            source_id=source_id,
+            company_id=company_id,
+            topic_id=topic_id,
+            min_importance=min_importance,
+            published_from=published_from,
+            published_to=published_to,
+            search=search,
+        )
 
-        if source_id is not None:
-            statement = statement.where(ArticleModel.source_id == str(source_id))
-
-        if search:
-            pattern = f"%{search}%"
-            statement = statement.where(
-                or_(
-                    ArticleModel.title.ilike(pattern),
-                    ArticleModel.summary.ilike(pattern),
-                ),
+        if order_by == "importance":
+            statement = statement.order_by(
+                ArticleModel.importance_score.desc().nulls_last(),
+                ArticleModel.published_at.desc(),
             )
+        else:
+            statement = statement.order_by(ArticleModel.published_at.desc())
+
+        statement = statement.limit(limit).offset(offset)
 
         result = await self._session.execute(statement)
 
@@ -293,6 +358,11 @@ class ArticleRepository(
         self,
         category_id: UUID | None = None,
         source_id: UUID | None = None,
+        company_id: UUID | None = None,
+        topic_id: UUID | None = None,
+        min_importance: float | None = None,
+        published_from: datetime | None = None,
+        published_to: datetime | None = None,
         search: str | None = None,
     ) -> int:
         statement = (
@@ -305,11 +375,74 @@ class ArticleRepository(
             )
         )
 
+        statement = self._apply_public_filters(
+            statement,
+            category_id=category_id,
+            source_id=source_id,
+            company_id=company_id,
+            topic_id=topic_id,
+            min_importance=min_importance,
+            published_from=published_from,
+            published_to=published_to,
+            search=search,
+        )
+
+        result = await self._session.execute(statement)
+
+        return int(result.scalar_one())
+
+    def _apply_public_filters(
+        self,
+        statement: Any,
+        *,
+        category_id: UUID | None,
+        source_id: UUID | None,
+        company_id: UUID | None,
+        topic_id: UUID | None,
+        min_importance: float | None,
+        published_from: datetime | None,
+        published_to: datetime | None,
+        search: str | None,
+    ) -> Any:
+        from ai_news_digest.infrastructure.database.models.article_company_model import (
+            ArticleCompanyModel,
+        )
+        from ai_news_digest.infrastructure.database.models.article_topic_model import (
+            ArticleTopicModel,
+        )
+
         if category_id is not None:
             statement = statement.where(ArticleModel.category_id == str(category_id))
 
         if source_id is not None:
             statement = statement.where(ArticleModel.source_id == str(source_id))
+
+        if company_id is not None:
+            statement = statement.where(
+                ArticleModel.id.in_(
+                    select(ArticleCompanyModel.article_id).where(
+                        ArticleCompanyModel.company_id == str(company_id),
+                    ),
+                ),
+            )
+
+        if topic_id is not None:
+            statement = statement.where(
+                ArticleModel.id.in_(
+                    select(ArticleTopicModel.article_id).where(
+                        ArticleTopicModel.topic_id == str(topic_id),
+                    ),
+                ),
+            )
+
+        if min_importance is not None:
+            statement = statement.where(ArticleModel.importance_score >= min_importance)
+
+        if published_from is not None:
+            statement = statement.where(ArticleModel.published_at >= published_from)
+
+        if published_to is not None:
+            statement = statement.where(ArticleModel.published_at <= published_to)
 
         if search:
             pattern = f"%{search}%"
@@ -320,9 +453,7 @@ class ArticleRepository(
                 ),
             )
 
-        result = await self._session.execute(statement)
-
-        return int(result.scalar_one())
+        return statement
 
     async def get_public_article(
         self,
@@ -333,6 +464,9 @@ class ArticleRepository(
             .options(
                 selectinload(ArticleModel.source),
                 selectinload(ArticleModel.category),
+                selectinload(ArticleModel.company_links),
+                selectinload(ArticleModel.topic_links),
+                selectinload(ArticleModel.category_links),
             )
             .where(
                 ArticleModel.id == str(article_id),
@@ -351,6 +485,335 @@ class ArticleRepository(
 
         return ArticleMapper.to_domain(model)
 
+    async def list_public_articles_for_feed(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        min_importance: float | None = None,
+        min_confidence: float | None = None,
+        published_from: datetime | None = None,
+        published_to: datetime | None = None,
+    ) -> list[Article]:
+        statement = (
+            select(ArticleModel)
+            .options(
+                selectinload(ArticleModel.source),
+                selectinload(ArticleModel.category),
+                selectinload(ArticleModel.company_links),
+                selectinload(ArticleModel.topic_links),
+                selectinload(ArticleModel.category_links),
+                selectinload(ArticleModel.cluster),
+            )
+            .where(
+                ArticleModel.status.not_in(
+                    [ArticleStatus.NEW, ArticleStatus.FAILED],
+                ),
+            )
+        )
+
+        if min_importance is not None:
+            statement = statement.where(ArticleModel.importance_score >= min_importance)
+
+        if min_confidence is not None:
+            statement = statement.where(ArticleModel.confidence >= min_confidence)
+
+        if published_from is not None:
+            statement = statement.where(ArticleModel.published_at >= published_from)
+
+        if published_to is not None:
+            statement = statement.where(ArticleModel.published_at <= published_to)
+
+        statement = statement.order_by(ArticleModel.published_at.desc()).limit(limit).offset(offset)
+
+        result = await self._session.execute(statement)
+
+        return [ArticleMapper.to_domain(model) for model in result.scalars().all()]
+
+    async def list_personalized_feed_story_candidates(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        min_importance: float | None = None,
+        min_confidence: float | None = None,
+        published_from: datetime | None = None,
+        published_to: datetime | None = None,
+        muted_company_ids: list[UUID] | None = None,
+        muted_topic_ids: list[UUID] | None = None,
+        muted_category_ids: list[UUID] | None = None,
+        followed_company_ids: list[UUID] | None = None,
+        followed_topic_ids: list[UUID] | None = None,
+        followed_category_ids: list[UUID] | None = None,
+        preferred_source_type_ids: list[UUID] | None = None,
+    ) -> list[Article]:
+        from ai_news_digest.infrastructure.database.models.article_category_model import (
+            ArticleCategoryModel,
+        )
+        from ai_news_digest.infrastructure.database.models.article_company_model import (
+            ArticleCompanyModel,
+        )
+        from ai_news_digest.infrastructure.database.models.article_topic_model import (
+            ArticleTopicModel,
+        )
+
+        cluster_latest = (
+            select(
+                ArticleModel.cluster_id,
+                func.max(ArticleModel.published_at).label("max_published_at"),
+            )
+            .where(
+                ArticleModel.status.not_in(
+                    [ArticleStatus.NEW, ArticleStatus.FAILED],
+                ),
+                ArticleModel.cluster_id.is_not(None),
+            )
+            .group_by(ArticleModel.cluster_id)
+            .subquery()
+        )
+
+        cluster_article_ids = (
+            select(ArticleModel.id)
+            .join(
+                cluster_latest,
+                ArticleModel.cluster_id == cluster_latest.c.cluster_id,
+            )
+            .where(ArticleModel.published_at == cluster_latest.c.max_published_at)
+            .subquery()
+        )
+
+        standalone_ids = (
+            select(ArticleModel.id)
+            .where(
+                ArticleModel.status.not_in(
+                    [ArticleStatus.NEW, ArticleStatus.FAILED],
+                ),
+                ArticleModel.cluster_id.is_(None),
+            )
+            .subquery()
+        )
+
+        combined_ids = (
+            select(cluster_article_ids.c.id)
+            .union_all(select(standalone_ids.c.id))
+            .subquery()
+        )
+
+        statement = (
+            select(ArticleModel)
+            .options(
+                selectinload(ArticleModel.source),
+                selectinload(ArticleModel.category),
+                selectinload(ArticleModel.company_links),
+                selectinload(ArticleModel.topic_links),
+                selectinload(ArticleModel.category_links),
+                selectinload(ArticleModel.cluster),
+            )
+            .join(combined_ids, ArticleModel.id == combined_ids.c.id)
+            .where(
+                ArticleModel.status.not_in(
+                    [ArticleStatus.NEW, ArticleStatus.FAILED],
+                ),
+            )
+        )
+
+        if min_importance is not None:
+            statement = statement.where(ArticleModel.importance_score >= min_importance)
+
+        if min_confidence is not None:
+            statement = statement.where(ArticleModel.confidence >= min_confidence)
+
+        if published_from is not None:
+            statement = statement.where(ArticleModel.published_at >= published_from)
+
+        if published_to is not None:
+            statement = statement.where(ArticleModel.published_at <= published_to)
+
+        if muted_company_ids:
+            muted_strs = [str(cid) for cid in muted_company_ids]
+            statement = statement.where(
+                ArticleModel.id.not_in(
+                    select(ArticleCompanyModel.article_id).where(
+                        ArticleCompanyModel.company_id.in_(muted_strs),
+                    ),
+                ),
+            )
+
+        if muted_topic_ids:
+            muted_strs = [str(tid) for tid in muted_topic_ids]
+            statement = statement.where(
+                ArticleModel.id.not_in(
+                    select(ArticleTopicModel.article_id).where(
+                        ArticleTopicModel.topic_id.in_(muted_strs),
+                    ),
+                ),
+            )
+
+        if muted_category_ids:
+            muted_strs = [str(cid) for cid in muted_category_ids]
+            statement = statement.where(
+                ArticleModel.id.not_in(
+                    select(ArticleCategoryModel.article_id).where(
+                        ArticleCategoryModel.category_id.in_(muted_strs),
+                    ),
+                ),
+            )
+
+        statement = statement.order_by(ArticleModel.published_at.desc()).limit(limit).offset(offset)
+
+        result = await self._session.execute(statement)
+
+        return [ArticleMapper.to_domain(model) for model in result.scalars().all()]
+
+    async def list_personalized_feed_candidates(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        min_importance: float | None = None,
+        min_confidence: float | None = None,
+        published_from: datetime | None = None,
+        published_to: datetime | None = None,
+        muted_company_ids: list[UUID] | None = None,
+        muted_topic_ids: list[UUID] | None = None,
+        muted_category_ids: list[UUID] | None = None,
+        followed_company_ids: list[UUID] | None = None,
+        followed_topic_ids: list[UUID] | None = None,
+        followed_category_ids: list[UUID] | None = None,
+        preferred_source_type_ids: list[UUID] | None = None,
+    ) -> list[Article]:
+        statement = (
+            select(ArticleModel)
+            .options(
+                selectinload(ArticleModel.source),
+                selectinload(ArticleModel.category),
+                selectinload(ArticleModel.company_links),
+                selectinload(ArticleModel.topic_links),
+                selectinload(ArticleModel.category_links),
+                selectinload(ArticleModel.cluster),
+            )
+            .where(
+                ArticleModel.status.not_in(
+                    [ArticleStatus.NEW, ArticleStatus.FAILED],
+                ),
+            )
+        )
+
+        if min_importance is not None:
+            statement = statement.where(ArticleModel.importance_score >= min_importance)
+
+        if min_confidence is not None:
+            statement = statement.where(ArticleModel.confidence >= min_confidence)
+
+        if published_from is not None:
+            statement = statement.where(ArticleModel.published_at >= published_from)
+
+        if published_to is not None:
+            statement = statement.where(ArticleModel.published_at <= published_to)
+
+        if muted_company_ids:
+            muted_strs = [str(cid) for cid in muted_company_ids]
+            statement = statement.where(
+                ArticleModel.id.not_in(
+                    select(ArticleCompanyModel.article_id).where(
+                        ArticleCompanyModel.company_id.in_(muted_strs),
+                    ),
+                ),
+            )
+
+        if muted_topic_ids:
+            muted_strs = [str(tid) for tid in muted_topic_ids]
+            statement = statement.where(
+                ArticleModel.id.not_in(
+                    select(ArticleTopicModel.article_id).where(
+                        ArticleTopicModel.topic_id.in_(muted_strs),
+                    ),
+                ),
+            )
+
+        if muted_category_ids:
+            muted_strs = [str(cid) for cid in muted_category_ids]
+            statement = statement.where(
+                ArticleModel.id.not_in(
+                    select(ArticleCategoryModel.article_id).where(
+                        ArticleCategoryModel.category_id.in_(muted_strs),
+                    ),
+                ),
+            )
+
+        statement = statement.order_by(ArticleModel.published_at.desc()).limit(limit).offset(offset)
+
+        result = await self._session.execute(statement)
+
+        return [ArticleMapper.to_domain(model) for model in result.scalars().all()]
+
+    async def count_personalized_feed_candidates(
+        self,
+        min_importance: float | None = None,
+        min_confidence: float | None = None,
+        published_from: datetime | None = None,
+        published_to: datetime | None = None,
+        muted_company_ids: list[UUID] | None = None,
+        muted_topic_ids: list[UUID] | None = None,
+        muted_category_ids: list[UUID] | None = None,
+        followed_company_ids: list[UUID] | None = None,
+        followed_topic_ids: list[UUID] | None = None,
+        followed_category_ids: list[UUID] | None = None,
+        preferred_source_type_ids: list[UUID] | None = None,
+    ) -> int:
+        statement = (
+            select(func.count())
+            .select_from(ArticleModel)
+            .where(
+                ArticleModel.status.not_in(
+                    [ArticleStatus.NEW, ArticleStatus.FAILED],
+                ),
+            )
+        )
+
+        if min_importance is not None:
+            statement = statement.where(ArticleModel.importance_score >= min_importance)
+
+        if min_confidence is not None:
+            statement = statement.where(ArticleModel.confidence >= min_confidence)
+
+        if published_from is not None:
+            statement = statement.where(ArticleModel.published_at >= published_from)
+
+        if published_to is not None:
+            statement = statement.where(ArticleModel.published_at <= published_to)
+
+        if muted_company_ids:
+            muted_strs = [str(cid) for cid in muted_company_ids]
+            statement = statement.where(
+                ArticleModel.id.not_in(
+                    select(ArticleCompanyModel.article_id).where(
+                        ArticleCompanyModel.company_id.in_(muted_strs),
+                    ),
+                ),
+            )
+
+        if muted_topic_ids:
+            muted_strs = [str(tid) for tid in muted_topic_ids]
+            statement = statement.where(
+                ArticleModel.id.not_in(
+                    select(ArticleTopicModel.article_id).where(
+                        ArticleTopicModel.topic_id.in_(muted_strs),
+                    ),
+                ),
+            )
+
+        if muted_category_ids:
+            muted_strs = [str(cid) for cid in muted_category_ids]
+            statement = statement.where(
+                ArticleModel.id.not_in(
+                    select(ArticleCategoryModel.article_id).where(
+                        ArticleCategoryModel.category_id.in_(muted_strs),
+                    ),
+                ),
+            )
+
+        result = await self._session.execute(statement)
+
+        return int(result.scalar_one())
+
     async def delete_older_than(
         self,
         cutoff_date: datetime,
@@ -367,3 +830,78 @@ class ArticleRepository(
         await self._commit()
 
         return len(models)
+
+    async def replace_companies(
+        self,
+        article_id: UUID,
+        company_ids: list[UUID],
+    ) -> None:
+        await self._replace_links(
+            ArticleCompanyModel,
+            ArticleCompanyModel.article_id,
+            ArticleCompanyModel.company_id,
+            article_id,
+            company_ids,
+        )
+
+    async def replace_topics(
+        self,
+        article_id: UUID,
+        topic_ids: list[UUID],
+    ) -> None:
+        await self._replace_links(
+            ArticleTopicModel,
+            ArticleTopicModel.article_id,
+            ArticleTopicModel.topic_id,
+            article_id,
+            topic_ids,
+        )
+
+    async def replace_categories(
+        self,
+        article_id: UUID,
+        category_ids: list[UUID],
+    ) -> None:
+        await self._replace_links(
+            ArticleCategoryModel,
+            ArticleCategoryModel.article_id,
+            ArticleCategoryModel.category_id,
+            article_id,
+            category_ids,
+        )
+
+    async def set_cluster(
+        self,
+        article_id: UUID,
+        cluster_id: UUID | None,
+    ) -> None:
+        statement = (
+            update(ArticleModel)
+            .where(ArticleModel.id == str(article_id))
+            .values(cluster_id=(str(cluster_id) if cluster_id is not None else None))
+        )
+        await self._session.execute(statement)
+        await self._commit()
+
+    async def _replace_links(
+        self,
+        model_cls: type,
+        article_id_col: Any,
+        target_id_col: Any,
+        article_id: UUID,
+        target_ids: list[UUID],
+    ) -> None:
+        from sqlalchemy import delete
+
+        await self._session.execute(
+            delete(model_cls).where(article_id_col == str(article_id))
+        )
+
+        for target_id in target_ids:
+            link = model_cls(
+                article_id=str(article_id),
+                **{target_id_col.name: str(target_id)},
+            )
+            self._session.add(link)
+
+        await self._commit()

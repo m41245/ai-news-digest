@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from sqlalchemy import DateTime, String, Text, func
@@ -9,10 +8,18 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_news_digest.infrastructure.database.base import Base
 
-if TYPE_CHECKING:
-    from ai_news_digest.infrastructure.database.models.article_model import (
-        ArticleModel,
-    )
+from ai_news_digest.infrastructure.database.models.article_category_model import (
+    ArticleCategoryModel,
+)
+from ai_news_digest.infrastructure.database.models.article_model import (
+    ArticleModel,
+)
+from ai_news_digest.infrastructure.database.models.user_followed_category_model import (
+    UserFollowedCategoryModel,
+)
+from ai_news_digest.infrastructure.database.models.user_muted_category_model import (
+    UserMutedCategoryModel,
+)
 
 
 class CategoryModel(Base):
@@ -40,8 +47,26 @@ class CategoryModel(Base):
         nullable=True,
     )
 
-    articles: Mapped[list[ArticleModel]] = relationship(
+    articles: Mapped[list[ArticleModel]] = relationship(  # noqa: F821
         back_populates="category",
+        lazy="selectin",
+    )
+
+    article_links: Mapped[list[ArticleCategoryModel]] = relationship(
+        back_populates="category",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    followed_by_users: Mapped[list[UserFollowedCategoryModel]] = relationship(  # noqa: F821
+        back_populates="category",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    muted_by_users: Mapped[list[UserMutedCategoryModel]] = relationship(  # noqa: F821
+        back_populates="category",
+        cascade="all, delete-orphan",
         lazy="selectin",
     )
 

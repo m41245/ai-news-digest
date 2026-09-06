@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import time
-from datetime import UTC, datetime
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from ai_news_digest.application.use_cases.digest.generate_digest import (
     DigestGenerationResult,
@@ -33,7 +34,9 @@ async def _generate_daily_digest_impl() -> dict[str, str]:
         use_case = container.generate_digest
         digest_repository = container.digest_repository
 
-        today = datetime.now(UTC)
+        settings = get_settings()
+        tz = ZoneInfo(settings.digest_timezone)
+        today = datetime.now(tz)
         title = f"AI News Digest - {today.strftime('%Y-%m-%d')}"
 
         existing = await digest_repository.get_by_title(title)
@@ -44,7 +47,6 @@ async def _generate_daily_digest_impl() -> dict[str, str]:
                 "reason": "already_generated",
             }
 
-        settings = get_settings()
         result: DigestGenerationResult = await use_case.execute(
             title=title,
             limit=settings.digest_max_articles,
