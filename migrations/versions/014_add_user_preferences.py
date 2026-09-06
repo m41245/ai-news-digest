@@ -113,11 +113,6 @@ def upgrade() -> None:
         ["confidence"],
     )
     op.create_index(
-        "ix_articles_cluster_id",
-        "articles",
-        ["cluster_id"],
-    )
-    op.create_index(
         "ix_articles_source_id_published_at",
         "articles",
         ["source_id", "published_at"],
@@ -126,7 +121,6 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_index("ix_articles_source_id_published_at", table_name="articles")
-    op.drop_index("ix_articles_cluster_id", table_name="articles")
     op.drop_index("ix_articles_confidence", table_name="articles")
     op.drop_index("ix_articles_importance_score", table_name="articles")
     op.drop_index("ix_articles_published_at_status", table_name="articles")
