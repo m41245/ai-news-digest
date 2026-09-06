@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
+import sentry_sdk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -30,6 +31,15 @@ from ai_news_digest.infrastructure.cache.redis_store import RedisStore
 
 configure_logging()
 logger = get_logger(__name__)
+
+_app_settings = get_settings()
+if _app_settings.sentry_dsn:
+    sentry_sdk.init(
+        dsn=_app_settings.sentry_dsn,
+        environment=_app_settings.environment,
+        traces_sample_rate=0.1 if _app_settings.environment == "production" else 1.0,
+        profiles_sample_rate=0.1 if _app_settings.environment == "production" else 1.0,
+    )
 
 
 @asynccontextmanager

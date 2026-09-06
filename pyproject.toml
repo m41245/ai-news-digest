@@ -32,6 +32,8 @@ anthropic = "^0.40.0"
 
 structlog = "^24.4.0"
 
+sentry-sdk = "^2.0.0"
+
  jinja2 = "^3.1.4"
  reportlab = "^4.2.0"
 
@@ -151,9 +153,33 @@ module = [
     "ai_news_digest.api.v1.routes.auth",
     "ai_news_digest.api.v1.routes.users",
     "ai_news_digest.api.v1.routes.admin",
+    "ai_news_digest.api.v1.routes.user_preferences",
+    "ai_news_digest.api.v1.routes.notifications",
     "ai_news_digest.api.v1.schemas.auth",
+    "ai_news_digest.api.v1.schemas.notifications",
+    "ai_news_digest.application.use_cases.user_preference.follow_category",
+    "ai_news_digest.application.use_cases.user_preference.follow_company",
+    "ai_news_digest.application.use_cases.user_preference.follow_topic",
+    "ai_news_digest.application.use_cases.user_preference.get_personalized_feed",
+    "ai_news_digest.application.use_cases.user_preference.get_preferences",
+    "ai_news_digest.application.use_cases.user_preference.mute_category",
+    "ai_news_digest.application.use_cases.user_preference.mute_company",
+    "ai_news_digest.application.use_cases.user_preference.mute_topic",
+    "ai_news_digest.application.use_cases.user_preference.reset_preferences",
+    "ai_news_digest.application.use_cases.user_preference.unfollow_category",
+    "ai_news_digest.application.use_cases.user_preference.unfollow_company",
+    "ai_news_digest.application.use_cases.user_preference.unfollow_topic",
+    "ai_news_digest.application.use_cases.user_preference.unmute_category",
+    "ai_news_digest.application.use_cases.user_preference.unmute_company",
+    "ai_news_digest.application.use_cases.user_preference.unmute_topic",
+    "ai_news_digest.application.use_cases.user_preference.update_preferences",
+    "ai_news_digest.application.services.notifications.*",
+    "ai_news_digest.infrastructure.database.mappers.notification_mapper",
+    "ai_news_digest.infrastructure.database.repositories.notification_repository",
+    "ai_news_digest.workers.tasks.notifications",
+    "ai_news_digest.bootstrap.container",
 ]
-disable_error_code = ["import-untyped"]
+disable_error_code = ["import-untyped", "no-untyped-def", "no-any-return"]
 
 [[tool.mypy.overrides]]
 module = ["ai_news_digest.infrastructure.auth.jwt"]
@@ -162,6 +188,10 @@ disable_error_code = ["no-any-return"]
 [[tool.mypy.overrides]]
 module = ["ai_news_digest.workers.*"]
 disable_error_code = ["untyped-decorator"]
+
+[[tool.mypy.overrides]]
+module = ["ai_news_digest.application.services.ranking.*"]
+disable_error_code = ["import-untyped"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

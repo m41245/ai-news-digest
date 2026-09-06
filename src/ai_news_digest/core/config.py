@@ -505,6 +505,11 @@ class Settings(BaseSettings):
         "CRITICAL",
     ] = "INFO"
 
+    sentry_dsn: str | None = Field(
+        default=None,
+        description="Sentry DSN for error tracking. Leave empty to disable Sentry.",
+    )
+
     # ======================================================================
     # Authentication
     # ======================================================================
