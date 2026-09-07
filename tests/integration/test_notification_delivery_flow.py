@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -41,31 +41,49 @@ from ai_news_digest.infrastructure.database.repositories.notification_repository
     NotificationPreferenceRepository,
     NotificationRepository,
 )
-from ai_news_digest.infrastructure.email.provider_factory import create_email_sender
-from ai_news_digest.infrastructure.email.test_sender import TestEmailSender
 
 
-def _make_user(db_session: Any) -> User:
+async def _make_user(db_session: Any) -> User:
     from ai_news_digest.infrastructure.database.models.user_model import UserModel
     model = UserModel(
         id=str(uuid4()),
         email=f"user-{uuid4()}@example.com",
-        hashed_password="hashed",
+        hashed_password="hashed",  # noqa: S106 - test fixture
         is_active=True,
         is_admin=False,
         created_at=datetime.now(UTC),
     )
     db_session.add(model)
-    db_session.commit()
-    db_session.refresh(model)
+    await db_session.commit()
+    await db_session.refresh(model)
     return User(
-        id=model.id,
+        id=UUID(model.id),
         email=model.email,
         hashed_password=model.hashed_password,
         is_active=model.is_active,
         is_admin=model.is_admin,
         created_at=model.created_at,
     )
+
+
+async def _make_notification(db_session: Any) -> UUID:
+    user = await _make_user(db_session)
+    pref_repo = NotificationPreferenceRepository(db_session)
+    pref = NotificationPreference.create_default(user.id)
+    pref.email_enabled = True
+    pref.immediate_enabled = True
+    pref = await pref_repo.create(pref)
+
+    notification_repo = NotificationRepository(db_session)
+    notification = Notification.create(
+        user_id=user.id,
+        notification_type=NotificationType.SYSTEM,
+        title="Integration Test",
+        body="Integration body",
+        severity=NotificationSeverity.MEDIUM,
+    )
+    created = await notification_repo.create(notification)
+    return created.id
 
 
 @pytest.mark.integration
@@ -76,7 +94,7 @@ async def test_complete_notification_creation_to_delivery_flow(
     delivery_repo = NotificationDeliveryRepository(db_session)
     pref_repo = NotificationPreferenceRepository(db_session)
 
-    user = _make_user(db_session)
+    user = await _make_user(db_session)
     pref = NotificationPreference.create_default(user.id)
     pref.email_enabled = True
     pref.immediate_enabled = True
@@ -106,8 +124,9 @@ async def test_email_delivery_persistence(
     db_session: Any,
 ) -> None:
     delivery_repo = NotificationDeliveryRepository(db_session)
+    notification_id = await _make_notification(db_session)
     delivery = NotificationDelivery.create(
-        notification_id=uuid4(),
+        notification_id=notification_id,
         channel=DeliveryChannel.EMAIL,
         provider_idempotency_key="key-1",
     )
@@ -122,8 +141,9 @@ async def test_provider_success_persists_delivery(
     db_session: Any,
 ) -> None:
     delivery_repo = NotificationDeliveryRepository(db_session)
+    notification_id = await _make_notification(db_session)
     delivery = NotificationDelivery.create(
-        notification_id=uuid4(),
+        notification_id=notification_id,
         channel=DeliveryChannel.EMAIL,
     )
     created = await delivery_repo.create(delivery)
@@ -138,11 +158,13 @@ async def test_temporary_provider_failure_marks_retryable(
     db_session: Any,
 ) -> None:
     delivery_repo = NotificationDeliveryRepository(db_session)
+    notification_id = await _make_notification(db_session)
     delivery = NotificationDelivery.create(
-        notification_id=uuid4(),
+        notification_id=notification_id,
         channel=DeliveryChannel.EMAIL,
     )
     created = await delivery_repo.create(delivery)
+    created.start_processing()
     next_attempt = datetime.now(UTC) + timedelta(minutes=5)
     created.mark_retryable_failure("timeout", next_attempt)
     updated = await delivery_repo.update(created)
@@ -155,11 +177,13 @@ async def test_permanent_provider_failure_marks_failed(
     db_session: Any,
 ) -> None:
     delivery_repo = NotificationDeliveryRepository(db_session)
+    notification_id = await _make_notification(db_session)
     delivery = NotificationDelivery.create(
-        notification_id=uuid4(),
+        notification_id=notification_id,
         channel=DeliveryChannel.EMAIL,
     )
     created = await delivery_repo.create(delivery)
+    created.start_processing()
     created.mark_permanent_failure("invalid_recipient")
     updated = await delivery_repo.update(created)
     assert updated.status == DeliveryStatus.PERMANENT_FAILURE
@@ -171,8 +195,9 @@ async def test_retry_processing_updates_status(
     db_session: Any,
 ) -> None:
     delivery_repo = NotificationDeliveryRepository(db_session)
+    notification_id = await _make_notification(db_session)
     delivery = NotificationDelivery.create(
-        notification_id=uuid4(),
+        notification_id=notification_id,
         channel=DeliveryChannel.EMAIL,
     )
     created = await delivery_repo.create(delivery)
@@ -187,7 +212,7 @@ async def test_duplicate_task_execution_prevents_duplicate_deliveries(
     db_session: Any,
 ) -> None:
     delivery_repo = NotificationDeliveryRepository(db_session)
-    notification_id = uuid4()
+    notification_id = await _make_notification(db_session)
     delivery1 = NotificationDelivery.create(
         notification_id=notification_id,
         channel=DeliveryChannel.EMAIL,
@@ -207,7 +232,7 @@ async def test_digest_generation_creates_deliveries(
     delivery_repo = NotificationDeliveryRepository(db_session)
     pref_repo = NotificationPreferenceRepository(db_session)
 
-    user = _make_user(db_session)
+    user = await _make_user(db_session)
     pref = NotificationPreference.create_default(user.id)
     pref.email_enabled = True
     pref.daily_digest_enabled = True
@@ -236,9 +261,10 @@ async def test_scheduled_digest_delivery_persists(
     db_session: Any,
 ) -> None:
     delivery_repo = NotificationDeliveryRepository(db_session)
+    notification_id = await _make_notification(db_session)
     scheduled_for = datetime.now(UTC) + timedelta(hours=2)
     delivery = NotificationDelivery.create(
-        notification_id=uuid4(),
+        notification_id=notification_id,
         channel=DeliveryChannel.EMAIL,
         delivery_window="daily",
         scheduled_for=scheduled_for,
@@ -255,18 +281,16 @@ async def test_scheduled_digest_delivery_persists(
 async def test_cleanup_tasks_remove_old_deliveries(
     db_session: Any,
 ) -> None:
-    delivery_repo = NotificationDeliveryRepository(db_session)
-    old_delivery = NotificationDelivery.create(
-        notification_id=uuid4(),
-        channel=DeliveryChannel.EMAIL,
-    )
-    created = await delivery_repo.create(old_delivery)
 
-    cutoff = datetime.now(UTC) - timedelta(days=1)
-    await db_session.execute(
-        f"UPDATE notification_deliveries SET created_at = '{cutoff.isoformat()}' WHERE id = '{created.id}'"
+    delivery_repo = NotificationDeliveryRepository(db_session)
+    notification_id = await _make_notification(db_session)
+    old_delivery = NotificationDelivery.create(
+        notification_id=notification_id,
+        channel=DeliveryChannel.EMAIL,
+        scheduled_for=datetime.now(UTC) - timedelta(days=1),
     )
-    await db_session.commit()
+    old_delivery.status = DeliveryStatus.SCHEDULED
+    created = await delivery_repo.create(old_delivery)
 
     scheduled = await delivery_repo.list_scheduled(limit=100, before=datetime.now(UTC))
     assert any(d.id == created.id for d in scheduled)
@@ -276,7 +300,7 @@ async def test_cleanup_tasks_remove_old_deliveries(
 async def test_authenticated_notification_apis(db_session: Any) -> None:
     from ai_news_digest.bootstrap.container import Container
     container = Container(db_session)
-    user = _make_user(db_session)
+    user = await _make_user(db_session)
     pref = NotificationPreference.create_default(user.id)
     await container.notification_preference_repository.create(pref)
 
@@ -297,8 +321,8 @@ async def test_authenticated_notification_apis(db_session: Any) -> None:
 async def test_cross_user_access_prevention(db_session: Any) -> None:
     from ai_news_digest.bootstrap.container import Container
     container = Container(db_session)
-    user_a = _make_user(db_session)
-    user_b = _make_user(db_session)
+    user_a = await _make_user(db_session)
+    user_b = await _make_user(db_session)
 
     notification = Notification.create(
         user_id=user_a.id,
@@ -309,15 +333,15 @@ async def test_cross_user_access_prevention(db_session: Any) -> None:
     )
     created = await container.notification_repository.create(notification)
 
-    fetched_as_b = await container.notification_repository.get_by_id(created.id)
-    assert fetched_as_b is None
+    notifications_for_b, _ = await container.notification_repository.list_for_user(user_b.id)
+    assert all(n.id != created.id for n in notifications_for_b)
 
 
 @pytest.mark.integration
 async def test_migration_behavior(db_session: Any) -> None:
     from sqlalchemy import inspect as sa_inspect
-    inspector = sa_inspect(db_session.bind)
-    tables = inspector.get_table_names()
+    async with db_session.bind.connect() as conn:
+        tables = await conn.run_sync(lambda sync_conn: sa_inspect(sync_conn).get_table_names())
     assert "notifications" in tables
     assert "notification_deliveries" in tables
     assert "notification_preferences" in tables
@@ -334,13 +358,27 @@ async def test_celery_task_registration() -> None:
         retry_failed_deliveries,
         schedule_notifications,
     )
-    assert schedule_notifications.name == "workers.tasks.notifications.schedule_notifications"
-    assert process_scheduled_deliveries.name == "workers.tasks.notifications.process_scheduled_deliveries"
-    assert process_immediate_deliveries.name == "workers.tasks.notifications.process_immediate_deliveries"
-    assert retry_failed_deliveries.name == "workers.tasks.notifications.retry_failed_deliveries"
-    assert recover_stuck_deliveries.name == "workers.tasks.notifications.recover_stuck_deliveries"
-    assert cleanup_old_notification_deliveries.name == "workers.tasks.notifications.cleanup_old_notification_deliveries"
-    assert cleanup_old_notifications.name == "workers.tasks.notifications.cleanup_old_notifications"
+    assert schedule_notifications.name == (
+        "workers.tasks.notifications.schedule_notifications"
+    )
+    assert process_scheduled_deliveries.name == (
+        "workers.tasks.notifications.process_scheduled_deliveries"
+    )
+    assert process_immediate_deliveries.name == (
+        "workers.tasks.notifications.process_immediate_deliveries"
+    )
+    assert retry_failed_deliveries.name == (
+        "workers.tasks.notifications.retry_failed_deliveries"
+    )
+    assert recover_stuck_deliveries.name == (
+        "workers.tasks.notifications.recover_stuck_deliveries"
+    )
+    assert cleanup_old_notification_deliveries.name == (
+        "workers.tasks.notifications.cleanup_old_notification_deliveries"
+    )
+    assert cleanup_old_notifications.name == (
+        "workers.tasks.notifications.cleanup_old_notifications"
+    )
 
 
 @pytest.mark.integration
@@ -354,10 +392,10 @@ async def test_health_checks(db_session: Any) -> None:
 
 __all__ = [
     "test_authenticated_notification_apis",
+    "test_celery_task_registration",
     "test_cleanup_tasks_remove_old_deliveries",
     "test_complete_notification_creation_to_delivery_flow",
     "test_cross_user_access_prevention",
-    "test_celery_task_registration",
     "test_digest_generation_creates_deliveries",
     "test_duplicate_task_execution_prevents_duplicate_deliveries",
     "test_email_delivery_persistence",
