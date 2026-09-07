@@ -4,7 +4,93 @@ A production-oriented AI-powered news aggregation and daily digest platform buil
 
 The project is designed to collect articles from multiple RSS sources, organize and categorize them, generate AI-powered summaries, and produce high-quality daily news digests through a scalable and maintainable architecture.
 
-> **Project Status:** Milestone 28 — Final Production Deployment, Launch Verification & Project Closure 🔄
+> **Project Status:** Milestone 43 — Final Release-Gate Confirmation: **RELEASE-READY WITH TRACKED DEBT**.
+
+Recent additions build on top of the existing architecture without replacing
+it:
+
+* **Trusted-source model** — explicit verification status, source type,
+  priority, fetch telemetry, and a curated seed list of official AI
+  company blogs, research organisations, established tech publications, and
+  reputable business/news outlets. Production digests only include
+  articles from sources with `status=verified` and `is_active=true`.
+* **Article extraction pipeline** — every ingested article URL is
+  re-validated through the existing SSRF boundary, fetched with
+  per-hop timeouts, size caps, and redirect re-validation, and then
+  extracted to plain text. Extraction is best-effort: failures fall
+  back to the RSS excerpt, never to a crashed run.
+* **Structured AI output** — every article now carries a pydantic-validated
+  `summary`, `key_takeaways`, `why_it_matters`, importance / confidence
+  scores, multi-category labels, and company / topic tags. Provider
+  output is validated before persistence and re-tried on failure.
+* **Multi-category + entity tagging** — `companies`, `topics`, and an
+  `article_categories` association table back the structured fields.
+  Companies and topics use normalized vocabularies so different surface
+  forms collapse to one canonical entity.
+* **End-to-end analysis pipeline** — `AnalyzeAndMaterializeUseCase` runs
+  structured AI analysis and materializes companies, topics, and categories
+  into the database. Celery worker tasks (`analyze_article`,
+  `analyze_pending_articles`) process articles with bounded retries
+  (`max_retries=3`, `default_retry_delay=60`).
+* **Digest rendering** — daily digests now render structured intelligence:
+  summary, key takeaways, why it matters, importance score, confidence,
+  companies, topics, and categories.
+* **Timezone-aware digest scheduling** — `DIGEST_TIMEZONE` (IANA name)
+  drives both the Celery Beat schedule and the digest title's local
+  date. Default remains `UTC` for backwards compatibility.
+* **Public API and frontend contract alignment** — the public article
+  endpoint exposes the new AI intelligence (summary, key takeaways,
+  why it matters, importance, companies, topics, excerpt). Full
+  publisher content is **not** exposed via the public API.
+* **Public company and topic discovery** — `/public/companies`,
+  `/public/companies/{slug}`, `/public/topics`, `/public/topics/{slug}`
+  expose canonical company/topic entities with related article lists and
+  article counts, backed by stable slugs.
+* **Public intelligence homepage** — `/public/homepage` composes
+  "What matters today" (importance-ranked), "Latest AI developments",
+  "Daily intelligence digest", and category/company/topic discovery
+  sections. The public homepage (`/`) is rewritten as a polished
+  intelligence product surface.
+* **Enhanced search and filtering** — public article listing supports
+  text search across title and summary, company/topic/category filtering,
+  importance threshold, date range, and importance-based sorting.
+* **Transparent importance labeling** — importance badges use
+  transparent labels ("High impact", "Medium impact", "Low impact") with
+  explicit copy that the ranking is an automated heuristic, not
+  objective truth.
+* **Legacy article backward compatibility** — articles without
+  structured intelligence continue to render on the public surface with
+  a "Limited intelligence" notice.
+ * **Story clustering** — related articles are grouped into story clusters
+   using deterministic signals (title similarity, shared companies/topics/categories,
+   time proximity, canonical domain). Clusters are exposed via
+   `/public/clusters` and `/public/clusters/{slug}` and surfaced on a
+   dedicated `/stories` page and the public homepage. Clustering is
+   conservative (minimum score 0.85, 7-day window, title similarity
+   insufficient alone) and additive: no embeddings, no vector DB, no
+   paid external services.
+ * **Story evolution and "What changed"** — each story cluster now exposes
+    a chronological timeline of related coverage, source-role labels
+    (Primary announcement, Independent reporting, Technical analysis,
+    Follow-up, Reaction, Correction, Background, Related coverage),
+    and a conservative "What changed" section that detects meaningful
+    shifts in titles, key takeaways, entities, and importance scores
+    across the cluster's article history. The public story detail page
+    (`/stories/:slug`) renders the timeline, source roles, latest update,
+    and change detection. Full publisher content is never reproduced.
+ * **Personalized intelligence feed hardening** — the authenticated feed
+   now uses a scalable, story-level candidate query (`list_personalized_feed_story_candidates`)
+   that prefers the latest article per cluster and falls back to standalone
+   articles. Muted entities and thresholds are pushed to the database.
+   `RankingExplanation` provides structured, categorized relevance reasons
+   (personalization, quality, freshness, fallback) with deterministic
+   tie-breaking. Contradiction signals are surfaced when cluster titles
+   have low word-overlap. Preferred source types are positive ranking
+   signals (+5 points), not strict filters. The 500-article scan
+   limitation has been eliminated via database-backed candidate queries.
+
+See `docs/INTELLIGENCE_PLATFORM.md` and `docs/SOURCE_TRUST_MODEL.md`
+for the full design.
 
 ---
 
@@ -112,6 +198,36 @@ The project is designed to collect articles from multiple RSS sources, organize 
 * CI/CD pipeline reviewed: lint, typecheck, tests, coverage, Docker build, security audit
 * Backup/recovery procedures reviewed and documented
 * Rollback procedures documented in `docs/RUNBOOK.md` and `docs/DEPLOYMENT.md`
+
+## Milestone 40 — Notification System
+
+* Notification domain models with `NotificationType`, `NotificationSeverity`, `DeliveryChannel`, and `DeliveryStatus` enums
+* Notification preferences with per-user settings (in-app, email, quiet hours, daily caps, importance/confidence thresholds)
+* Secure unsubscribe tokens for email notification management
+* Deterministic deduplication keys prevent duplicate notifications across retries
+* Notification eligibility engine evaluates importance, confidence, muted entities, quiet hours, and daily caps
+* Idempotent notification creation with delivery fan-out (in-app + email)
+* HTML/plain-text email composer with `html_escape` on all user-facing strings
+* Celery tasks for notification evaluation and expiry with bounded retries and metrics
+* Authenticated REST API for notification CRUD, preferences, and unsubscribe
+* Frontend notification bell, notifications page, and notification preferences page
+* Comprehensive test coverage: eligibility (13 tests), service (15 tests), API routes (15 tests), email composer (5 tests), Celery tasks (6 tests)
+
+## Milestone 41 — Production-Ready Notification Delivery, Scheduling, and Reliability
+
+* Timezone-aware notification scheduling with IANA `ZoneInfo` support and DST-safe delivery windows
+* Extended `DeliveryStatus` enum with `SCHEDULED`, `PROCESSING`, `DEFERRED`, `RETRYABLE_FAILURE`, `PERMANENT_FAILURE`, `EXPIRED`, `CANCELLED`
+* State-machine-driven `NotificationDelivery` transitions with validated status changes
+* Email provider abstraction with `ConsoleEmailSender` (development), `TestEmailSender` (testing), and SMTP production sender
+* Per-type email templates (8 notification types) and digest templates (daily/weekly)
+* `NotificationSchedulingService` with quiet-hour-aware scheduled delivery computation
+* `NotificationRateLimiter` with Redis-backed per-user/per-window rate limiting
+* `NotificationDeliveryService` with bounded batch processing, idempotency keys, and provider callback handling
+* `DigestBatchingService` grouping notifications into digest-ready batches by user preferences
+* 7 new Celery tasks: `schedule_notifications`, `process_scheduled_deliveries`, `process_immediate_deliveries`, `retry_failed_deliveries`, `recover_stuck_deliveries`, `cleanup_old_notification_deliveries`, `cleanup_old_notifications`
+* Extended API: delivery history, stats, schedule preview, test delivery endpoint, and notification health checks
+* Migration 017 adding scheduling columns (`scheduled_for`, `claimed_at`, `processing_started_at`, `next_attempt_at`, `provider_idempotency_key`, `delivery_window`, `suppression_reason`) with composite indexes
+* Comprehensive test coverage: API routes (15 tests), eligibility/service (30 tests), email infrastructure (43 tests), domain models (90 tests), Celery tasks (6 tests)
 
 ---
 
@@ -420,6 +536,10 @@ Current migration chain:
 - `005` — Digest title unique constraint (idempotency boundary)
 - `006` — Convert `articles.status` from native PostgreSQL enum to VARCHAR
 - `007` — Digest deliveries table (idempotent email delivery tracking)
+- `008` — Source trust-model columns (status, source_type, publisher, priority, fetch telemetry)
+- `009` — Article extraction pipeline columns (extraction_method, extraction_quality, extracted_at, content_char_count)
+- `010` — Structured AI intelligence columns (importance_score, confidence, ai_provider, ai_model, key_takeaways, why_it_matters, topics)
+- `011` — Companies, topics, and many-to-many associations (article_companies, article_topics, article_categories with backfill)
 
 ---
 
