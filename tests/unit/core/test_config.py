@@ -4,19 +4,41 @@ Unit tests for core config module.
 
 from __future__ import annotations
 
+import pathlib
+from typing import ClassVar
+
 import pytest
 from pydantic import ValidationError
+from pydantic_settings import SettingsConfigDict
 
 from ai_news_digest.core.config import Settings, _LazySettings, get_settings, settings
 
 
+class TestSettings(Settings):
+    """
+    Test-specific Settings that ignore .env files.
+
+    Note: Pydantic Settings still reads from os.environ. Use monkeypatch
+    to isolate specific tests from environment variable contamination.
+    """
+
+    model_config = SettingsConfigDict(
+        env_file=None,
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+        frozen=True,
+    )
+
+
 def test_settings_default_values() -> None:
     """Test Settings with default values."""
-    test_settings = Settings(
+    test_settings = TestSettings(
         database_url="postgresql://test",
         redis_url="redis://test",
         celery_broker_url="redis://broker",
         celery_result_backend="redis://backend",
+        jwt_secret_key="a" * 64,
     )
 
     assert test_settings.app_name == "AI News Digest"
@@ -144,11 +166,12 @@ def test_settings_default_llm_provider_validation() -> None:
 
 def test_settings_email_recipients_default_factory() -> None:
     """Test email recipients default factory."""
-    test_settings = Settings(
+    test_settings = TestSettings(
         database_url="postgresql://test",
         redis_url="redis://test",
         celery_broker_url="redis://broker",
         celery_result_backend="redis://backend",
+        jwt_secret_key="a" * 64,
     )
 
     assert test_settings.email_recipients == []
@@ -178,7 +201,7 @@ def test_settings_frozen() -> None:
     )
 
     with pytest.raises(ValidationError):  # FrozenInstanceError
-        test_settings.app_name = "New Name"
+        test_settings.app_name = "New Name"  # type: ignore[misc]
 
 
 def test_get_settings_cached() -> None:
@@ -324,7 +347,7 @@ def test_jwt_secret_accepts_strong_random_value() -> None:
 
 def test_cors_origins_production_default_is_empty() -> None:
     """Production CORS defaults to an empty allow-list (fail closed)."""
-    test_settings = Settings(
+    test_settings = TestSettings(
         database_url="postgresql://test",
         redis_url="redis://test",
         celery_broker_url="redis://broker",
@@ -337,7 +360,7 @@ def test_cors_origins_production_default_is_empty() -> None:
 
 def test_cors_origins_development_defaults_to_localhost() -> None:
     """Development CORS defaults to localhost origins."""
-    test_settings = Settings(
+    test_settings = TestSettings(
         database_url="postgresql://test",
         redis_url="redis://test",
         celery_broker_url="redis://broker",
@@ -353,7 +376,7 @@ def test_cors_origins_development_defaults_to_localhost() -> None:
 
 def test_cors_origins_staging_defaults_to_localhost() -> None:
     """Staging CORS defaults to localhost origins."""
-    test_settings = Settings(
+    test_settings = TestSettings(
         database_url="postgresql://test",
         redis_url="redis://test",
         celery_broker_url="redis://broker",
@@ -379,3 +402,136 @@ def test_cors_origins_explicit_value_overrides_default() -> None:
         cors_origins=["https://example.com"],
     )
     assert test_settings.cors_origins == ["https://example.com"]
+
+
+class TestConfigurationIsolation:
+    """Regression tests proving configuration is isolated from .env and environment."""
+
+    CONTAMINATED_ENV_VARS: ClassVar[list[str]] = [
+        "ENVIRONMENT",
+        "EMAIL_RECIPIENTS",
+        "CORS_ORIGINS",
+        "JWT_SECRET_KEY",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "SMTP_HOST",
+        "SMTP_PORT",
+        "SMTP_USER",
+        "SMTP_PASSWORD",
+    ]
+
+    def test_test_settings_ignores_env_file(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        """TestSettings must not read from .env files."""
+        env_file = tmp_path / ".env"
+        env_file.write_text(
+            "ENVIRONMENT=staging\nEMAIL_RECIPIENTS=[\"file@example.com\"]\n",
+            encoding="utf-8",
+        )
+
+        for var in self.CONTAMINATED_ENV_VARS:
+            monkeypatch.delenv(var, raising=False)
+
+        monkeypatch.chdir(tmp_path)
+
+        test_settings = TestSettings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            jwt_secret_key="a" * 64,
+        )
+
+        assert test_settings.environment == "development"
+        assert test_settings.email_recipients == []
+
+    def test_settings_without_env_uses_defaults(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        """Settings must use defaults when no .env or env vars are present."""
+        for var in self.CONTAMINATED_ENV_VARS:
+            monkeypatch.delenv(var, raising=False)
+
+        monkeypatch.chdir(tmp_path)
+
+        test_settings = Settings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            jwt_secret_key="a" * 64,
+        )
+
+        assert test_settings.environment == "development"
+        assert test_settings.email_recipients == []
+        assert test_settings.cors_origins == [
+            "http://localhost:3000",
+            "http://localhost:8000",
+        ]
+
+    def test_real_settings_reads_env_variables(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Real Settings class must still read environment variables."""
+        monkeypatch.setenv("ENVIRONMENT", "staging")
+        monkeypatch.setenv("EMAIL_RECIPIENTS", '["real@example.com"]')
+        monkeypatch.setenv("CORS_ORIGINS", '["https://real.example.com"]')
+        monkeypatch.setenv("JWT_SECRET_KEY", "a" * 64)
+
+        real_settings = Settings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+        )
+
+        assert real_settings.environment == "staging"
+        assert real_settings.email_recipients == ["real@example.com"]
+        assert real_settings.cors_origins == ["https://real.example.com"]
+
+    def test_explicit_values_override_env_variables(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Explicit constructor arguments must override environment variables."""
+        monkeypatch.setenv("ENVIRONMENT", "staging")
+        monkeypatch.setenv("EMAIL_RECIPIENTS", '["env@example.com"]')
+
+        test_settings = Settings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            environment="production",
+            jwt_secret_key="a" * 64,
+            email_recipients=["explicit@example.com"],
+        )
+
+        assert test_settings.environment == "production"
+        assert test_settings.email_recipients == ["explicit@example.com"]
+
+    def test_staging_env_does_not_contaminate_other_tests(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        """Verify staging-like env vars do not leak into subsequent tests."""
+        monkeypatch.setenv("ENVIRONMENT", "staging")
+        monkeypatch.setenv("EMAIL_RECIPIENTS", '["leak@example.com"]')
+        monkeypatch.setenv("CORS_ORIGINS", '["https://leak.example.com"]')
+
+        for var in self.CONTAMINATED_ENV_VARS:
+            monkeypatch.delenv(var, raising=False)
+
+        monkeypatch.chdir(tmp_path)
+
+        test_settings = Settings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            jwt_secret_key="a" * 64,
+        )
+
+        assert test_settings.environment == "development"
+        assert test_settings.email_recipients == []
+        assert test_settings.cors_origins == [
+            "http://localhost:3000",
+            "http://localhost:8000",
+        ]

@@ -176,7 +176,6 @@ module = [
     "ai_news_digest.application.services.notifications.*",
     "ai_news_digest.infrastructure.database.mappers.notification_mapper",
     "ai_news_digest.infrastructure.database.repositories.notification_repository",
-    "ai_news_digest.workers.tasks.notifications",
     "ai_news_digest.bootstrap.container",
 ]
 disable_error_code = ["import-untyped", "no-untyped-def", "no-any-return"]
