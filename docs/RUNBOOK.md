@@ -780,3 +780,100 @@ poetry run pytest tests/unit/frontend/test_frontend_production.py -v
 poetry run pytest tests/unit/test_security_regression.py -v
 poetry run pytest tests/unit/test_migrations.py -v
 ```
+
+---
+
+## 11. Milestone 45 Production Launch Closure
+
+Use this procedure to verify M45 production launch closure is complete.
+
+### Backup and Restore Verification
+
+```bash
+# Run backup verification against a UTF-8 backup
+bash scripts/verify_backup.sh backups/latest.sql
+
+# Run backup verification against a UTF-16LE backup (Windows PowerShell docker exec)
+iconv -f UTF-16LE -t UTF-8 backups/latest_utf16le.sql > /tmp/backup_utf8.sql
+bash scripts/verify_backup.sh /tmp/backup_utf8.sql
+
+# Test restore into disposable container
+bash scripts/test_restore.sh backups/latest.sql
+```
+
+### Staging Smoke Test
+
+```bash
+# Verify all containers are healthy
+docker compose -f docker-compose.staging.yml ps
+
+# Verify health endpoints
+curl -f http://localhost:8000/health/live
+curl -f http://localhost:8000/health/ready
+curl -s http://localhost:8000/metrics/health
+
+# Verify backend connectivity
+docker compose -f docker-compose.staging.yml exec web curl -f http://localhost:8000/health/live
+
+# Verify Celery worker
+docker compose -f docker-compose.staging.yml exec celery_worker celery -A ai_news_digest.workers.celery_app inspect ping
+
+# Verify Celery beat
+docker compose -f docker-compose.staging.yml logs celery_beat | tail -20
+```
+
+### Dependency Security
+
+```bash
+# Run pip-audit
+poetry run pip-audit
+
+# Upgrade vulnerable dependencies if needed
+poetry update <package_name>
+```
+
+### Production Configuration Hardening
+
+```bash
+# Verify JWT secret validation (should reject weak defaults in production)
+export ENVIRONMENT=production
+export JWT_SECRET_KEY="changeme"
+poetry run python -c "from ai_news_digest.core.config import get_settings; get_settings()"
+
+# Verify CORS defaults (should be empty in production)
+export ENVIRONMENT=production
+poetry run python -c "from ai_news_digest.core.config import get_settings; print(get_settings().cors_origins)"
+
+# Verify rate limiting is configured
+curl -H "Origin: http://localhost:3000" -H "Access-Control-Request-Method: GET" -X OPTIONS http://localhost:8000/api/v1/users/me -I
+```
+
+### Regression Test Verification
+
+```bash
+# Run config and migration tests
+poetry run pytest tests/unit/core/test_config.py tests/unit/test_migrations.py -q --no-cov
+
+# Run security and health tests
+poetry run pytest tests/unit/api/v1/routes/test_health.py tests/unit/api/test_metrics.py tests/unit/api/middleware/ tests/unit/infrastructure/auth/ -q --no-cov
+
+# Run frontend tests
+cd frontend && npm test -- --run
+
+# Run frontend typecheck
+cd frontend && npm run typecheck
+
+# Run frontend lint
+cd frontend && npm run lint
+
+# Run frontend production build
+cd frontend && npm run build
+
+# Run repository-wide ruff
+poetry run ruff check src/ tests/
+
+# Run repository-wide mypy
+poetry run mypy src/
+```
+
+---

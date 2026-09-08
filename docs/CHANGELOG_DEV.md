@@ -373,3 +373,38 @@ For each development session, it summarizes:
 - f99b460 feat: Milestone 42 — Production Deployment and Operational Hardening (in progress)
 
 ---
+
+# 2026-09-08
+
+## Session 1 — Milestone 45 Production Launch Closure
+
+### Completed
+
+- Executed full production launch closure for M45.
+- Fixed `scripts/verify_backup.sh` for Windows UTF-16LE PowerShell backups:
+  - Added `iconv` conversion for UTF-16/UTF-16LE encoded backups
+  - Fixed COPY marker detection for pg_dump custom format
+  - Fixed end-of-file check to look for dump completion marker
+- Updated `scripts/backup_db.sh`, `scripts/restore_db.sh`, `scripts/test_restore.sh` for Windows Git Bash compatibility (`set -o pipefail 2>/dev/null || true`)
+- Fixed `.dockerignore` to include `migrations/` (missing `migrations/versions/` caused alembic `017` not found error)
+- Validated staging deployment: all 6 containers healthy, health checks passing, Celery tasks processing
+- Completed real backup and restore validation:
+  - Real backup from staging database: 9,446,509 bytes
+  - Backup verification: 11/11 checks pass
+  - Disposable container restore: PASSED
+  - Schema verification: 18+ tables present
+  - Data verification: articles=2470, sources=7, categories=6, digests=43, users=3
+  - Migration version: `017_add_notification_scheduling`
+  - Invalid backup test: restoration failed safely
+- Completed live staging smoke tests: all health checks pass, no errors in logs
+- Ran pip-audit: no known vulnerabilities found
+- Ran regression tests: config (153 passed), security/health (116 passed), migration (7 passed), frontend (25 passed)
+- Pre-existing test failures (mapper/repository, story_cluster, user_preference, bootstrap, frontend TypeScript, MyPy, Ruff) are NOT caused by M45 and exist on baseline commit `efd5dfc`
+- Updated documentation: MILESTONE_45_FINAL_COMPLETION_REPORT.md, PROJECT_STATUS.md, CHANGELOG_DEV.md
+
+### Related Commit(s)
+
+- `aa8aa0b feat: Milestone 45 — Production Launch Closure`
+- `0f97931 docs: Update M45 final completion report with actual verification results`
+
+---

@@ -420,3 +420,55 @@ New test suite `tests/unit/frontend/test_frontend_production.py` covers:
 - nginx.conf security headers and caching
 - vite.config.ts production settings
 - package.json build scripts
+
+### Milestone 45 — Production Launch Closure
+
+M45 completed the following production-readiness work:
+
+#### Backup and Restore Verification
+
+- Real backup was taken from the staging PostgreSQL database and verified using `scripts/verify_backup.sh`.
+- Backup verification passes for both UTF-8 and UTF-16LE encoded backups.
+- A disposable PostgreSQL container was used to test full restore workflow.
+- Invalid/incomplete backup test confirmed restoration fails safely.
+
+#### Staging Smoke Test
+
+- All 6 staging containers verified healthy: `postgres`, `redis`, `web`, `worker`, `beat`, `frontend`.
+- Health endpoints verified:
+  - `GET /health/live` → 200
+  - `GET /health/ready` → 200 with `database: ok, cache: ok`
+  - `GET /metrics/health` → `{"status":"ok"}`
+- Backend-to-PostgreSQL and backend-to-Redis connectivity verified.
+- Celery worker and beat operation verified; no errors in container logs.
+
+#### Dependency Security
+
+- `pip-audit` run against production dependencies.
+- No known vulnerabilities found after dependency upgrades.
+
+#### Production Configuration Hardening
+
+- JWT secret validation rejects weak defaults in production/staging.
+- CORS defaults to empty list in production (fail closed).
+- Rate limiting and auth lockout configured.
+- `.env` excluded from git; `.env.example` contains placeholders only.
+
+#### Regression Validation
+
+- Config tests: 153 passed
+- Security/health tests: 116 passed
+- Migration tests: 7 passed
+- Frontend tests: 25 passed
+- Frontend lint: passed
+- Repository-wide ruff: pre-existing warnings only; no new M45 errors
+- Repository-wide mypy: 33 errors in 11 files (pre-existing)
+
+#### Documentation
+
+- `docs/MILESTONE_45_FINAL_COMPLETION_REPORT.md` added.
+- `docs/PROJECT_STATUS.md` updated to M45 RELEASE-READY.
+- `docs/CHANGELOG_DEV.md` updated with M45 session log.
+- `docs/RUNBOOK.md` updated with M45 verification procedures.
+
+---
