@@ -9,6 +9,10 @@ import type {
   IngestionResponse,
   LoginRequest,
   LoginResponse,
+  NotificationDeliveryHistoryResponse,
+  NotificationDeliveryResponse,
+  NotificationDeliveryStatus,
+  NotificationResponse,
   PaginatedResponse,
   PublicDigest,
   RegisterRequest,
@@ -88,6 +92,48 @@ export const digestsApi = {
     api.get(`/api/v1/digests/${id}`).then((r) => r.data),
   generate: (data: DigestCreateRequest): Promise<Digest> =>
     api.post("/api/v1/digests/generate", data).then((r) => r.data),
+};
+
+export const notificationsApi = {
+  list: (params: {
+    limit?: number;
+    offset?: number;
+    unread_only?: boolean;
+    notification_type?: string;
+  } = {}): Promise<PaginatedResponse<NotificationResponse>> =>
+    api.get("/api/v1/notifications/", { params }).then((r) => r.data),
+  get: (id: string): Promise<NotificationResponse> =>
+    api.get(`/api/v1/notifications/${id}`).then((r) => r.data),
+  markRead: (id: string): Promise<NotificationResponse> =>
+    api.post(`/api/v1/notifications/${id}/read`).then((r) => r.data),
+  markAllRead: (): Promise<{ unread_count: number }> =>
+    api.post("/api/v1/notifications/read-all").then((r) => r.data),
+  dismiss: (id: string): Promise<NotificationResponse> =>
+    api.post(`/api/v1/notifications/${id}/dismiss`).then((r) => r.data),
+  unreadCount: (): Promise<{ unread_count: number }> =>
+    api.get("/api/v1/notifications/unread/count").then((r) => r.data),
+  deliveries: {
+    list: (params: {
+      limit?: number;
+      offset?: number;
+      status?: NotificationDeliveryStatus;
+    } = {}): Promise<NotificationDeliveryHistoryResponse> =>
+      api.get("/api/v1/notifications/deliveries", { params }).then((r) => r.data),
+    get: (id: string): Promise<NotificationDeliveryResponse> =>
+      api.get(`/api/v1/notifications/deliveries/${id}`).then((r) => r.data),
+  },
+  preferences: {
+    get: (): Promise<import("../types").NotificationPreferenceResponse> =>
+      api.get("/api/v1/notifications/preferences").then((r) => r.data),
+    update: (data: import("../types").NotificationPreferenceUpdateRequest): Promise<import("../types").NotificationPreferenceResponse> =>
+      api.put("/api/v1/notifications/preferences", data).then((r) => r.data),
+    reset: (): Promise<import("../types").NotificationPreferenceResponse> =>
+      api.post("/api/v1/notifications/preferences/reset").then((r) => r.data),
+  },
+  stats: (): Promise<import("../types").NotificationStatsResponse> =>
+    api.get("/api/v1/notifications/stats").then((r) => r.data),
+  schedulePreview: (): Promise<import("../types").SchedulePreviewResponse> =>
+    api.get("/api/v1/notifications/schedule-preview").then((r) => r.data),
 };
 
 export const adminApi = {

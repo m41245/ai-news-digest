@@ -39,9 +39,7 @@ class StoryClusterRepository(
         return StoryClusterMapper.to_domain(model)
 
     async def get_by_id(self, cluster_id: UUID) -> StoryCluster | None:
-        statement = select(StoryClusterModel).where(
-            StoryClusterModel.id == str(cluster_id)
-        )
+        statement = select(StoryClusterModel).where(StoryClusterModel.id == str(cluster_id))
         result = await self._session.execute(statement)
         model = result.scalar_one_or_none()
         if model is None:
@@ -49,9 +47,7 @@ class StoryClusterRepository(
         return StoryClusterMapper.to_domain(model)
 
     async def get_by_slug(self, slug: str) -> StoryCluster | None:
-        statement = select(StoryClusterModel).where(
-            StoryClusterModel.slug == slug
-        )
+        statement = select(StoryClusterModel).where(StoryClusterModel.slug == slug)
         result = await self._session.execute(statement)
         model = result.scalar_one_or_none()
         if model is None:
@@ -78,15 +74,11 @@ class StoryClusterRepository(
         return int(result.scalar_one())
 
     async def update(self, cluster: StoryCluster) -> StoryCluster:
-        statement = select(StoryClusterModel).where(
-            StoryClusterModel.id == str(cluster.id)
-        )
+        statement = select(StoryClusterModel).where(StoryClusterModel.id == str(cluster.id))
         result = await self._session.execute(statement)
         model = result.scalar_one_or_none()
         if model is None:
-            raise ResourceNotFoundError(
-                f"StoryCluster with id '{cluster.id}' was not found."
-            )
+            raise ResourceNotFoundError(f"StoryCluster with id '{cluster.id}' was not found.")
         StoryClusterMapper.update_model(model, cluster)
         await self._commit()
         model = await self._refresh(model)

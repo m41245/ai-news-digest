@@ -7,8 +7,6 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import MagicMock
 
-import pytest
-
 from ai_news_digest.infrastructure.email.digest_templates import (
     render_daily_digest_email,
     render_weekly_digest_email,
@@ -59,7 +57,9 @@ def test_daily_digest_template_renders_correctly() -> None:
 
 
 def test_weekly_digest_template_renders_correctly() -> None:
-    digest = _make_digest(title="Weekly Digest", created_at=MagicMock(strftime=lambda fmt: "January 01, 2026"))
+    digest = _make_digest(
+        title="Weekly Digest", created_at=MagicMock(strftime=lambda fmt: "January 01, 2026")
+    )
     items = [_make_item()]
     subject, html, text = render_weekly_digest_email(
         digest=digest,

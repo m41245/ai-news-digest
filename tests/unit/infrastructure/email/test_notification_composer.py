@@ -4,8 +4,6 @@ Unit tests for ``NotificationEmailComposer``.
 
 from __future__ import annotations
 
-import pytest
-
 from ai_news_digest.infrastructure.email.notification_composer import (
     NotificationEmailComposer,
 )

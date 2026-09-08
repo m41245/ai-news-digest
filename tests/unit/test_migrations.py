@@ -106,9 +106,7 @@ def test_migration_files_are_importable() -> None:
             capture_output=True,
             text=True,
         )
-        assert result.returncode == 0, (
-            f"Failed to import {migration_file.name}: {result.stderr}"
-        )
+        assert result.returncode == 0, f"Failed to import {migration_file.name}: {result.stderr}"
 
 
 def test_migration_revision_ids_are_unique() -> None:

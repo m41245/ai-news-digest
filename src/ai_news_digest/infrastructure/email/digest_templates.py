@@ -31,9 +31,7 @@ _DIGEST_CSS = (
 
 def _get_digest_dates(digest: Any) -> tuple[str, str]:
     safe_title = (
-        html_escape(digest.title)
-        if hasattr(digest, "title") and digest.title
-        else "Digest"
+        html_escape(digest.title) if hasattr(digest, "title") and digest.title else "Digest"
     )
     safe_date = ""
     if hasattr(digest, "created_at") and digest.created_at:
@@ -65,8 +63,7 @@ def _render_daily_digest_html(
     for category, cat_items in sections.items():
         safe_cat = html_escape(category)
         section_html_parts.append(
-            f"<div class='section'>"
-            f"<div class='section-title'>{safe_cat}</div>"
+            f"<div class='section'>" f"<div class='section-title'>{safe_cat}</div>"
         )
         for art in cat_items:
             title = html_escape(art.get("title", ""))
@@ -106,8 +103,7 @@ def _render_daily_digest_html(
     ]
     if hasattr(digest, "id"):
         footer_parts.append(
-            f"<p><a href='{safe_base}/digests/{digest.id}'>"
-            f"View full digest</a></p>"
+            f"<p><a href='{safe_base}/digests/{digest.id}'>" f"View full digest</a></p>"
         )
     footer_parts.append(f"<p>Sent to you by {safe_app}</p>")
     if unsubscribe_url:
@@ -190,9 +186,7 @@ def _render_weekly_digest_html(
 ) -> str:
     safe_app = html_escape(app_name)
     safe_title = (
-        html_escape(digest.title)
-        if hasattr(digest, "title") and digest.title
-        else "Weekly Digest"
+        html_escape(digest.title) if hasattr(digest, "title") and digest.title else "Weekly Digest"
     )
     safe_base = html_escape(base_url)
 
@@ -208,8 +202,7 @@ def _render_weekly_digest_html(
     for category, cat_items in sections.items():
         safe_cat = html_escape(category)
         section_html_parts.append(
-            f"<div class='section'>"
-            f"<div class='section-title'>{safe_cat}</div>"
+            f"<div class='section'>" f"<div class='section-title'>{safe_cat}</div>"
         )
         for art in cat_items:
             title = html_escape(art.get("title", ""))
@@ -249,8 +242,7 @@ def _render_weekly_digest_html(
     ]
     if hasattr(digest, "id"):
         footer_parts.append(
-            f"<p><a href='{safe_base}/digests/{digest.id}'>"
-            f"View full digest</a></p>"
+            f"<p><a href='{safe_base}/digests/{digest.id}'>" f"View full digest</a></p>"
         )
     footer_parts.append(f"<p>Sent to you by {safe_app}</p>")
     if unsubscribe_url:

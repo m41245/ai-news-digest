@@ -5,8 +5,6 @@ Unit tests for ``TestEmailSender``.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
-from unittest.mock import patch
 
 import pytest
 
@@ -49,6 +47,7 @@ async def test_send_email_records_multiple_recipients(sender: TestEmailSender) -
 
 def test_provides_access_to_sent_emails_for_assertions(sender: TestEmailSender) -> None:
     import asyncio
+
     asyncio.run(sender.send(recipient="user@example.com", subject="S", html="<p/>"))
     emails = sender.sent_emails
     assert isinstance(emails, list)
@@ -91,6 +90,7 @@ async def test_sent_email_record_attributes(sender: TestEmailSender) -> None:
 
 def test_sent_emails_returns_copy_not_reference(sender: TestEmailSender) -> None:
     import asyncio
+
     asyncio.run(sender.send(recipient="user@example.com", subject="S", html="<p/>"))
     emails1 = sender.sent_emails
     emails2 = sender.sent_emails

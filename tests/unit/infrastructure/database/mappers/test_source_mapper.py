@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from ai_news_digest.domain.enums.source_type import SourceType
 from ai_news_digest.domain.models.source import Source
 from ai_news_digest.infrastructure.database.mappers.source_mapper import SourceMapper
 from ai_news_digest.infrastructure.database.models.source_model import SourceModel
@@ -35,6 +36,7 @@ def sample_source_model() -> SourceModel:
         website_url="https://example.com",
         description="Test description",
         is_active=True,
+        source_type=SourceType.OTHER.value,
         created_at=datetime.now(UTC),
     )
     return model
@@ -109,6 +111,7 @@ def test_source_mapper_to_domain_with_none_website_url() -> None:
         website_url=None,
         description="Test description",
         is_active=True,
+        source_type=SourceType.OTHER.value,
         created_at=datetime.now(UTC),
     )
 
@@ -126,6 +129,7 @@ def test_source_mapper_to_domain_with_none_description() -> None:
         website_url="https://example.com",
         description=None,
         is_active=True,
+        source_type=SourceType.OTHER.value,
         created_at=datetime.now(UTC),
     )
 
@@ -152,6 +156,7 @@ def test_source_mapper_to_domain_inactive() -> None:
         website_url="https://example.com",
         description="Test description",
         is_active=False,
+        source_type=SourceType.OTHER.value,
         created_at=datetime.now(UTC),
     )
 

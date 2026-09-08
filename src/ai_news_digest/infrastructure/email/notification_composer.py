@@ -71,11 +71,13 @@ class NotificationEmailComposer:
             )
             html_parts.append(link)
 
-        html_parts.extend([
-            "</div>",
-            "<div class='footer'>",
-            f"<p>Sent to you by {html_escape(get_settings().app_name)}</p>",
-        ])
+        html_parts.extend(
+            [
+                "</div>",
+                "<div class='footer'>",
+                f"<p>Sent to you by {html_escape(get_settings().app_name)}</p>",
+            ]
+        )
 
         if unsubscribe_url:
             link = (
@@ -84,11 +86,13 @@ class NotificationEmailComposer:
             )
             html_parts.append(link)
 
-        html_parts.extend([
-            "</div>",
-            "</body>",
-            "</html>",
-        ])
+        html_parts.extend(
+            [
+                "</div>",
+                "</body>",
+                "</html>",
+            ]
+        )
 
         html_body = "\n".join(html_parts)
 
@@ -103,9 +107,11 @@ class NotificationEmailComposer:
             text_parts.extend([f"Read: {story_title}", story_url, ""])
         if notification_url:
             text_parts.extend(["View all notifications:", notification_url, ""])
-        text_parts.extend([
-            f"Sent to you by {get_settings().app_name}",
-        ])
+        text_parts.extend(
+            [
+                f"Sent to you by {get_settings().app_name}",
+            ]
+        )
         if unsubscribe_url:
             text_parts.extend(["", "Unsubscribe:", unsubscribe_url])
 

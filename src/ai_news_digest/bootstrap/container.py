@@ -348,6 +348,7 @@ class Container:
     @property
     def email_sender(self) -> EmailSender:
         from ai_news_digest.infrastructure.email.provider_factory import create_email_sender
+
         return create_email_sender(self._settings)
 
     @property
@@ -400,7 +401,6 @@ class Container:
         return IngestFromSourceUseCase(
             rss_fetcher=self.rss_fetcher,
             article_repository=self.article_repository,
-            extract_article=self.extract_article,
             canonical_url=self.canonical_url,
         )
 
@@ -650,6 +650,7 @@ class Container:
         from ai_news_digest.infrastructure.database.repositories.notification_repository import (
             NotificationRepository as SqlAlchemyNotificationRepository,
         )
+
         return SqlAlchemyNotificationRepository(self._session)
 
     @property
@@ -657,6 +658,7 @@ class Container:
         from ai_news_digest.infrastructure.database.repositories.notification_repository import (
             NotificationDeliveryRepository as SqlAlchemyNotificationDeliveryRepository,
         )
+
         return SqlAlchemyNotificationDeliveryRepository(self._session)
 
     @property
@@ -664,6 +666,7 @@ class Container:
         from ai_news_digest.infrastructure.database.repositories.notification_repository import (
             NotificationPreferenceRepository as SqlAlchemyNotificationPreferenceRepository,
         )
+
         return SqlAlchemyNotificationPreferenceRepository(self._session)
 
     @property
@@ -671,6 +674,7 @@ class Container:
         from ai_news_digest.application.services.notifications.eligibility_engine import (
             NotificationEligibilityEngine,
         )
+
         return NotificationEligibilityEngine(
             notification_repository=self.notification_repository,
             notification_preference_repo=self.notification_preference_repository,
@@ -685,6 +689,7 @@ class Container:
         from ai_news_digest.infrastructure.email.notification_composer import (
             NotificationEmailComposer,
         )
+
         return NotificationService(
             notification_repository=self.notification_repository,
             delivery_repository=self.notification_delivery_repository,
@@ -694,10 +699,11 @@ class Container:
         )
 
     @property
-    def notification_scheduling_service(self):  # type: ignore[name-defined]
+    def notification_scheduling_service(self):
         from ai_news_digest.application.services.notifications.scheduling_service import (
             NotificationSchedulingService,
         )
+
         return NotificationSchedulingService(
             notification_repo=self.notification_repository,
             delivery_repo=self.notification_delivery_repository,
@@ -705,19 +711,21 @@ class Container:
         )
 
     @property
-    def notification_rate_limiter(self):  # type: ignore[name-defined]
+    def notification_rate_limiter(self):
         from ai_news_digest.application.services.notifications.rate_limiter import (
             NotificationRateLimiter,
         )
+
         return NotificationRateLimiter(
             delivery_repo=self.notification_delivery_repository,
         )
 
     @property
-    def notification_delivery_service(self):  # type: ignore[name-defined]
+    def notification_delivery_service(self):
         from ai_news_digest.application.services.notifications.delivery_service import (
             NotificationDeliveryService,
         )
+
         return NotificationDeliveryService(
             delivery_repo=self.notification_delivery_repository,
             notification_repo=self.notification_repository,
@@ -725,10 +733,11 @@ class Container:
         )
 
     @property
-    def digest_batching_service(self):  # type: ignore[name-defined]
+    def digest_batching_service(self):
         from ai_news_digest.application.services.notifications.digest_batching_service import (
             DigestBatchingService,
         )
+
         return DigestBatchingService(
             notification_repo=self.notification_repository,
             delivery_repo=self.notification_delivery_repository,

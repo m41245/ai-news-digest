@@ -5,7 +5,6 @@ Unit tests for the notification eligibility engine.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -15,7 +14,6 @@ from ai_news_digest.application.services.notifications.eligibility_engine import
     NotificationEligibilityEngine,
 )
 from ai_news_digest.domain.enums.notification import (
-    NotificationSeverity,
     NotificationType,
 )
 from ai_news_digest.domain.models.notification_preference import NotificationPreference
@@ -204,8 +202,6 @@ async def test_daily_cap_blocks_notification(
 async def test_quiet_hours_suppress_notification(
     engine: NotificationEligibilityEngine,
 ) -> None:
-    import time
-
     user = _make_user()
     story = _make_story()
     pref = NotificationPreference.create_default(user.id)
@@ -216,7 +212,10 @@ async def test_quiet_hours_suppress_notification(
 
     with pytest.MonkeyPatch.context() as m:
         fixed_time = datetime(2024, 1, 1, 23, 0, tzinfo=UTC)
-        m.setattr("ai_news_digest.application.services.notifications.eligibility_engine.datetime", MagicMock())
+        m.setattr(
+            "ai_news_digest.application.services.notifications.eligibility_engine.datetime",
+            MagicMock(),
+        )
         m.setattr(
             "ai_news_digest.application.services.notifications.eligibility_engine.datetime.now",
             lambda tz=None: fixed_time,
@@ -417,18 +416,18 @@ async def test_digest_ready_disabled_suppresses_notification(
 __all__ = [
     "test_below_confidence_threshold_suppressed",
     "test_below_importance_threshold_suppressed",
+    "test_contradiction_disabled_suppresses_notification",
+    "test_correction_published_disabled_suppresses_notification",
     "test_daily_cap_blocks_notification",
     "test_deduplication_key_stable",
+    "test_digest_ready_disabled_suppresses_notification",
     "test_followed_company_update_eligible_when_not_muted",
     "test_followed_topic_update_eligible_when_not_muted",
     "test_followed_updates_disabled_suppresses_notification",
     "test_important_story_eligible",
-    "test_notifications_disabled_when_both_channels_off",
-    "test_story_evolution_disabled_suppresses_notification",
-    "test_contradiction_disabled_suppresses_notification",
-    "test_correction_published_disabled_suppresses_notification",
-    "test_digest_ready_disabled_suppresses_notification",
     "test_muted_company_suppresses_followed_company_update",
     "test_muted_topic_suppresses_followed_topic_update",
+    "test_notifications_disabled_when_both_channels_off",
     "test_quiet_hours_suppress_notification",
+    "test_story_evolution_disabled_suppresses_notification",
 ]

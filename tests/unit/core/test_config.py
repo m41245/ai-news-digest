@@ -426,7 +426,7 @@ class TestConfigurationIsolation:
         """TestSettings must not read from .env files."""
         env_file = tmp_path / ".env"
         env_file.write_text(
-            "ENVIRONMENT=staging\nEMAIL_RECIPIENTS=[\"file@example.com\"]\n",
+            'ENVIRONMENT=staging\nEMAIL_RECIPIENTS=["file@example.com"]\n',
             encoding="utf-8",
         )
 
@@ -488,9 +488,7 @@ class TestConfigurationIsolation:
         assert real_settings.email_recipients == ["real@example.com"]
         assert real_settings.cors_origins == ["https://real.example.com"]
 
-    def test_explicit_values_override_env_variables(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_explicit_values_override_env_variables(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Explicit constructor arguments must override environment variables."""
         monkeypatch.setenv("ENVIRONMENT", "staging")
         monkeypatch.setenv("EMAIL_RECIPIENTS", '["env@example.com"]')

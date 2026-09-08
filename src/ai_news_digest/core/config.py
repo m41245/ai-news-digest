@@ -428,9 +428,7 @@ class Settings(BaseSettings):
         allowed = {"console", "smtp", "test"}
         normalized = value.strip().lower()
         if normalized not in allowed:
-            raise ValueError(
-                f"EMAIL_PROVIDER must be one of {sorted(allowed)}, got '{value}'."
-            )
+            raise ValueError(f"EMAIL_PROVIDER must be one of {sorted(allowed)}, got '{value}'.")
         return normalized
 
     # ======================================================================

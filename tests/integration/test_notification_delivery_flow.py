@@ -45,6 +45,7 @@ from ai_news_digest.infrastructure.database.repositories.notification_repository
 
 async def _make_user(db_session: Any) -> User:
     from ai_news_digest.infrastructure.database.models.user_model import UserModel
+
     model = UserModel(
         id=str(uuid4()),
         email=f"user-{uuid4()}@example.com",
@@ -281,7 +282,6 @@ async def test_scheduled_digest_delivery_persists(
 async def test_cleanup_tasks_remove_old_deliveries(
     db_session: Any,
 ) -> None:
-
     delivery_repo = NotificationDeliveryRepository(db_session)
     notification_id = await _make_notification(db_session)
     old_delivery = NotificationDelivery.create(
@@ -299,6 +299,7 @@ async def test_cleanup_tasks_remove_old_deliveries(
 @pytest.mark.integration
 async def test_authenticated_notification_apis(db_session: Any) -> None:
     from ai_news_digest.bootstrap.container import Container
+
     container = Container(db_session)
     user = await _make_user(db_session)
     pref = NotificationPreference.create_default(user.id)
@@ -320,6 +321,7 @@ async def test_authenticated_notification_apis(db_session: Any) -> None:
 @pytest.mark.integration
 async def test_cross_user_access_prevention(db_session: Any) -> None:
     from ai_news_digest.bootstrap.container import Container
+
     container = Container(db_session)
     user_a = await _make_user(db_session)
     user_b = await _make_user(db_session)
@@ -340,6 +342,7 @@ async def test_cross_user_access_prevention(db_session: Any) -> None:
 @pytest.mark.integration
 async def test_migration_behavior(db_session: Any) -> None:
     from sqlalchemy import inspect as sa_inspect
+
     async with db_session.bind.connect() as conn:
         tables = await conn.run_sync(lambda sync_conn: sa_inspect(sync_conn).get_table_names())
     assert "notifications" in tables
@@ -358,21 +361,16 @@ async def test_celery_task_registration() -> None:
         retry_failed_deliveries,
         schedule_notifications,
     )
-    assert schedule_notifications.name == (
-        "workers.tasks.notifications.schedule_notifications"
-    )
+
+    assert schedule_notifications.name == ("workers.tasks.notifications.schedule_notifications")
     assert process_scheduled_deliveries.name == (
         "workers.tasks.notifications.process_scheduled_deliveries"
     )
     assert process_immediate_deliveries.name == (
         "workers.tasks.notifications.process_immediate_deliveries"
     )
-    assert retry_failed_deliveries.name == (
-        "workers.tasks.notifications.retry_failed_deliveries"
-    )
-    assert recover_stuck_deliveries.name == (
-        "workers.tasks.notifications.recover_stuck_deliveries"
-    )
+    assert retry_failed_deliveries.name == ("workers.tasks.notifications.retry_failed_deliveries")
+    assert recover_stuck_deliveries.name == ("workers.tasks.notifications.recover_stuck_deliveries")
     assert cleanup_old_notification_deliveries.name == (
         "workers.tasks.notifications.cleanup_old_notification_deliveries"
     )
@@ -384,6 +382,7 @@ async def test_celery_task_registration() -> None:
 @pytest.mark.integration
 async def test_health_checks(db_session: Any) -> None:
     from ai_news_digest.bootstrap.container import Container
+
     container = Container(db_session)
     delivery_repo = container.notification_delivery_repository
     pending = await delivery_repo.list_pending(limit=1)

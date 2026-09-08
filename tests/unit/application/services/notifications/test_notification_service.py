@@ -5,7 +5,6 @@ Unit tests for the notification service.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -68,9 +67,7 @@ def mock_delivery_repo() -> MagicMock:
 @pytest.fixture
 def mock_pref_repo() -> MagicMock:
     repo = MagicMock()
-    repo.get_by_user_id = AsyncMock(
-        return_value=NotificationPreference.create_default(uuid4())
-    )
+    repo.get_by_user_id = AsyncMock(return_value=NotificationPreference.create_default(uuid4()))
     repo.update = AsyncMock(side_effect=lambda p: p)
     repo.create = AsyncMock(side_effect=lambda p: p)
     repo.get_by_unsubscribe_token = AsyncMock(return_value=None)

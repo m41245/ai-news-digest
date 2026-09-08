@@ -4,10 +4,7 @@ Unit tests for ``create_email_sender`` provider factory.
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import MagicMock
-
-import pytest
 
 from ai_news_digest.core.config import Settings
 from ai_news_digest.infrastructure.email.development_sender import ConsoleEmailSender
@@ -46,13 +43,17 @@ def test_returns_console_sender_when_development_mode() -> None:
 
 
 def test_returns_smtp_sender_when_smtp_provider() -> None:
-    settings = _make_settings(email_enabled=True, email_development_mode=False, email_provider="smtp")
+    settings = _make_settings(
+        email_enabled=True, email_development_mode=False, email_provider="smtp"
+    )
     sender = create_email_sender(settings_obj=settings)
     assert isinstance(sender, SMTPSender)
 
 
 def test_returns_test_sender_when_test_provider() -> None:
-    settings = _make_settings(email_enabled=True, email_development_mode=False, email_provider="test")
+    settings = _make_settings(
+        email_enabled=True, email_development_mode=False, email_provider="test"
+    )
     sender = create_email_sender(settings_obj=settings)
     assert isinstance(sender, TestEmailSender)
 
@@ -89,10 +90,10 @@ def test_development_mode_overrides_smtp_provider() -> None:
 
 __all__ = [
     "test_accepts_explicit_settings_object",
+    "test_development_mode_overrides_smtp_provider",
     "test_returns_console_sender_for_unknown_provider",
     "test_returns_console_sender_when_development_mode",
     "test_returns_console_sender_when_email_disabled",
     "test_returns_smtp_sender_when_smtp_provider",
     "test_returns_test_sender_when_test_provider",
-    "test_development_mode_overrides_smtp_provider",
 ]

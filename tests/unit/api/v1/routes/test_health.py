@@ -4,7 +4,6 @@ Unit tests for health check API routes.
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -13,8 +12,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from ai_news_digest.api.middleware.exception_handler import setup_exception_handlers
-from ai_news_digest.api.v1.routes.health import router, _readiness_cache
-from ai_news_digest.core.config import get_settings
+from ai_news_digest.api.v1.routes.health import _readiness_cache, router
 
 
 @pytest.fixture(autouse=True)

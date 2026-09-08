@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from ai_news_digest.domain.enums.notification import NotificationType, NotificationSeverity
+from ai_news_digest.domain.enums.notification import NotificationSeverity, NotificationType
 from ai_news_digest.domain.models.notification import Notification
 from ai_news_digest.infrastructure.email.notification_templates import (
     render_contradiction_detected_email,

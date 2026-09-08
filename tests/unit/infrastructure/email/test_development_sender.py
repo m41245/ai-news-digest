@@ -5,7 +5,6 @@ Unit tests for ``ConsoleEmailSender``.
 from __future__ import annotations
 
 import logging
-from unittest.mock import patch
 
 import pytest
 
@@ -18,7 +17,9 @@ def sender() -> ConsoleEmailSender:
 
 
 @pytest.mark.asyncio
-async def test_send_logs_to_console(sender: ConsoleEmailSender, caplog: pytest.LogCaptureFixture) -> None:
+async def test_send_logs_to_console(
+    sender: ConsoleEmailSender, caplog: pytest.LogCaptureFixture
+) -> None:
     with caplog.at_level(logging.INFO):
         await sender.send(
             recipient="user@example.com",
@@ -31,7 +32,9 @@ async def test_send_logs_to_console(sender: ConsoleEmailSender, caplog: pytest.L
 
 
 @pytest.mark.asyncio
-async def test_send_logs_html_debug(sender: ConsoleEmailSender, caplog: pytest.LogCaptureFixture) -> None:
+async def test_send_logs_html_debug(
+    sender: ConsoleEmailSender, caplog: pytest.LogCaptureFixture
+) -> None:
     with caplog.at_level(logging.DEBUG):
         await sender.send(
             recipient="user@example.com",
@@ -42,7 +45,9 @@ async def test_send_logs_html_debug(sender: ConsoleEmailSender, caplog: pytest.L
 
 
 @pytest.mark.asyncio
-async def test_send_email_logs_all_recipients(sender: ConsoleEmailSender, caplog: pytest.LogCaptureFixture) -> None:
+async def test_send_email_logs_all_recipients(
+    sender: ConsoleEmailSender, caplog: pytest.LogCaptureFixture
+) -> None:
     with caplog.at_level(logging.INFO):
         await sender.send_email(
             to=["a@example.com", "b@example.com"],
@@ -63,7 +68,7 @@ def test_initialization_stores_from_address() -> None:
 
 __all__ = [
     "test_initialization_stores_from_address",
+    "test_send_email_logs_all_recipients",
     "test_send_logs_html_debug",
     "test_send_logs_to_console",
-    "test_send_email_logs_all_recipients",
 ]

@@ -10,6 +10,8 @@ class ArticleStatus(StrEnum):
 
     NEW = "new"
 
+    ANALYZED = "analyzed"
+
     CATEGORIZED = "categorized"
 
     SUMMARIZED = "summarized"

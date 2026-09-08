@@ -5,7 +5,6 @@ Unit tests for authenticated notification API routes.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -57,9 +56,7 @@ def _build_container(user: User) -> MagicMock:
         expires_at=None,
     )
 
-    container.notification_service.list_notifications = AsyncMock(
-        return_value=([notification], 1)
-    )
+    container.notification_service.list_notifications = AsyncMock(return_value=([notification], 1))
     container.notification_service.get_notification = AsyncMock(return_value=notification)
     container.notification_service.mark_read = AsyncMock(return_value=notification)
     container.notification_service.mark_all_read = AsyncMock(return_value=0)
@@ -138,6 +135,7 @@ def client(mock_user: User) -> TestClient:
 
     mock_container = _build_container(mock_user)
     from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
     app.dependency_overrides[get_container] = lambda: mock_container
     setup_exception_handlers(app)
     with TestClient(app) as test_client:
@@ -178,6 +176,7 @@ def test_get_notification_not_found(client: TestClient) -> None:
     container = _build_container(_make_user())
     container.notification_service.get_notification = AsyncMock(return_value=None)
     from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
     app.dependency_overrides[get_container] = lambda: container
     setup_exception_handlers(app)
     with TestClient(app) as test_client:
@@ -239,6 +238,7 @@ def test_unsubscribe_invalid_token() -> None:
     container = _build_container(_make_user())
     container.notification_service.unsubscribe_email = AsyncMock(return_value=False)
     from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
     app.dependency_overrides[get_container] = lambda: container
     setup_exception_handlers(app)
     with TestClient(app) as test_client:
@@ -248,13 +248,13 @@ def test_unsubscribe_invalid_token() -> None:
 
 def test_notifications_scoped_to_authenticated_user() -> None:
     user_a = _make_user()
-    user_b = _make_user()
     app = FastAPI()
     app.include_router(router)
     app.dependency_overrides[get_current_active_user] = lambda: user_a
 
     container = _build_container(user_a)
     from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
     app.dependency_overrides[get_container] = lambda: container
     setup_exception_handlers(app)
     with TestClient(app) as test_client:
@@ -273,6 +273,7 @@ def test_cross_user_access_prevented() -> None:
 
     owner_container = _build_container(owner)
     from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
     app.dependency_overrides[get_container] = lambda: owner_container
     setup_exception_handlers(app)
     with TestClient(app) as test_client:

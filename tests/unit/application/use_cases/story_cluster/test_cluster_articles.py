@@ -178,12 +178,8 @@ async def test_high_confidence_title_and_company_match(
     result = await use_case.execute(new_article)
 
     assert result is not None
-    mock_article_repository.set_cluster.assert_called_once_with(
-        new_article.id, cluster.id
-    )
-    mock_cluster_repository.attach_article.assert_called_once_with(
-        cluster.id, new_article.id
-    )
+    mock_article_repository.set_cluster.assert_called_once_with(new_article.id, cluster.id)
+    mock_cluster_repository.attach_article.assert_called_once_with(cluster.id, new_article.id)
 
 
 @pytest.mark.asyncio

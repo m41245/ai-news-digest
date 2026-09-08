@@ -25,6 +25,7 @@ class ConsoleEmailSender(EmailSender):
     @staticmethod
     def _get_settings() -> Settings:
         from ai_news_digest.core.config import get_settings
+
         return get_settings()
 
     async def send(

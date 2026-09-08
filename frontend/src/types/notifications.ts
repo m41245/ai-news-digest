@@ -8,6 +8,25 @@ export type NotificationDeliveryStatus =
 
 export type NotificationChannel = "in_app" | "email";
 
+export interface NotificationResponse {
+  id: string;
+  user_id: string;
+  notification_type: string;
+  title: string;
+  body: string;
+  severity: string;
+  story_id: string | null;
+  article_id: string | null;
+  company_id: string | null;
+  topic_id: string | null;
+  digest_id: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string | null;
+  read_at: string | null;
+  dismissed_at: string | null;
+  expires_at: string | null;
+}
+
 export interface NotificationDeliveryResponse {
   id: string;
   notification_id: string;

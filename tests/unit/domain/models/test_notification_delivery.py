@@ -5,7 +5,7 @@ Unit tests for ``NotificationDelivery`` domain model state machine.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 
@@ -136,7 +136,9 @@ def test_cancel_sets_status() -> None:
         (DeliveryStatus.CANCELLED, DeliveryStatus.SENT),
     ],
 )
-def test_invalid_state_transitions_raise_value_error(from_status: DeliveryStatus, to_status: DeliveryStatus) -> None:
+def test_invalid_state_transitions_raise_value_error(
+    from_status: DeliveryStatus, to_status: DeliveryStatus
+) -> None:
     delivery = _make_delivery(from_status)
     with pytest.raises(ValueError, match="Invalid delivery status transition"):
         delivery._validate_transition(to_status)
@@ -145,7 +147,6 @@ def test_invalid_state_transitions_raise_value_error(from_status: DeliveryStatus
 def test_state_transition_idempotent_when_already_in_target_status() -> None:
     delivery = _make_delivery(DeliveryStatus.SENT)
     delivery.mark_sent(provider_message_id="msg-1")
-    first_message_id = delivery.provider_message_id
     delivery.mark_sent(provider_message_id="msg-2")
     assert delivery.provider_message_id == "msg-2"
     assert delivery.attempt_count == 2
@@ -184,8 +185,8 @@ __all__ = [
     "test_create_with_scheduled_for_sets_initial_status",
     "test_create_without_scheduled_for_sets_pending",
     "test_invalid_state_transitions_raise_value_error",
-    "test_mark_delivered_sets_delivered_at",
     "test_mark_deferred_sets_next_attempt_at",
+    "test_mark_delivered_sets_delivered_at",
     "test_mark_expired_sets_status",
     "test_mark_permanent_failure_sets_failure_reason",
     "test_mark_retryable_failure_sets_next_attempt_at",

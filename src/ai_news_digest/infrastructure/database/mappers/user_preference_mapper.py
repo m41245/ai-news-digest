@@ -87,18 +87,12 @@ class UserPreferenceMapper:
             followed_company_ids=frozenset(
                 UUID(link.company_id) for link in (followed_companies or [])
             ),
-            followed_topic_ids=frozenset(
-                UUID(link.topic_id) for link in (followed_topics or [])
-            ),
+            followed_topic_ids=frozenset(UUID(link.topic_id) for link in (followed_topics or [])),
             followed_category_ids=frozenset(
                 UUID(link.category_id) for link in (followed_categories or [])
             ),
-            muted_company_ids=frozenset(
-                UUID(link.company_id) for link in (muted_companies or [])
-            ),
-            muted_topic_ids=frozenset(
-                UUID(link.topic_id) for link in (muted_topics or [])
-            ),
+            muted_company_ids=frozenset(UUID(link.company_id) for link in (muted_companies or [])),
+            muted_topic_ids=frozenset(UUID(link.topic_id) for link in (muted_topics or [])),
             muted_category_ids=frozenset(
                 UUID(link.category_id) for link in (muted_categories or [])
             ),

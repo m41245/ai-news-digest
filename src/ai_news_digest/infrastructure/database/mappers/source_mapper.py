@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from ai_news_digest.domain.enums.source_type import SourceType
 from ai_news_digest.domain.models.source import Source
 from ai_news_digest.infrastructure.database.models.source_model import (
     SourceModel,
@@ -25,6 +26,7 @@ class SourceMapper:
             website_url=source.website_url,
             description=source.description,
             is_active=source.is_active,
+            source_type=source.source_type.value,
             created_at=source.created_at,
         )
 
@@ -40,6 +42,7 @@ class SourceMapper:
             website_url=model.website_url,
             description=model.description,
             is_active=model.is_active,
+            source_type=SourceType(model.source_type),
             created_at=model.created_at,
         )
 

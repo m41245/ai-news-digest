@@ -5,34 +5,29 @@ Unit tests for ``NotificationDeliveryService``.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
 
 from ai_news_digest.application.services.notifications.delivery_service import (
-    NotificationDeliveryService,
-    _MAX_RETRIES,
     _BACKOFF_BASE,
+    _MAX_RETRIES,
+    NotificationDeliveryService,
 )
 from ai_news_digest.domain.enums.notification import (
     DeliveryChannel,
     DeliveryStatus,
-    NotificationType,
     NotificationSeverity,
+    NotificationType,
 )
 from ai_news_digest.domain.models.notification import Notification, NotificationDelivery
-from ai_news_digest.domain.models.notification_preference import NotificationPreference
-from ai_news_digest.domain.models.user import User
-from ai_news_digest.infrastructure.email.development_sender import ConsoleEmailSender
 from ai_news_digest.infrastructure.email.errors import (
     EmailConnectionError,
     EmailInvalidRecipientError,
     EmailPermanentFailureError,
     EmailTimeoutError,
 )
-from ai_news_digest.infrastructure.email.provider_factory import create_email_sender
 from ai_news_digest.infrastructure.email.test_sender import TestEmailSender
 
 
@@ -70,7 +65,9 @@ def mock_delivery_repo() -> MagicMock:
 @pytest.fixture
 def mock_notification_repo() -> MagicMock:
     repo = MagicMock()
-    repo.get_by_id = AsyncMock(side_effect=lambda nid: _make_notification() if nid == uuid4() else None)
+    repo.get_by_id = AsyncMock(
+        side_effect=lambda nid: _make_notification() if nid == uuid4() else None
+    )
     return repo
 
 
@@ -111,7 +108,9 @@ async def test_process_immediate_deliveries_skips_scheduled(
     scheduled_delivery = _make_delivery(DeliveryStatus.PENDING)
     scheduled_delivery.scheduled_for = datetime.now(UTC)
     immediate_delivery = _make_delivery(DeliveryStatus.PENDING)
-    mock_delivery_repo.list_pending = AsyncMock(return_value=[scheduled_delivery, immediate_delivery])
+    mock_delivery_repo.list_pending = AsyncMock(
+        return_value=[scheduled_delivery, immediate_delivery]
+    )
     with patch.object(service, "_process_single_delivery", new_callable=AsyncMock) as mock_process:
         result = await service.process_immediate_deliveries(limit=10)
     assert result["processed"] == 1

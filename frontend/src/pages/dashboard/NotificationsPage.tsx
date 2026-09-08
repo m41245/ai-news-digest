@@ -10,9 +10,7 @@ import { Spinner } from "../../components/ui/Spinner";
 import { ErrorState } from "../../components/ui/ErrorState";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Badge } from "../../components/ui/Badge";
-import { type NotificationDeliveryStatus } from "../../types";
 import { NotificationTypeIcon } from "../../components/notifications/NotificationTypeIcon";
-import { DeliveryStatusBadge } from "../../components/notifications/DeliveryStatusBadge";
 import { formatDateTime } from "../../utils";
 
 type SortOption = "newest" | "oldest" | "severity";
@@ -110,16 +108,6 @@ export function NotificationsPage() {
       .join(" ");
   };
 
-  const getDeferredSuppressedExplanation = (notification: NotificationResponse): string | null => {
-    if (notification.delivery_status === "deferred") {
-      return "Delivery was deferred due to quiet hours. It will be sent once quiet hours end.";
-    }
-    if (notification.delivery_status === "suppressed") {
-      return "Delivery was suppressed to respect your daily notification cap or because this notification type is muted.";
-    }
-    return null;
-  };
-
   return (
     <>
       <Seo title="Notifications" noindex />
@@ -208,7 +196,6 @@ export function NotificationsPage() {
         ) : (
           <div className="space-y-4">
             {sortedNotifications.map((notification: NotificationResponse) => {
-              const explanation = getDeferredSuppressedExplanation(notification);
               return (
                 <Card
                   key={notification.id}
@@ -226,14 +213,6 @@ export function NotificationsPage() {
                         <span className="text-xs text-slate-500 capitalize">
                           {getTypeLabel(notification.notification_type)}
                         </span>
-                        {notification.delivery_channel && (
-                          <span className="text-xs text-slate-400" aria-label={`Delivery channel: ${notification.delivery_channel}`}>
-                            {notification.delivery_channel === "email" ? "📧" : "🔔"} {notification.delivery_channel}
-                          </span>
-                        )}
-                        {notification.delivery_status && (
-                          <DeliveryStatusBadge status={notification.delivery_status as NotificationDeliveryStatus} />
-                        )}
                         {!notification.read_at && (
                           <span className="inline-flex h-2 w-2 rounded-full bg-brand-500" aria-label="Unread" />
                         )}
@@ -242,11 +221,6 @@ export function NotificationsPage() {
                         {notification.title}
                       </h3>
                       <p className="mt-1 text-sm text-slate-600">{notification.body}</p>
-                      {explanation && (
-                        <p className="mt-2 text-xs text-amber-700 bg-amber-50 rounded-md px-3 py-2 inline-block">
-                          {explanation}
-                        </p>
-                      )}
                       <p className="mt-2 text-xs text-slate-400">
                         {formatDateTime(notification.created_at)}
                       </p>

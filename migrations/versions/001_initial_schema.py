@@ -30,6 +30,7 @@ def upgrade() -> None:
         sa.Column("website_url", sa.String(2048), nullable=True),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
+        sa.Column("source_type", sa.String(50), nullable=False, server_default="other"),
         sa.Column(
             "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
         ),
@@ -41,6 +42,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_sources_name", "sources", ["name"], unique=True)
     op.create_index("ix_sources_feed_url", "sources", ["feed_url"], unique=True)
+    op.create_index("ix_sources_source_type", "sources", ["source_type"])
 
     # Create categories table
     op.create_table(

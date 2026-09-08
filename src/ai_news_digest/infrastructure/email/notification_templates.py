@@ -50,8 +50,14 @@ def _html_page(content: str, app_name: str, base_url: str, unsubscribe_url: str 
     )
 
 
-def _text_page(title: str, body: str, story_title: str | None, story_url: str | None,
-               extra_links: list[tuple[str, str]] | None = None, app_name: str = "") -> str:
+def _text_page(
+    title: str,
+    body: str,
+    story_title: str | None,
+    story_url: str | None,
+    extra_links: list[tuple[str, str]] | None = None,
+    app_name: str = "",
+) -> str:
     parts = [title, "=" * len(title), "", body, ""]
     if story_title and story_url:
         parts.extend([f"Read: {story_title}", story_url, ""])
@@ -123,9 +129,16 @@ def _build_text_links(notification: Any, base_url: str) -> list[tuple[str, str]]
     return links
 
 
-def _render_common(notification: Any, app_name: str, base_url: str, unsubscribe_url: str | None,
-                   severity_label: str, body_text: str, context_links: str | None = None,
-                   extra_html: str = "") -> tuple[str, str, str]:
+def _render_common(
+    notification: Any,
+    app_name: str,
+    base_url: str,
+    unsubscribe_url: str | None,
+    severity_label: str,
+    body_text: str,
+    context_links: str | None = None,
+    extra_html: str = "",
+) -> tuple[str, str, str]:
     safe_title = html_escape(notification.title)
     badge_class = _severity_badge_class(notification.severity.value)
     safe_severity = html_escape(notification.severity.value)
@@ -138,10 +151,7 @@ def _render_common(notification: Any, app_name: str, base_url: str, unsubscribe_
         "</div>"
     )
 
-    body_content = (
-        "<div class='content'>"
-        f"<p>{safe_body}</p>"
-    )
+    body_content = "<div class='content'>" f"<p>{safe_body}</p>"
     if context_links:
         body_content += context_links
     if extra_html:
@@ -174,12 +184,12 @@ def render_important_story_email(
     if notification.metadata:
         story_title = notification.metadata.get("story_title", "") or ""
     context = _build_context_links(notification, base_url)
-    body = (
-        "An important story has been detected that matches your preferences."
-        + (f" Story: {story_title}" if story_title else "")
+    body = "An important story has been detected that matches your preferences." + (
+        f" Story: {story_title}" if story_title else ""
     )
-    return _render_common(notification, app_name, base_url, unsubscribe_url,
-                          "IMPORTANT STORY", body, context)
+    return _render_common(
+        notification, app_name, base_url, unsubscribe_url, "IMPORTANT STORY", body, context
+    )
 
 
 def render_followed_company_update_email(
@@ -190,8 +200,9 @@ def render_followed_company_update_email(
 ) -> tuple[str, str, str]:
     context = _build_context_links(notification, base_url)
     body = "There are new updates about a company you follow."
-    return _render_common(notification, app_name, base_url, unsubscribe_url,
-                          "COMPANY UPDATE", body, context)
+    return _render_common(
+        notification, app_name, base_url, unsubscribe_url, "COMPANY UPDATE", body, context
+    )
 
 
 def render_followed_topic_update_email(
@@ -202,8 +213,9 @@ def render_followed_topic_update_email(
 ) -> tuple[str, str, str]:
     context = _build_context_links(notification, base_url)
     body = "There are new updates about a topic you follow."
-    return _render_common(notification, app_name, base_url, unsubscribe_url,
-                          "TOPIC UPDATE", body, context)
+    return _render_common(
+        notification, app_name, base_url, unsubscribe_url, "TOPIC UPDATE", body, context
+    )
 
 
 def render_story_evolution_email(
@@ -214,8 +226,9 @@ def render_story_evolution_email(
 ) -> tuple[str, str, str]:
     context = _build_context_links(notification, base_url)
     body = "A story you're following has evolved with new developments."
-    return _render_common(notification, app_name, base_url, unsubscribe_url,
-                          "STORY EVOLUTION", body, context)
+    return _render_common(
+        notification, app_name, base_url, unsubscribe_url, "STORY EVOLUTION", body, context
+    )
 
 
 def render_contradiction_detected_email(
@@ -226,8 +239,9 @@ def render_contradiction_detected_email(
 ) -> tuple[str, str, str]:
     context = _build_context_links(notification, base_url)
     body = "A contradiction has been detected in sources covering this story."
-    return _render_common(notification, app_name, base_url, unsubscribe_url,
-                          "CONTRADICTION DETECTED", body, context)
+    return _render_common(
+        notification, app_name, base_url, unsubscribe_url, "CONTRADICTION DETECTED", body, context
+    )
 
 
 def render_correction_published_email(
@@ -238,8 +252,9 @@ def render_correction_published_email(
 ) -> tuple[str, str, str]:
     context = _build_context_links(notification, base_url)
     body = "A correction has been published for a story you're following."
-    return _render_common(notification, app_name, base_url, unsubscribe_url,
-                          "CORRECTION PUBLISHED", body, context)
+    return _render_common(
+        notification, app_name, base_url, unsubscribe_url, "CORRECTION PUBLISHED", body, context
+    )
 
 
 def render_digest_ready_email(
@@ -252,15 +267,18 @@ def render_digest_ready_email(
     body = "Your digest is ready. Click below to view the latest curated news."
     extra = ""
     if notification.digest_id:
-        digest_link = (
-            f"{html_escape(base_url)}/digests/{notification.digest_id}"
-        )
-        extra = (
-            f"<p><a href='{digest_link}' class='story-link'>"
-            f"View Your Digest</a></p>"
-        )
-    return _render_common(notification, app_name, base_url, unsubscribe_url,
-                          "DIGEST READY", body, context, extra_html=extra)
+        digest_link = f"{html_escape(base_url)}/digests/{notification.digest_id}"
+        extra = f"<p><a href='{digest_link}' class='story-link'>" f"View Your Digest</a></p>"
+    return _render_common(
+        notification,
+        app_name,
+        base_url,
+        unsubscribe_url,
+        "DIGEST READY",
+        body,
+        context,
+        extra_html=extra,
+    )
 
 
 def render_system_email(
@@ -271,8 +289,9 @@ def render_system_email(
 ) -> tuple[str, str, str]:
     context = _build_context_links(notification, base_url)
     body = notification.body or "A system notification regarding your account."
-    return _render_common(notification, app_name, base_url, unsubscribe_url,
-                          "SYSTEM", body, context)
+    return _render_common(
+        notification, app_name, base_url, unsubscribe_url, "SYSTEM", body, context
+    )
 
 
 __all__ = [

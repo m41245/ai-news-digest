@@ -556,9 +556,7 @@ class TestComputeWhatChangedWithEvidence:
         latest = _timeline_item_dict(id="2", title="Second")
         first_run = compute_what_changed_with_evidence([first, latest])
         second_run = compute_what_changed_with_evidence([first, latest])
-        assert [item.to_dict() for item in first_run] == [
-            item.to_dict() for item in second_run
-        ]
+        assert [item.to_dict() for item in first_run] == [item.to_dict() for item in second_run]
 
 
 class TestDetectSignals:

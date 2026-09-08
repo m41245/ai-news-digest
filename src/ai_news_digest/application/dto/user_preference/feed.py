@@ -24,7 +24,7 @@ class PersonalizedFeedItemResponse(BaseModel):
     article_count: int = 0
     source_count: int = 0
     relevance_reasons: list[str] = Field(default_factory=list)
-    relevance_score: int = 0
+    relevance_score: float = 0.0
     is_fallback: bool = False
     correction_signals: bool = False
     contradiction_signals: bool = False

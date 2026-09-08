@@ -72,6 +72,7 @@ async def follow_company(
     company = await container.company_repository.get_by_slug(slug)
     if company is None:
         from ai_news_digest.core.exceptions import ResourceNotFoundError
+
         raise ResourceNotFoundError(f"Company '{slug}' not found.")
     await container.follow_company.execute(current_user, company.id)
 
@@ -90,6 +91,7 @@ async def unfollow_company(
     company = await container.company_repository.get_by_slug(slug)
     if company is None:
         from ai_news_digest.core.exceptions import ResourceNotFoundError
+
         raise ResourceNotFoundError(f"Company '{slug}' not found.")
     await container.unfollow_company.execute(current_user, company.id)
 
@@ -108,6 +110,7 @@ async def follow_topic(
     topic = await container.topic_repository.get_by_slug(slug)
     if topic is None:
         from ai_news_digest.core.exceptions import ResourceNotFoundError
+
         raise ResourceNotFoundError(f"Topic '{slug}' not found.")
     await container.follow_topic.execute(current_user, topic.id)
 
@@ -126,6 +129,7 @@ async def unfollow_topic(
     topic = await container.topic_repository.get_by_slug(slug)
     if topic is None:
         from ai_news_digest.core.exceptions import ResourceNotFoundError
+
         raise ResourceNotFoundError(f"Topic '{slug}' not found.")
     await container.unfollow_topic.execute(current_user, topic.id)
 
@@ -144,6 +148,7 @@ async def follow_category(
     category = await container.category_repository.get_by_id(category_id)
     if category is None:
         from ai_news_digest.core.exceptions import ResourceNotFoundError
+
         raise ResourceNotFoundError(f"Category '{category_id}' not found.")
     await container.follow_category.execute(current_user, category.id)
 
@@ -162,6 +167,7 @@ async def unfollow_category(
     category = await container.category_repository.get_by_id(category_id)
     if category is None:
         from ai_news_digest.core.exceptions import ResourceNotFoundError
+
         raise ResourceNotFoundError(f"Category '{category_id}' not found.")
     await container.unfollow_category.execute(current_user, category.id)
 
@@ -180,6 +186,7 @@ async def mute_company(
     company = await container.company_repository.get_by_slug(slug)
     if company is None:
         from ai_news_digest.core.exceptions import ResourceNotFoundError
+
         raise ResourceNotFoundError(f"Company '{slug}' not found.")
     await container.mute_company.execute(current_user, company.id)
 
@@ -198,6 +205,7 @@ async def unmute_company(
     company = await container.company_repository.get_by_slug(slug)
     if company is None:
         from ai_news_digest.core.exceptions import ResourceNotFoundError
+
         raise ResourceNotFoundError(f"Company '{slug}' not found.")
     await container.unmute_company.execute(current_user, company.id)
 
@@ -216,6 +224,7 @@ async def mute_topic(
     topic = await container.topic_repository.get_by_slug(slug)
     if topic is None:
         from ai_news_digest.core.exceptions import ResourceNotFoundError
+
         raise ResourceNotFoundError(f"Topic '{slug}' not found.")
     await container.mute_topic.execute(current_user, topic.id)
 
@@ -234,6 +243,7 @@ async def unmute_topic(
     topic = await container.topic_repository.get_by_slug(slug)
     if topic is None:
         from ai_news_digest.core.exceptions import ResourceNotFoundError
+
         raise ResourceNotFoundError(f"Topic '{slug}' not found.")
     await container.unmute_topic.execute(current_user, topic.id)
 
@@ -252,6 +262,7 @@ async def mute_category(
     category = await container.category_repository.get_by_id(category_id)
     if category is None:
         from ai_news_digest.core.exceptions import ResourceNotFoundError
+
         raise ResourceNotFoundError(f"Category '{category_id}' not found.")
     await container.mute_category.execute(current_user, category.id)
 
@@ -270,6 +281,7 @@ async def unmute_category(
     category = await container.category_repository.get_by_id(category_id)
     if category is None:
         from ai_news_digest.core.exceptions import ResourceNotFoundError
+
         raise ResourceNotFoundError(f"Category '{category_id}' not found.")
     await container.unmute_category.execute(current_user, category.id)
 

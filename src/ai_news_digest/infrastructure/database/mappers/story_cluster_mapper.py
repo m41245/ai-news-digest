@@ -30,9 +30,7 @@ class StoryClusterMapper:
                 else None
             ),
             latest_article_id=(
-                str(cluster.latest_article_id)
-                if cluster.latest_article_id is not None
-                else None
+                str(cluster.latest_article_id) if cluster.latest_article_id is not None else None
             ),
             importance_score=cluster.importance_score,
             confidence=cluster.confidence,
@@ -53,9 +51,7 @@ class StoryClusterMapper:
             else None
         )
         model.latest_article_id = (
-            str(cluster.latest_article_id)
-            if cluster.latest_article_id is not None
-            else None
+            str(cluster.latest_article_id) if cluster.latest_article_id is not None else None
         )
         model.importance_score = cluster.importance_score
         model.confidence = cluster.confidence
@@ -82,9 +78,7 @@ class StoryClusterMapper:
                 else None
             ),
             latest_article_id=(
-                UUID(model.latest_article_id)
-                if model.latest_article_id is not None
-                else None
+                UUID(model.latest_article_id) if model.latest_article_id is not None else None
             ),
             importance_score=model.importance_score,
             confidence=model.confidence,

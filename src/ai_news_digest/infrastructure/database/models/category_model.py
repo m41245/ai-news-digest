@@ -7,7 +7,6 @@ from sqlalchemy import DateTime, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_news_digest.infrastructure.database.base import Base
-
 from ai_news_digest.infrastructure.database.models.article_category_model import (
     ArticleCategoryModel,
 )
@@ -47,7 +46,7 @@ class CategoryModel(Base):
         nullable=True,
     )
 
-    articles: Mapped[list[ArticleModel]] = relationship(  # noqa: F821
+    articles: Mapped[list[ArticleModel]] = relationship(
         back_populates="category",
         lazy="selectin",
     )
@@ -58,13 +57,13 @@ class CategoryModel(Base):
         lazy="selectin",
     )
 
-    followed_by_users: Mapped[list[UserFollowedCategoryModel]] = relationship(  # noqa: F821
+    followed_by_users: Mapped[list[UserFollowedCategoryModel]] = relationship(
         back_populates="category",
         cascade="all, delete-orphan",
         lazy="selectin",
     )
 
-    muted_by_users: Mapped[list[UserMutedCategoryModel]] = relationship(  # noqa: F821
+    muted_by_users: Mapped[list[UserMutedCategoryModel]] = relationship(
         back_populates="category",
         cascade="all, delete-orphan",
         lazy="selectin",

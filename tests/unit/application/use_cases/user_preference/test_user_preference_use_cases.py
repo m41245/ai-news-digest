@@ -5,10 +5,10 @@ Unit tests for user preference use cases.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from ai_news_digest.application.use_cases.user_preference.follow_category import (
     FollowCategoryUseCase,
@@ -85,13 +85,17 @@ async def test_update_preferences() -> None:
     repo.update = AsyncMock(return_value=profile)
 
     uc = UpdatePreferencesUseCase(preference_repository=repo)
-    request = type("Req", (), {
-        "min_importance": 0.9,
-        "min_confidence": 0.8,
-        "feed_sort": "importance",
-        "freshness_window_days": 30,
-        "preferred_source_types": ["official_company"],
-    })()
+    request = type(
+        "Req",
+        (),
+        {
+            "min_importance": 0.9,
+            "min_confidence": 0.8,
+            "feed_sort": "importance",
+            "freshness_window_days": 30,
+            "preferred_source_types": ["official_company"],
+        },
+    )()
     result = await uc.execute(user, request)
 
     repo.update.assert_awaited_once()
@@ -106,13 +110,17 @@ async def test_update_preferences_validates_min_importance() -> None:
     repo.get_by_user_id = AsyncMock(return_value=profile)
 
     uc = UpdatePreferencesUseCase(preference_repository=repo)
-    request = type("Req", (), {
-        "min_importance": 1.5,
-        "min_confidence": None,
-        "feed_sort": None,
-        "freshness_window_days": None,
-        "preferred_source_types": None,
-    })()
+    request = type(
+        "Req",
+        (),
+        {
+            "min_importance": 1.5,
+            "min_confidence": None,
+            "feed_sort": None,
+            "freshness_window_days": None,
+            "preferred_source_types": None,
+        },
+    )()
 
     with pytest.raises(ValueError, match="min_importance must be between"):
         await uc.execute(user, request)
@@ -127,13 +135,22 @@ async def test_update_preferences_normalizes_source_types() -> None:
     repo.update = AsyncMock(return_value=profile)
 
     uc = UpdatePreferencesUseCase(preference_repository=repo)
-    request = type("Req", (), {
-        "min_importance": None,
-        "min_confidence": None,
-        "feed_sort": None,
-        "freshness_window_days": None,
-        "preferred_source_types": ["official_company", "invalid_type", "tech_publication", "official_company"],
-    })()
+    request = type(
+        "Req",
+        (),
+        {
+            "min_importance": None,
+            "min_confidence": None,
+            "feed_sort": None,
+            "freshness_window_days": None,
+            "preferred_source_types": [
+                "official_company",
+                "invalid_type",
+                "tech_publication",
+                "official_company",
+            ],
+        },
+    )()
 
     result = await uc.execute(user, request)
     assert result.preferred_source_types == ["official_company", "tech_publication"]

@@ -79,11 +79,7 @@ class ArticleMapper:
     def to_domain(model: ArticleModel) -> Article:
         """Convert an ORM ArticleModel into a domain Article."""
         try:
-            status = (
-                ArticleStatus(model.status)
-                if model.status is not None
-                else ArticleStatus.NEW
-            )
+            status = ArticleStatus(model.status) if model.status is not None else ArticleStatus.NEW
         except ValueError:
             status = ArticleStatus.NEW
 
@@ -134,18 +130,9 @@ class ArticleMapper:
                 for link in (model.category_links or [])
                 if link.category is not None
             ),
-            topic_ids=tuple(
-                UUID(link.topic_id)
-                for link in (model.topic_links or [])
-            ),
-            company_ids=tuple(
-                UUID(link.company_id)
-                for link in (model.company_links or [])
-            ),
-            category_ids=tuple(
-                UUID(link.category_id)
-                for link in (model.category_links or [])
-            ),
+            topic_ids=tuple(UUID(link.topic_id) for link in (model.topic_links or [])),
+            company_ids=tuple(UUID(link.company_id) for link in (model.company_links or [])),
+            category_ids=tuple(UUID(link.category_id) for link in (model.category_links or [])),
             cluster_id=(UUID(model.cluster_id) if model.cluster_id is not None else None),
         )
 

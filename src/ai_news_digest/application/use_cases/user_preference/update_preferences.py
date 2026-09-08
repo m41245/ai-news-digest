@@ -79,9 +79,7 @@ class UpdatePreferencesUseCase:
             profile.freshness_window_days = request.freshness_window_days
 
         if request.preferred_source_types is not None:
-            normalized = SourceTypePreferenceBehavior.normalize(
-                request.preferred_source_types
-            )
+            normalized = SourceTypePreferenceBehavior.normalize(request.preferred_source_types)
             profile.preferred_source_types = normalized
 
         profile.touch()

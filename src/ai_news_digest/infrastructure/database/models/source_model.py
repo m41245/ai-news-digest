@@ -7,6 +7,7 @@ from uuid import uuid4
 from sqlalchemy import Boolean, DateTime, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from ai_news_digest.domain.enums.source_type import SourceType
 from ai_news_digest.infrastructure.database.base import Base
 
 if TYPE_CHECKING:
@@ -54,6 +55,12 @@ class SourceModel(Base):
         Boolean,
         default=True,
         nullable=False,
+    )
+
+    source_type: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default=SourceType.OTHER.value,
     )
 
     articles: Mapped[list[ArticleModel]] = relationship(

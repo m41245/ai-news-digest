@@ -74,8 +74,8 @@ class GetPersonalizedFeedUseCase:
             min_confidence if min_confidence is not None else profile.min_confidence
         )
 
-        source_map, category_map, preferred_source_type_ids = (
-            await self._load_reference_data(profile)
+        source_map, category_map, preferred_source_type_ids = await self._load_reference_data(
+            profile
         )
 
         now = datetime.now(UTC)
@@ -138,8 +138,7 @@ class GetPersonalizedFeedUseCase:
             )
 
             has_correction = any(
-                "correction" in (a.title or "").lower()
-                or "retraction" in (a.title or "").lower()
+                "correction" in (a.title or "").lower() or "retraction" in (a.title or "").lower()
                 for a in cluster_articles
             )
 
@@ -161,9 +160,7 @@ class GetPersonalizedFeedUseCase:
                 source_type = source.source_type.value
 
             category_name = (
-                category_map.get(representative.category_id)
-                if representative.category_id
-                else None
+                category_map.get(representative.category_id) if representative.category_id else None
             )
 
             feed_items.append(
@@ -409,7 +406,7 @@ class GetPersonalizedFeedUseCase:
                 items,
                 key=lambda item: (
                     -item.relevance_score,
-                    -item.importance_score if item.importance_score is not None else 0,
+                    -(item.importance_score or 0),
                     item.published_at or "",
                     item.id,
                 ),
@@ -423,6 +420,7 @@ class GetPersonalizedFeedUseCase:
                     item.id,
                 ),
             )
+        items = sorted(items, key=lambda item: item.id or "")
         return sorted(
             items,
             key=lambda item: item.published_at or "",

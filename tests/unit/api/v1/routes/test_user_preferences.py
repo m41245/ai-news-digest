@@ -58,41 +58,45 @@ def _build_container(mock_user: User, profile: UserPreferenceProfile) -> MagicMo
     container = MagicMock()
 
     pref_uc = MagicMock()
-    pref_uc.execute = AsyncMock(return_value={
-        "user_id": str(mock_user.id),
-        "min_importance": profile.min_importance,
-        "min_confidence": profile.min_confidence,
-        "feed_sort": profile.feed_sort,
-        "freshness_window_days": profile.freshness_window_days,
-        "preferred_source_types": list(profile.preferred_source_types),
-        "followed_companies": [str(c) for c in sorted(profile.followed_company_ids)],
-        "followed_topics": [str(t) for t in sorted(profile.followed_topic_ids)],
-        "followed_categories": [str(c) for c in sorted(profile.followed_category_ids)],
-        "muted_companies": [str(c) for c in sorted(profile.muted_company_ids)],
-        "muted_topics": [str(t) for t in sorted(profile.muted_topic_ids)],
-        "muted_categories": [str(c) for c in sorted(profile.muted_category_ids)],
-        "created_at": profile.created_at.isoformat(),
-        "updated_at": profile.updated_at.isoformat(),
-    })
+    pref_uc.execute = AsyncMock(
+        return_value={
+            "user_id": str(mock_user.id),
+            "min_importance": profile.min_importance,
+            "min_confidence": profile.min_confidence,
+            "feed_sort": profile.feed_sort,
+            "freshness_window_days": profile.freshness_window_days,
+            "preferred_source_types": list(profile.preferred_source_types),
+            "followed_companies": [str(c) for c in sorted(profile.followed_company_ids)],
+            "followed_topics": [str(t) for t in sorted(profile.followed_topic_ids)],
+            "followed_categories": [str(c) for c in sorted(profile.followed_category_ids)],
+            "muted_companies": [str(c) for c in sorted(profile.muted_company_ids)],
+            "muted_topics": [str(t) for t in sorted(profile.muted_topic_ids)],
+            "muted_categories": [str(c) for c in sorted(profile.muted_category_ids)],
+            "created_at": profile.created_at.isoformat(),
+            "updated_at": profile.updated_at.isoformat(),
+        }
+    )
     container.get_preferences = pref_uc
 
     update_uc = MagicMock()
-    update_uc.execute = AsyncMock(return_value={
-        "user_id": str(mock_user.id),
-        "min_importance": 0.8,
-        "min_confidence": 0.6,
-        "feed_sort": "importance",
-        "freshness_window_days": 14,
-        "preferred_source_types": ["official_company"],
-        "followed_companies": [],
-        "followed_topics": [],
-        "followed_categories": [],
-        "muted_companies": [],
-        "muted_topics": [],
-        "muted_categories": [],
-        "created_at": profile.created_at.isoformat(),
-        "updated_at": profile.updated_at.isoformat(),
-    })
+    update_uc.execute = AsyncMock(
+        return_value={
+            "user_id": str(mock_user.id),
+            "min_importance": 0.8,
+            "min_confidence": 0.6,
+            "feed_sort": "importance",
+            "freshness_window_days": 14,
+            "preferred_source_types": ["official_company"],
+            "followed_companies": [],
+            "followed_topics": [],
+            "followed_categories": [],
+            "muted_companies": [],
+            "muted_topics": [],
+            "muted_categories": [],
+            "created_at": profile.created_at.isoformat(),
+            "updated_at": profile.updated_at.isoformat(),
+        }
+    )
     container.update_preferences = update_uc
 
     container.follow_company = MagicMock()
@@ -154,6 +158,7 @@ def client(mock_user: User, profile: UserPreferenceProfile) -> TestClient:
     mock_container = _build_container(mock_user, profile)
 
     from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
     app.dependency_overrides[get_container] = lambda: mock_container
     setup_exception_handlers(app)
     with TestClient(app) as test_client:
@@ -184,12 +189,15 @@ def test_get_preferences_requires_auth(unauth_client: TestClient) -> None:
 
 
 def test_update_preferences(client: TestClient) -> None:
-    response = client.put("/me/preferences", json={
-        "min_importance": 0.8,
-        "min_confidence": 0.6,
-        "feed_sort": "importance",
-        "freshness_window_days": 14,
-    })
+    response = client.put(
+        "/me/preferences",
+        json={
+            "min_importance": 0.8,
+            "min_confidence": 0.6,
+            "feed_sort": "importance",
+            "freshness_window_days": 14,
+        },
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["min_importance"] == 0.8
@@ -296,6 +304,7 @@ def test_follow_invalid_company_returns_404() -> None:
     container = _build_container(user, profile)
     container.company_repository.get_by_slug = AsyncMock(return_value=None)
     from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
     app.dependency_overrides[get_container] = lambda: container
     setup_exception_handlers(app)
     with TestClient(app) as test_client:
@@ -304,9 +313,12 @@ def test_follow_invalid_company_returns_404() -> None:
 
 
 def test_update_preferences_validation_error(client: TestClient) -> None:
-    response = client.put("/me/preferences", json={
-        "min_importance": 2.0,
-    })
+    response = client.put(
+        "/me/preferences",
+        json={
+            "min_importance": 2.0,
+        },
+    )
     assert response.status_code == 422
 
 
@@ -326,6 +338,7 @@ def test_user_a_cannot_read_user_b_preferences() -> None:
 
     container = _build_container(user_a, profile_b)
     from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
     app.dependency_overrides[get_container] = lambda: container
     setup_exception_handlers(app)
     with TestClient(app) as test_client:
@@ -356,6 +369,7 @@ def test_feed_results_scoped_to_authenticated_user() -> None:
     container = _build_container(user_a, profile_a)
     container._profile_for_user_b = profile_b
     from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
     app.dependency_overrides[get_container] = lambda: container
     setup_exception_handlers(app)
     with TestClient(app) as test_client:
@@ -375,6 +389,7 @@ def test_feed_pagination_metadata_consistent() -> None:
 
     container = _build_container(user, profile)
     from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
     app.dependency_overrides[get_container] = lambda: container
     setup_exception_handlers(app)
     with TestClient(app) as test_client:
@@ -396,6 +411,7 @@ def test_feed_stable_serialization() -> None:
 
     container = _build_container(user, profile)
     from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
     app.dependency_overrides[get_container] = lambda: container
     setup_exception_handlers(app)
     with TestClient(app) as test_client:

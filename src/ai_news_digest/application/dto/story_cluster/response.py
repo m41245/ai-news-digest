@@ -51,9 +51,9 @@ class StoryClusterDetailResponse(StoryClusterResponse):
     """
 
     recent_articles: list[StoryClusterArticleResponse] = field(default_factory=list)
-    timeline: list[dict] = field(default_factory=list)
+    timeline: list[dict[str, object]] = field(default_factory=list)
     what_changed: list[str] = field(default_factory=list)
-    what_changed_evidence: list[dict] = field(default_factory=list)
-    contradictions: list[dict] = field(default_factory=list)
+    what_changed_evidence: list[dict[str, object]] = field(default_factory=list)
+    contradictions: list[dict[str, object]] = field(default_factory=list)
     needs_verification: bool = False
     intelligence_confidence: str = "low"

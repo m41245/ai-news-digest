@@ -120,18 +120,14 @@ class DigestBatchingService:
                 "category": self._infer_category(notification),
                 "importance_score": self._severity_to_score(notification.severity),
                 "created_at": (
-                    notification.created_at.isoformat()
-                    if notification.created_at
-                    else None
+                    notification.created_at.isoformat() if notification.created_at else None
                 ),
             }
             if notification.story_id:
                 item["story_id"] = str(notification.story_id)
             if notification.metadata:
                 meta_keys = {"source_name", "url", "summary"}
-                item.update(
-                    {k: v for k, v in notification.metadata.items() if k in meta_keys}
-                )
+                item.update({k: v for k, v in notification.metadata.items() if k in meta_keys})
             items.append(item)
 
         items.sort(key=lambda x: x.get("importance_score", 0), reverse=True)
@@ -162,9 +158,7 @@ class DigestBatchingService:
             "info": 0.2,
         }
         raw_severity = (
-            severity.value.lower()
-            if hasattr(severity, "value")
-            else str(severity).lower()
+            severity.value.lower() if hasattr(severity, "value") else str(severity).lower()
         )
         return scores.get(raw_severity, 0.0)
 

@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 from urllib.parse import urlparse
 from uuid import UUID, uuid4
 
+from ai_news_digest.domain.enums.source_type import SourceType
+
 
 @dataclass(slots=True)
 class Source:
@@ -22,6 +24,7 @@ class Source:
     website_url: str | None
     description: str | None
     is_active: bool
+    source_type: SourceType
     created_at: datetime
 
     @classmethod
@@ -33,6 +36,7 @@ class Source:
         website_url: str | None = None,
         description: str | None = None,
         is_active: bool = True,
+        source_type: SourceType = SourceType.OTHER,
     ) -> Source:
         """
         Factory method for creating a new news source.
@@ -46,6 +50,7 @@ class Source:
             website_url=website_url,
             description=description,
             is_active=is_active,
+            source_type=source_type,
             created_at=datetime.now(UTC),
         )
 
@@ -57,6 +62,7 @@ class Source:
         website_url: str | None = None,
         description: str | None = None,
         is_active: bool | None = None,
+        source_type: SourceType | None = None,
     ) -> None:
         """
         Update the source using partial values.
@@ -80,6 +86,9 @@ class Source:
 
         if is_active is not None:
             self.is_active = is_active
+
+        if source_type is not None:
+            self.source_type = source_type
 
     def activate(self) -> None:
         """

@@ -592,9 +592,7 @@ class ArticleRepository(
         )
 
         combined_ids = (
-            select(cluster_article_ids.c.id)
-            .union_all(select(standalone_ids.c.id))
-            .subquery()
+            select(cluster_article_ids.c.id).union_all(select(standalone_ids.c.id)).subquery()
         )
 
         statement = (
@@ -893,9 +891,7 @@ class ArticleRepository(
     ) -> None:
         from sqlalchemy import delete
 
-        await self._session.execute(
-            delete(model_cls).where(article_id_col == str(article_id))
-        )
+        await self._session.execute(delete(model_cls).where(article_id_col == str(article_id)))
 
         for target_id in target_ids:
             link = model_cls(

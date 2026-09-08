@@ -10,6 +10,7 @@ from ai_news_digest.domain.enums.article_status import ArticleStatus
 def test_article_status_values() -> None:
     """Test ArticleStatus enum values."""
     assert ArticleStatus.NEW == "new"
+    assert ArticleStatus.ANALYZED == "analyzed"
     assert ArticleStatus.CATEGORIZED == "categorized"
     assert ArticleStatus.SUMMARIZED == "summarized"
     assert ArticleStatus.READY == "ready"
@@ -31,8 +32,9 @@ def test_article_status_iteration() -> None:
     """Test iterating over ArticleStatus values."""
     statuses = list(ArticleStatus)
 
-    assert len(statuses) == 5
+    assert len(statuses) == 6
     assert ArticleStatus.NEW in statuses
+    assert ArticleStatus.ANALYZED in statuses
     assert ArticleStatus.CATEGORIZED in statuses
     assert ArticleStatus.SUMMARIZED in statuses
     assert ArticleStatus.READY in statuses

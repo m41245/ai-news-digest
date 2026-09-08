@@ -154,9 +154,7 @@ class ClusterArticlesUseCase:
         if cluster_categories & article_categories:
             score += 0.1
 
-        time_diff = abs(
-            (article.published_at - cluster.first_published_at).total_seconds()
-        )
+        time_diff = abs((article.published_at - cluster.first_published_at).total_seconds())
         if time_diff <= 24 * 60 * 60:
             score += 0.2
         elif time_diff <= 7 * 24 * 60 * 60:

@@ -5,7 +5,6 @@ Unit tests for ``NotificationSchedulingService``.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -23,7 +22,9 @@ from ai_news_digest.domain.models.notification import Notification, Notification
 from ai_news_digest.domain.models.notification_preference import NotificationPreference
 
 
-def _make_notification(notification_type: NotificationType = NotificationType.IMPORTANT_STORY) -> Notification:
+def _make_notification(
+    notification_type: NotificationType = NotificationType.IMPORTANT_STORY,
+) -> Notification:
     return Notification(
         id=uuid4(),
         user_id=uuid4(),
@@ -164,7 +165,9 @@ async def test_respects_quiet_hours_defers_email_delivery(
             mock_dt.UTC = UTC
             deliveries = await service.schedule_notification(notification, preference=preference)
 
-    deferred = [d for d in deliveries if d.channel == DeliveryChannel.EMAIL and d.status.value == "deferred"]
+    deferred = [
+        d for d in deliveries if d.channel == DeliveryChannel.EMAIL and d.status.value == "deferred"
+    ]
     assert len(deferred) == 1
     assert deferred[0].next_attempt_at is not None
 
@@ -186,7 +189,11 @@ async def test_respects_daily_caps(
         mock_factory.return_value = MagicMock()
         deliveries = await service.schedule_notification(notification, preference=preference)
 
-    suppressed = [d for d in deliveries if d.channel == DeliveryChannel.EMAIL and d.status.value == "suppressed"]
+    suppressed = [
+        d
+        for d in deliveries
+        if d.channel == DeliveryChannel.EMAIL and d.status.value == "suppressed"
+    ]
     assert len(suppressed) == 1
     assert suppressed[0].suppression_reason == "daily_cap_reached"
 
@@ -199,7 +206,9 @@ def test_generates_stable_idempotency_keys(service: NotificationSchedulingServic
     assert len(key1) == 64
 
 
-def test_generates_different_keys_for_different_windows(service: NotificationSchedulingService) -> None:
+def test_generates_different_keys_for_different_windows(
+    service: NotificationSchedulingService,
+) -> None:
     notification = _make_notification()
     key_daily = service._generate_idempotency_key(notification.id, "email", "daily")
     key_weekly = service._generate_idempotency_key(notification.id, "email", "weekly")
@@ -301,7 +310,11 @@ async def test_no_digest_window_configuration_suppresses_email(
         mock_factory.return_value = MagicMock()
         deliveries = await service.schedule_notification(notification, preference=preference)
 
-    suppressed = [d for d in deliveries if d.channel == DeliveryChannel.EMAIL and d.status.value == "suppressed"]
+    suppressed = [
+        d
+        for d in deliveries
+        if d.channel == DeliveryChannel.EMAIL and d.status.value == "suppressed"
+    ]
     assert len(suppressed) == 1
     assert suppressed[0].suppression_reason == "no_digest_window_configured"
 

@@ -136,12 +136,9 @@ class GetStoryClusterUseCase:
                 has_representative_title=bool(
                     representative_article and representative_article.title
                 ),
-                is_correction_signal=signals["is_correction"]
-                or signals["is_retraction"],
+                is_correction_signal=signals["is_correction"] or signals["is_retraction"],
                 is_background_signal=signals["is_background"],
-                is_primary_window=(
-                    item.get("source_type") == "official_company"
-                ),
+                is_primary_window=(item.get("source_type") == "official_company"),
                 is_tech_or_business_window=item.get("source_type")
                 in {"tech_publication", "business_news"},
             ).value

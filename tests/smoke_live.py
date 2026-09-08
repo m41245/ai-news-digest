@@ -9,7 +9,6 @@ Requires the validation stack to be running:
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
 from typing import Any
 
 import requests
@@ -37,12 +36,14 @@ class SmokeTestRunner:
         response: requests.Response | None = None,
     ) -> None:
         status = "PASS" if actual == expected else "FAIL"
-        self.results.append({
-            "test": name,
-            "expected": expected,
-            "actual": actual,
-            "status": status,
-        })
+        self.results.append(
+            {
+                "test": name,
+                "expected": expected,
+                "actual": actual,
+                "status": status,
+            }
+        )
         if status == "FAIL":
             body = ""
             if response is not None:

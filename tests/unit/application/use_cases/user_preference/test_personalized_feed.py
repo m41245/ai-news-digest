@@ -113,8 +113,8 @@ async def test_get_feed_uses_story_level_candidates(
     user = _make_user()
     profile = UserPreferenceProfile(user_id=user.id)
     mock_repositories["preference"].get_by_user_id = AsyncMock(return_value=profile)
-    mock_repositories["article"].list_personalized_feed_story_candidates = (
-        AsyncMock(return_value=[])
+    mock_repositories["article"].list_personalized_feed_story_candidates = AsyncMock(
+        return_value=[]
     )
     mock_repositories["source"].list_all = AsyncMock(return_value=[])
     mock_repositories["category"].list_all = AsyncMock(return_value=[])
@@ -122,10 +122,9 @@ async def test_get_feed_uses_story_level_candidates(
     await use_case.execute(user, page=1, page_size=20)
 
     mock_repositories["article"].list_personalized_feed_story_candidates.assert_awaited_once()
-    call_kwargs = (
-        mock_repositories["article"]
-        .list_personalized_feed_story_candidates.call_args.kwargs
-    )
+    call_kwargs = mock_repositories[
+        "article"
+    ].list_personalized_feed_story_candidates.call_args.kwargs
     assert call_kwargs["limit"] == FeedDefaults.CANDIDATE_LIMIT + 20
     assert call_kwargs["offset"] == 0
 
@@ -138,18 +137,17 @@ async def test_get_feed_enforces_max_page_size(
     user = _make_user()
     profile = UserPreferenceProfile(user_id=user.id)
     mock_repositories["preference"].get_by_user_id = AsyncMock(return_value=profile)
-    mock_repositories["article"].list_personalized_feed_story_candidates = (
-        AsyncMock(return_value=[])
+    mock_repositories["article"].list_personalized_feed_story_candidates = AsyncMock(
+        return_value=[]
     )
     mock_repositories["source"].list_all = AsyncMock(return_value=[])
     mock_repositories["category"].list_all = AsyncMock(return_value=[])
 
     await use_case.execute(user, page=1, page_size=999)
 
-    call_kwargs = (
-        mock_repositories["article"]
-        .list_personalized_feed_story_candidates.call_args.kwargs
-    )
+    call_kwargs = mock_repositories[
+        "article"
+    ].list_personalized_feed_story_candidates.call_args.kwargs
     assert call_kwargs["limit"] == FeedDefaults.CANDIDATE_LIMIT + FeedDefaults.MAX_PAGE_SIZE
 
 
@@ -161,18 +159,17 @@ async def test_get_feed_paginates_correctly(
     user = _make_user()
     profile = UserPreferenceProfile(user_id=user.id)
     mock_repositories["preference"].get_by_user_id = AsyncMock(return_value=profile)
-    mock_repositories["article"].list_personalized_feed_story_candidates = (
-        AsyncMock(return_value=[])
+    mock_repositories["article"].list_personalized_feed_story_candidates = AsyncMock(
+        return_value=[]
     )
     mock_repositories["source"].list_all = AsyncMock(return_value=[])
     mock_repositories["category"].list_all = AsyncMock(return_value=[])
 
     await use_case.execute(user, page=3, page_size=10)
 
-    call_kwargs = (
-        mock_repositories["article"]
-        .list_personalized_feed_story_candidates.call_args.kwargs
-    )
+    call_kwargs = mock_repositories[
+        "article"
+    ].list_personalized_feed_story_candidates.call_args.kwargs
     assert call_kwargs["limit"] == FeedDefaults.CANDIDATE_LIMIT + 10
     assert call_kwargs["offset"] == 0
 
@@ -442,10 +439,9 @@ async def test_followed_entity_filters_passed_to_repository(
 
     await use_case.execute(user, page=1, page_size=20)
 
-    call_kwargs = (
-        mock_repositories["article"]
-        .list_personalized_feed_story_candidates.call_args.kwargs
-    )
+    call_kwargs = mock_repositories[
+        "article"
+    ].list_personalized_feed_story_candidates.call_args.kwargs
     assert company_id in call_kwargs["followed_company_ids"]
     assert topic_id in call_kwargs["followed_topic_ids"]
     assert category_id in call_kwargs["followed_category_ids"]
@@ -476,10 +472,9 @@ async def test_preferred_source_type_ids_passed_to_repository(
 
     await use_case.execute(user, page=1, page_size=20)
 
-    call_kwargs = (
-        mock_repositories["article"]
-        .list_personalized_feed_story_candidates.call_args.kwargs
-    )
+    call_kwargs = mock_repositories[
+        "article"
+    ].list_personalized_feed_story_candidates.call_args.kwargs
     assert source_id in call_kwargs["preferred_source_type_ids"]
 
 

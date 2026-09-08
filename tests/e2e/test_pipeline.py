@@ -363,6 +363,7 @@ class TestPublicEndpoints:
         from ai_news_digest.bootstrap.container import Container
         from ai_news_digest.core.config import get_settings
         from ai_news_digest.domain.enums.article_status import ArticleStatus
+        from ai_news_digest.domain.enums.source_type import SourceType
         from ai_news_digest.domain.models.article import Article
         from ai_news_digest.domain.models.source import Source
 
@@ -384,6 +385,7 @@ class TestPublicEndpoints:
                             website_url=None,
                             description=None,
                             is_active=True,
+                            source_type=SourceType.OTHER,
                             created_at=datetime.now(UTC),
                         ),
                     )

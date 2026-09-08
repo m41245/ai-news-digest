@@ -55,9 +55,7 @@ def classify_source_role(
     the neutral ``"Related coverage"`` label.
     """
 
-    time_diff_seconds = abs(
-        (article_published_at - cluster_first_published_at).total_seconds()
-    )
+    time_diff_seconds = abs((article_published_at - cluster_first_published_at).total_seconds())
     twenty_four_hours = 24 * 60 * 60
     seven_days = 7 * 24 * 60 * 60
 
@@ -169,9 +167,7 @@ def compute_what_changed(timeline: list[dict[str, Any]]) -> list[str]:
     first_takeaways = first.get("key_takeaways")
     latest_takeaways = latest.get("key_takeaways")
     if first_takeaways != latest_takeaways and latest_takeaways:
-        added_takeaways = [
-            t for t in latest_takeaways if t not in (first_takeaways or [])
-        ]
+        added_takeaways = [t for t in latest_takeaways if t not in (first_takeaways or [])]
         if added_takeaways:
             changes.append(f"New key takeaways: {added_takeaways[0]}")
 
@@ -272,11 +268,7 @@ def compute_what_changed_with_evidence(
     first = timeline[0]
     latest = timeline[-1]
 
-    if (
-        first.get("title")
-        and latest.get("title")
-        and first["title"] != latest["title"]
-    ):
+    if first.get("title") and latest.get("title") and first["title"] != latest["title"]:
         items.append(
             build_change_evidence(
                 description=f"Headline updated: \"{latest['title']}\"",
@@ -305,7 +297,7 @@ def compute_what_changed_with_evidence(
                     has_first_article=True,
                     has_latest_article=True,
                     has_meaningful_delta=True,
-                ),
+                ).value,
                 reason="Latest article introduces companies not in the first article.",
                 detected_at=detected_at,
             )
@@ -326,7 +318,7 @@ def compute_what_changed_with_evidence(
                     has_first_article=True,
                     has_latest_article=True,
                     has_meaningful_delta=True,
-                ),
+                ).value,
                 reason="Latest article introduces topics not in the first article.",
                 detected_at=detected_at,
             )
@@ -334,16 +326,10 @@ def compute_what_changed_with_evidence(
 
     first_score = first.get("importance_score")
     latest_score = latest.get("importance_score")
-    if (
-        first_score != latest_score
-        and first_score is not None
-        and latest_score is not None
-    ):
+    if first_score != latest_score and first_score is not None and latest_score is not None:
         items.append(
             build_change_evidence(
-                description=(
-                    f"Importance score changed from {first_score} to {latest_score}"
-                ),
+                description=(f"Importance score changed from {first_score} to {latest_score}"),
                 detection_method="deterministic_importance_diff",
                 evidence_type="importance_change",
                 fields_used=["importance_score"],
@@ -354,7 +340,7 @@ def compute_what_changed_with_evidence(
                         {first.get("source_name"), latest.get("source_name")}
                     ),
                     fields_used=["importance_score"],
-                ),
+                ).value,
                 reason="Importance score differs between the first and latest article.",
                 detected_at=detected_at,
             )
@@ -376,7 +362,7 @@ def compute_what_changed_with_evidence(
                         has_first_article=True,
                         has_latest_article=True,
                         has_meaningful_delta=True,
-                    ),
+                    ).value,
                     reason="Latest article has a key takeaway not in the first article.",
                     detected_at=detected_at,
                 )
@@ -394,11 +380,9 @@ def compute_what_changed_with_evidence(
                 items=timeline,
                 confidence=compute_evidence_strength(
                     supporting_article_count=len(timeline),
-                    distinct_source_count=len(
-                        {item.get("source_name") for item in timeline}
-                    ),
+                    distinct_source_count=len({item.get("source_name") for item in timeline}),
                     fields_used=["published_at"],
-                ),
+                ).value,
                 reason="The cluster's article count grew over time.",
                 detected_at=detected_at,
             )

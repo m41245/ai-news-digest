@@ -16,6 +16,7 @@ from ai_news_digest.application.use_cases.digest.generate_digest import (
 from ai_news_digest.core.config import get_settings
 from ai_news_digest.core.exceptions import ValidationError
 from ai_news_digest.domain.enums.digest_format import DigestFormat
+from ai_news_digest.domain.enums.source_type import SourceType
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.models.digest import Digest
 from ai_news_digest.domain.models.source import Source
@@ -221,6 +222,7 @@ async def test_generate_digest_auto_builds_content(
         website_url=None,
         description=None,
         is_active=True,
+        source_type=SourceType.OTHER,
         created_at=datetime.now(UTC),
     )
     mock_source_repository.list_all.return_value = [source]

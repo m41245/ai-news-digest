@@ -84,9 +84,7 @@ def _build_container(user: User) -> MagicMock:
             max_per_day=10,
         )
     )
-    container.notification_service.list_notifications = AsyncMock(
-        return_value=([], 0)
-    )
+    container.notification_service.list_notifications = AsyncMock(return_value=([], 0))
     container.notification_service.get_notification = AsyncMock(return_value=None)
     container.notification_service.get_unread_count = AsyncMock(return_value=0)
     container.notification_service.mark_read = AsyncMock(return_value=None)

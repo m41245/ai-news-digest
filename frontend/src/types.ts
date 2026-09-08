@@ -132,3 +132,118 @@ export interface IngestionResponse {
   message: string;
   task_id: string;
 }
+
+export type NotificationDeliveryStatus =
+  | "pending"
+  | "sent"
+  | "delivered"
+  | "failed"
+  | "deferred"
+  | "suppressed";
+
+export type NotificationChannel = "in_app" | "email";
+
+export interface NotificationResponse {
+  id: string;
+  user_id: string;
+  notification_type: string;
+  title: string;
+  body: string;
+  severity: string;
+  story_id: string | null;
+  article_id: string | null;
+  company_id: string | null;
+  topic_id: string | null;
+  digest_id: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string | null;
+  read_at: string | null;
+  dismissed_at: string | null;
+  expires_at: string | null;
+}
+
+export interface NotificationDeliveryResponse {
+  id: string;
+  notification_id: string;
+  status: NotificationDeliveryStatus;
+  channel: NotificationChannel;
+  scheduled_for?: string | null;
+  sent_at?: string | null;
+  delivered_at?: string | null;
+  failed_at?: string | null;
+  retry_count: number;
+  failure_reason?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotificationDeliveryHistoryResponse {
+  items: NotificationDeliveryResponse[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface NotificationStatsResponse {
+  total_notifications: number;
+  unread_count: number;
+  delivered_count: number;
+  failed_count: number;
+  deferred_count: number;
+  suppressed_count: number;
+  by_type: Record<string, number>;
+  by_severity: Record<string, number>;
+  by_channel: Record<string, number>;
+}
+
+export interface NotificationPreferenceResponse {
+  user_id: string;
+  in_app_enabled: boolean;
+  email_enabled: boolean;
+  immediate_enabled: boolean;
+  daily_digest_enabled: boolean;
+  weekly_digest_enabled: boolean;
+  min_importance: number;
+  min_confidence: number;
+  notify_followed_companies: boolean;
+  notify_followed_topics: boolean;
+  notify_corrections: boolean;
+  notify_story_evolution: boolean;
+  quiet_hours_start: string | null;
+  quiet_hours_end: string | null;
+  timezone: string;
+  max_per_day: number;
+}
+
+export interface NotificationPreferenceUpdateRequest {
+  in_app_enabled?: boolean;
+  email_enabled?: boolean;
+  immediate_enabled?: boolean;
+  daily_digest_enabled?: boolean;
+  weekly_digest_enabled?: boolean;
+  min_importance?: number;
+  min_confidence?: number;
+  notify_followed_companies?: boolean;
+  notify_followed_topics?: boolean;
+  notify_corrections?: boolean;
+  notify_story_evolution?: boolean;
+  quiet_hours_start?: string | null;
+  quiet_hours_end?: string | null;
+  timezone?: string;
+  max_per_day?: number;
+}
+
+export interface SchedulePreviewResponse {
+  timezone: string;
+  next_notification_times: Array<{
+    notification_type: string;
+    scheduled_for: string;
+    reason: string;
+  }>;
+}
+
+export interface TestNotificationRequest {
+  notification_type?: string;
+  channel?: NotificationChannel;
+  severity?: string;
+}

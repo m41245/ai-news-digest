@@ -94,9 +94,7 @@ class NotificationSchedulingService:
             if self._is_in_quiet_hours(scheduled_for, preference):
                 scheduled_for = self._next_after_quiet_hours(scheduled_for, preference)
 
-            idempotency_key = self._generate_idempotency_key(
-                notification.id, "email", window
-            )
+            idempotency_key = self._generate_idempotency_key(notification.id, "email", window)
             email_delivery = NotificationDelivery.create(
                 notification_id=notification.id,
                 channel=DeliveryChannel.EMAIL,
@@ -167,9 +165,7 @@ class NotificationSchedulingService:
             if not notifications_page:
                 break
             for notification in notifications_page:
-                existing_deliveries = (
-                    await self._delivery_repo.list_pending(limit=10)
-                )
+                existing_deliveries = await self._delivery_repo.list_pending(limit=10)
                 has_delivery = any(
                     d.notification_id == notification.id for d in existing_deliveries
                 )
@@ -240,6 +236,7 @@ class NotificationSchedulingService:
         try:
             tz_name = preference.timezone or "UTC"
             from zoneinfo import ZoneInfo
+
             local_dt = dt.astimezone(ZoneInfo(tz_name))
             current_minutes = local_dt.hour * 60 + local_dt.minute
             start_parts = preference.quiet_hours_start.split(":")
@@ -260,6 +257,7 @@ class NotificationSchedulingService:
         try:
             tz_name = preference.timezone or "UTC"
             from zoneinfo import ZoneInfo
+
             tz = ZoneInfo(tz_name)
             local_dt = dt.astimezone(tz)
             end = preference.quiet_hours_end

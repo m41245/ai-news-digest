@@ -52,9 +52,7 @@ class NotificationRepository(
         return NotificationMapper.to_domain(model)
 
     async def get_by_id(self, notification_id: UUID) -> Notification | None:
-        statement = select(NotificationModel).where(
-            NotificationModel.id == str(notification_id)
-        )
+        statement = select(NotificationModel).where(NotificationModel.id == str(notification_id))
         result = await self._session.execute(statement)
         model = result.scalar_one_or_none()
         if model is None:
@@ -86,9 +84,7 @@ class NotificationRepository(
         unread_only: bool = False,
         notification_type: str | None = None,
     ) -> tuple[list[Notification], int]:
-        statement = select(NotificationModel).where(
-            NotificationModel.user_id == str(user_id)
-        )
+        statement = select(NotificationModel).where(NotificationModel.user_id == str(user_id))
 
         if unread_only:
             statement = statement.where(NotificationModel.read_at.is_(None))
@@ -101,9 +97,7 @@ class NotificationRepository(
         total = int(total_result.scalar_one())
 
         statement = (
-            statement.order_by(desc(NotificationModel.created_at))
-            .limit(limit)
-            .offset(offset)
+            statement.order_by(desc(NotificationModel.created_at)).limit(limit).offset(offset)
         )
         result = await self._session.execute(statement)
         models = result.scalars().all()
@@ -161,21 +155,29 @@ class NotificationRepository(
         return NotificationMapper.to_domain(model)
 
     async def count_unread(self, user_id: UUID) -> int:
-        statement = select(func.count()).select_from(NotificationModel).where(
-            and_(
-                NotificationModel.user_id == str(user_id),
-                NotificationModel.read_at.is_(None),
+        statement = (
+            select(func.count())
+            .select_from(NotificationModel)
+            .where(
+                and_(
+                    NotificationModel.user_id == str(user_id),
+                    NotificationModel.read_at.is_(None),
+                )
             )
         )
         result = await self._session.execute(statement)
         return int(result.scalar_one())
 
     async def count_unread_since(self, user_id: UUID, since: datetime) -> int:
-        statement = select(func.count()).select_from(NotificationModel).where(
-            and_(
-                NotificationModel.user_id == str(user_id),
-                NotificationModel.read_at.is_(None),
-                NotificationModel.created_at >= since,
+        statement = (
+            select(func.count())
+            .select_from(NotificationModel)
+            .where(
+                and_(
+                    NotificationModel.user_id == str(user_id),
+                    NotificationModel.read_at.is_(None),
+                    NotificationModel.created_at >= since,
+                )
             )
         )
         result = await self._session.execute(statement)
@@ -197,9 +199,7 @@ class NotificationRepository(
 
     async def list_old(self, before: datetime, limit: int = 100) -> list[Notification]:
         statement = (
-            select(NotificationModel)
-            .where(NotificationModel.created_at < before)
-            .limit(limit)
+            select(NotificationModel).where(NotificationModel.created_at < before).limit(limit)
         )
         result = await self._session.execute(statement)
         models = result.scalars().all()
@@ -254,9 +254,7 @@ class NotificationDeliveryRepository(
             NotificationDeliveryModel.status == "scheduled"
         )
         if before is not None:
-            statement = statement.where(
-                NotificationDeliveryModel.scheduled_for <= before
-            )
+            statement = statement.where(NotificationDeliveryModel.scheduled_for <= before)
         statement = statement.order_by(NotificationDeliveryModel.scheduled_for.asc()).limit(limit)
         result = await self._session.execute(statement)
         models = result.scalars().all()

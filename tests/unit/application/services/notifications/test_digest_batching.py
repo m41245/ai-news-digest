@@ -12,8 +12,8 @@ from uuid import UUID, uuid4
 import pytest
 
 from ai_news_digest.application.services.notifications.digest_batching_service import (
-    DigestBatchingService,
     _MAX_DIGEST_ITEMS,
+    DigestBatchingService,
 )
 from ai_news_digest.domain.enums.notification import (
     DeliveryChannel,
@@ -145,9 +145,11 @@ async def test_sorts_by_importance_severity(
     low_delivery = _make_delivery(low_notification.id, delivery_window="daily")
     high_delivery = _make_delivery(high_notification.id, delivery_window="daily")
     mock_delivery_repo.list_scheduled = AsyncMock(return_value=[low_delivery, high_delivery])
-    mock_notification_repo.get_by_id = AsyncMock(side_effect=lambda nid: (
-        high_notification if nid == high_notification.id else low_notification
-    ))
+    mock_notification_repo.get_by_id = AsyncMock(
+        side_effect=lambda nid: (
+            high_notification if nid == high_notification.id else low_notification
+        )
+    )
 
     result = await service.group_for_digest("daily")
     user_deliveries = result[user.id]
@@ -161,10 +163,8 @@ async def test_caps_digest_size(
     mock_notification_repo: MagicMock,
     mock_delivery_repo: MagicMock,
 ) -> None:
-    user = _make_user()
     deliveries = [
-        _make_delivery(uuid4(), delivery_window="daily")
-        for _ in range(_MAX_DIGEST_ITEMS + 5)
+        _make_delivery(uuid4(), delivery_window="daily") for _ in range(_MAX_DIGEST_ITEMS + 5)
     ]
     mock_delivery_repo.list_scheduled = AsyncMock(return_value=deliveries)
     mock_notification_repo.get_by_id = AsyncMock(return_value=None)
@@ -240,7 +240,9 @@ async def test_get_digest_items_sorted_by_importance(
     user = _make_user()
     low_notification = _make_notification(user, severity=NotificationSeverity.LOW)
     high_notification = _make_notification(user, severity=NotificationSeverity.HIGH)
-    mock_notification_repo.list_for_user = AsyncMock(return_value=([low_notification, high_notification], 2))
+    mock_notification_repo.list_for_user = AsyncMock(
+        return_value=([low_notification, high_notification], 2)
+    )
 
     items = await service.get_digest_items_for_user(user.id, "daily", limit=10)
     assert items[0]["importance_score"] >= items[-1]["importance_score"]

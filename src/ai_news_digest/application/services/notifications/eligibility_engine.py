@@ -136,6 +136,7 @@ class NotificationEligibilityEngine:
             return True
         try:
             from zoneinfo import ZoneInfo
+
             tz = ZoneInfo(pref.timezone)
             now = datetime.now(tz)
             current_minutes = now.hour * 60 + now.minute

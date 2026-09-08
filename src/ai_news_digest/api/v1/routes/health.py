@@ -134,6 +134,7 @@ async def notification_health() -> dict[str, Any]:
     try:
         from ai_news_digest.bootstrap.container import Container
         from ai_news_digest.infrastructure.database.session import SessionLocal
+
         async with SessionLocal() as session:
             container = Container(session)
             delivery_repo = container.notification_delivery_repository
@@ -153,4 +154,3 @@ async def notification_health() -> dict[str, Any]:
 
 
 __all__ = ["router"]
-

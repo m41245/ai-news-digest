@@ -243,15 +243,10 @@ async def list_deliveries(
         limit=MAX_PAGE_LIMIT * 10,
     )
     user_notification_ids = {n.id for n in user_notifications}
-    user_deliveries = [
-        d for d in all_deliveries
-        if d.notification_id in user_notification_ids
-    ]
-    user_deliveries.sort(
-        key=lambda d: d.created_at or datetime.min, reverse=True
-    )
+    user_deliveries = [d for d in all_deliveries if d.notification_id in user_notification_ids]
+    user_deliveries.sort(key=lambda d: d.created_at or datetime.min, reverse=True)
     total = len(user_deliveries)
-    paged = user_deliveries[offset:offset + limit]
+    paged = user_deliveries[offset : offset + limit]
     return NotificationDeliveryHistoryResponse(
         items=[_delivery_to_response(d) for d in paged],
         total=total,
@@ -280,14 +275,11 @@ async def get_stats(
         by_type[n.notification_type.value] = by_type.get(n.notification_type.value, 0) + 1
         by_severity[n.severity.value] = by_severity.get(n.severity.value, 0) + 1
 
-    all_deliveries = (
-        await container.notification_delivery_repository.list_pending(
-            limit=MAX_PAGE_LIMIT * 10,
-        )
+    all_deliveries = await container.notification_delivery_repository.list_pending(
+        limit=MAX_PAGE_LIMIT * 10,
     )
     user_deliveries = [
-        d for d in all_deliveries
-        if d.notification_id in {n.id for n in notifications}
+        d for d in all_deliveries if d.notification_id in {n.id for n in notifications}
     ]
     _pending_statuses = {"pending", "scheduled", "processing"}
     _failed_statuses = {"failed", "retryable_failure", "permanent_failure"}
@@ -315,10 +307,8 @@ async def schedule_preview(
     container: Annotated[Container, Depends(get_container)],
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> SchedulePreviewResponse:
-    all_deliveries = (
-        await container.notification_delivery_repository.list_scheduled(
-            limit=MAX_PAGE_LIMIT * 2,
-        )
+    all_deliveries = await container.notification_delivery_repository.list_scheduled(
+        limit=MAX_PAGE_LIMIT * 2,
     )
     user_notifications, _ = await container.notification_repository.list_for_user(
         user_id=current_user.id,
@@ -326,9 +316,9 @@ async def schedule_preview(
     )
     user_notification_ids = {n.id for n in user_notifications}
     user_scheduled = [
-        d for d in all_deliveries
-        if d.notification_id in user_notification_ids
-        and d.status.value == "scheduled"
+        d
+        for d in all_deliveries
+        if d.notification_id in user_notification_ids and d.status.value == "scheduled"
     ]
     user_scheduled.sort(key=lambda d: d.scheduled_for or datetime.min)
     return SchedulePreviewResponse(
@@ -432,9 +422,7 @@ async def mark_read(
     container: Annotated[Container, Depends(get_container)],
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> NotificationResponse:
-    notification = await container.notification_service.mark_read(
-        notification_id, current_user.id
-    )
+    notification = await container.notification_service.mark_read(notification_id, current_user.id)
     if notification is None:
         raise ResourceNotFoundError("Notification not found.")
     return _to_response(notification)
@@ -463,9 +451,7 @@ async def dismiss_notification(
     container: Annotated[Container, Depends(get_container)],
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> NotificationResponse:
-    notification = await container.notification_service.dismiss(
-        notification_id, current_user.id
-    )
+    notification = await container.notification_service.dismiss(notification_id, current_user.id)
     if notification is None:
         raise ResourceNotFoundError("Notification not found.")
     return _to_response(notification)

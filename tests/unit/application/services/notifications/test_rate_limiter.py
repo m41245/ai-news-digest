@@ -4,7 +4,6 @@ Unit tests for ``NotificationRateLimiter``.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
@@ -14,7 +13,6 @@ import pytest
 from ai_news_digest.application.services.notifications.rate_limiter import (
     NotificationRateLimiter,
 )
-from ai_news_digest.core.config import get_settings
 
 
 def _make_rate_limiter(delivery_repo: MagicMock) -> NotificationRateLimiter:
@@ -97,6 +95,7 @@ async def test_concurrent_access_does_not_bypass_caps(
     mock_delivery_repo: MagicMock,
 ) -> None:
     import asyncio
+
     user_id = uuid4()
     call_count = 0
 

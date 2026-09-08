@@ -28,13 +28,6 @@ const severityToneMap: Record<string, "neutral" | "brand" | "success" | "warning
   low: "brand",
 };
 
-function isDeferredOrSuppressed(notification: {
-  delivery_status?: string | null;
-  delivery_channel?: string | null;
-}): boolean {
-  return notification.delivery_status === "deferred" || notification.delivery_status === "suppressed";
-}
-
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -195,11 +188,6 @@ function NotificationDropdownContent({
                     {notification.title}
                   </p>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {isDeferredOrSuppressed(notification) && (
-                      <Badge tone="warning" className="text-[10px] px-1.5 py-0.5">
-                        {notification.delivery_status === "deferred" ? "Deferred" : "Suppressed"}
-                      </Badge>
-                    )}
                     {!notification.read_at && (
                       <span className="mt-0.5 h-2 w-2 flex-shrink-0 rounded-full bg-brand-500" />
                     )}
@@ -212,11 +200,6 @@ function NotificationDropdownContent({
                   <span className="text-[10px] text-slate-500 capitalize">
                     {notification.notification_type.replace(/_/g, " ")}
                   </span>
-                  {notification.delivery_channel && (
-                    <span className="text-[10px] text-slate-400">
-                      {notification.delivery_channel === "email" ? "📧" : "🔔"} {notification.delivery_channel}
-                    </span>
-                  )}
                 </div>
                 <p className="mt-1 text-xs text-slate-500 line-clamp-2">{notification.body}</p>
                 <p className="mt-1 text-xs text-slate-400">
