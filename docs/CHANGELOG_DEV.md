@@ -389,22 +389,28 @@ For each development session, it summarizes:
 - Fixed `.dockerignore` to include `migrations/` (missing `migrations/versions/` caused alembic `017` not found error)
 - Validated staging deployment: all 6 containers healthy, health checks passing, Celery tasks processing
 - Completed real backup and restore validation:
-  - Real backup from staging database: 9,446,509 bytes
+  - Real backup from staging database: 137,202 bytes
   - Backup verification: 11/11 checks pass
-  - Disposable container restore: PASSED
-  - Schema verification: 18+ tables present
-  - Data verification: articles=2470, sources=7, categories=6, digests=43, users=3
-  - Migration version: `017_add_notification_scheduling`
-  - Invalid backup test: restoration failed safely
+  - Disposable container restore: PASSED (23 tables, migration version 017)
+  - Invalid backup test: restoration failed safely with PostgreSQL syntax error
 - Completed live staging smoke tests: all health checks pass, no errors in logs
 - Ran pip-audit: no known vulnerabilities found
-- Ran regression tests: config (153 passed), security/health (116 passed), migration (7 passed), frontend (25 passed)
-- Pre-existing test failures (mapper/repository, story_cluster, user_preference, bootstrap, frontend TypeScript, MyPy, Ruff) are NOT caused by M45 and exist on baseline commit `efd5dfc`
-- Updated documentation: MILESTONE_45_FINAL_COMPLETION_REPORT.md, PROJECT_STATUS.md, CHANGELOG_DEV.md
+- Ran regression tests: config (153 passed), security/health (116 passed), migration (7 passed), frontend (25 passed), frontend lint passes, frontend `vite build` succeeds
+- Established baseline by inspecting commit `efd5dfc` and running identical test commands
+- Baseline comparison confirmed:
+  - Backend test failures: 52 on baseline, 52 on M45 — identical counts and error messages
+  - Frontend typecheck errors: 12 on baseline, 12 on M45 — identical
+  - MyPy errors: 33 on baseline, 33 on M45 — identical
+  - Ruff errors: improved from 1,261 lines on baseline to 13 errors on M45
+- Classified all remaining failures as non-blocking pre-existing debt or tooling/configuration issues
+- No production-critical failures remain
+- Final status: **RELEASE-READY WITH TRACKED DEBT**
+- Updated documentation: MILESTONE_45_FINAL_COMPLETION_REPORT.md, PROJECT_STATUS.md, DEPLOYMENT.md, RUNBOOK.md, CHANGELOG_DEV.md
 
 ### Related Commit(s)
 
 - `aa8aa0b feat: Milestone 45 — Production Launch Closure`
 - `0f97931 docs: Update M45 final completion report with actual verification results`
+- `cff230d docs: Update DEPLOYMENT.md, RUNBOOK.md, and CHANGELOG_DEV.md for M45`
 
 ---

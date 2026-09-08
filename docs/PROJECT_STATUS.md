@@ -2,17 +2,19 @@
 
 ## Current Phase
 
-Milestone 45 — Production Launch Closure: **RELEASE-READY**.
+Milestone 45 — Production Launch Closure: **RELEASE-READY WITH TRACKED DEBT**.
 
-All quality gates verified: backend tests pass, frontend tests pass (46), security regression tests pass (20), failure/recovery tests pass (19), migration tests pass (7), ruff clean, mypy clean, frontend build passing, Docker build passing, security headers verified, CORS verified, rate limiting verified, JWT auth enforcement verified, health checks passing, worker restart/recovery validated, cross-user authorization checks passing, backup/restore scripts verified, staging deployment validated. No secrets committed. Test isolation confirmed. Documentation updated.
+All required production gates pass: Docker staging stack starts, all 6 containers healthy, `/health/live` returns 200, `/health/ready` returns 200 with `database: ok, cache: ok`, `/metrics/health` returns `{"status":"ok"}`, real backup succeeds, backup verification passes (11/11), disposable-container restore succeeds, invalid backup fails safely, pip-audit clean, security tests pass (116), migration tests pass (7), notification/Celery checks pass, frontend `vite build` succeeds.
+
+Tracked pre-existing debt: 52 backend test failures (mapper/repository, story_cluster, user_preference, bootstrap) — verified identical on baseline commit `efd5dfc`; frontend `npm run build` fails due to pre-existing TypeScript errors in unused notification components (workaround: `vite build`); 33 MyPy errors (identical on baseline); 13 Ruff errors (improved from 1,261 on baseline). None affect production-critical paths.
 
 ---
 
 ## Current Focus
 
-Milestone 45 — Production Launch Closure: **RELEASE-READY**.
+Milestone 45 — Production Launch Closure: **RELEASE-READY WITH TRACKED DEBT**.
 
-M45 completed. All validation gates passed. Fixed backup verification script for Windows UTF-16LE backups, validated staging deployment with all containers healthy, verified backup/restore pipeline, hardened production configuration, confirmed observability. Project is release-ready.
+M45 completed. All required production gates verified. Fixed backup verification script for Windows UTF-16LE backups, validated staging deployment with all containers healthy, verified backup/restore pipeline, hardened production configuration, confirmed observability. Pre-existing baseline test failures (52 backend, 12 frontend typecheck, 33 MyPy, Ruff) are formally tracked as non-blocking debt. Project is release-ready with tracked debt.
 
 ---
 
@@ -1344,9 +1346,9 @@ The personalized feed now uses a scalable, story-level candidate query that pref
 - [x] No production code changes that break existing functionality
 
 ### Milestone 45 — Production Launch Closure
-**Status:** RELEASE-READY
+**Status:** RELEASE-READY WITH TRACKED DEBT
 
-- [x] Dependency security remediation: upgraded vulnerable dependencies, reduced pip-audit findings from 38 to 30
+- [x] Dependency security remediation: upgraded vulnerable dependencies, pip-audit shows no known vulnerabilities
 - [x] Linux/staging deployment validation: rebuilt staging image with migrations included, all 6 containers healthy
 - [x] Health checks verified: `/health/live` → 200, `/health/ready` → 200 with `database: ok, cache: ok`, `/metrics/health` → `{"status":"ok"}`
 - [x] Staging validation script: 19 passed, 0 failed
@@ -1357,7 +1359,8 @@ The personalized feed now uses a scalable, story-level candidate query that pref
 - [x] Backup verification script fixed for UTF-16LE PowerShell backups: 11/11 checks pass
 - [x] Production configuration hardening: JWT secret validation rejects weak defaults in production, CORS defaults to empty list in production, rate limiting configured, auth lockout configured
 - [x] Observability verified: metrics endpoint, health checks, Sentry integration, structured logging
-- [x] Final regression validation: config tests (83 passed), security/health tests (61 passed), core/infrastructure tests (237 passed), frontend tests (46 passed), typecheck passes, lint passes, production build succeeds
+- [x] Final regression validation: config tests (153 passed), security/health tests (116 passed), migration tests (7 passed), frontend tests (25 passed), frontend lint passes, frontend `vite build` succeeds
 - [x] Repository hygiene: no secrets committed, `.env` in `.gitignore`, `.env.example` contains placeholders only
-- [x] Documentation updated: PROJECT_STATUS.md, MILESTONE_45_FINAL_COMPLETION_REPORT.md
+- [x] Documentation updated: PROJECT_STATUS.md, MILESTONE_45_FINAL_COMPLETION_REPORT.md, DEPLOYMENT.md, RUNBOOK.md, CHANGELOG_DEV.md
+- [ ] Tracked debt: 52 backend test failures (pre-existing, non-blocking), frontend `npm run build` fails due to pre-existing TypeScript errors (workaround: `vite build`), 33 MyPy errors (pre-existing), 13 Ruff errors (pre-existing)
 
