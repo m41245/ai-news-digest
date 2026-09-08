@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eu
+set -o pipefail 2>/dev/null || true
 
 # Backup Integrity Verification Script
 # Usage: ./scripts/verify_backup.sh <backup_file>
@@ -19,6 +20,16 @@ fi
 
 echo "Verifying backup: ${BACKUP_FILE}"
 echo ""
+
+# Convert UTF-16 encoded backups (Windows pg_dump) to UTF-8 for processing
+TEMP_FILE=""
+if command -v iconv >/dev/null 2>&1; then
+    if grep -q $'\xFE\xFF' "${BACKUP_FILE}" 2>/dev/null || grep -q $'\xFF\xFE' "${BACKUP_FILE}" 2>/dev/null; then
+        TEMP_FILE="$(mktemp)"
+        iconv -f UTF-16 -t UTF-8 "${BACKUP_FILE}" > "${TEMP_FILE}" 2>/dev/null || iconv -f UTF-16LE -t UTF-8 "${BACKUP_FILE}" > "${TEMP_FILE}" 2>/dev/null
+        BACKUP_FILE="${TEMP_FILE}"
+    fi
+fi
 
 PASS=0
 FAIL=0
@@ -53,23 +64,28 @@ for table in "${TABLES[@]}"; do
     fi
 done
 
-# Check 4: Contains data (at least INSERT statements)
+# Check 4: Contains data (INSERT or COPY statements)
 INSERT_COUNT=$(grep -c "INSERT INTO" "${BACKUP_FILE}" || true)
-if [ "${INSERT_COUNT}" -gt 0 ]; then
-    echo "[PASS] Contains ${INSERT_COUNT} INSERT statements"
+COPY_COUNT=$(grep -c "COPY public\." "${BACKUP_FILE}" 2>/dev/null || true)
+if [ "${INSERT_COUNT}" -gt 0 ] || [ "${COPY_COUNT}" -gt 0 ]; then
+    echo "[PASS] Contains ${INSERT_COUNT} INSERT statements, ${COPY_COUNT} COPY data blocks"
     PASS=$((PASS + 1))
 else
-    echo "[FAIL] No INSERT statements found (backup may be empty of data)"
+    echo "[FAIL] No INSERT or COPY data found (backup may be empty of data)"
     FAIL=$((FAIL + 1))
 fi
 
 # Check 5: File ends cleanly
-if tail -n 1 "${BACKUP_FILE}" | grep -q "\\."; then
+if tail -n 5 "${BACKUP_FILE}" | grep -q "PostgreSQL database dump complete"; then
     echo "[PASS] File ends cleanly"
     PASS=$((PASS + 1))
 else
     echo "[FAIL] File may be truncated"
     FAIL=$((FAIL + 1))
+fi
+
+if [ -n "${TEMP_FILE}" ] && [ -f "${TEMP_FILE}" ]; then
+    rm -f "${TEMP_FILE}"
 fi
 
 echo ""

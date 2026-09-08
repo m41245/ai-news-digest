@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eu
+set -o pipefail 2>/dev/null || true
 
 # PostgreSQL Backup Script for AI News Digest
 # Usage: ./scripts/backup_db.sh [output_file]

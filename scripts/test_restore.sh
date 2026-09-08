@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eu
+set -o pipefail 2>/dev/null || true
 
 # Disposable Database Restore Test Script
 # Usage: ./scripts/test_restore.sh <backup_file>
