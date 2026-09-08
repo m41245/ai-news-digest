@@ -10,6 +10,13 @@ from ai_news_digest.core.metrics import (
     record_celery_task_duration,
     record_celery_task_failure,
     record_celery_task_success,
+    record_cleanup_operation,
+    record_delivery_attempted,
+    record_delivery_failed_permanently,
+    record_delivery_recovered,
+    record_delivery_succeeded,
+    record_notification_created,
+    record_notification_evaluation,
 )
 from ai_news_digest.domain.enums.notification import NotificationSeverity, NotificationType
 from ai_news_digest.workers._container import get_container
@@ -79,6 +86,8 @@ async def evaluate_notifications(story_id: str) -> dict[str, int]:
     try:
         result = await _evaluate_notifications_impl(story_id)
         await record_celery_task_success(_TASK_NAME_EVALUATE)
+        record_notification_evaluation(result.get("evaluated", 0))
+        record_notification_created(result.get("created", 0))
         return result
     except Exception as exc:
         logger.error("Notification evaluation failed", story_id=story_id, error=str(exc))
@@ -99,9 +108,7 @@ async def expire_old_notifications() -> dict[str, int]:
     count = 0
     try:
         async for container in get_container():
-            count = await container.notification_repository.expire_old(
-                datetime.now(UTC)
-            )
+            count = await container.notification_repository.expire_old(datetime.now(UTC))
             await record_celery_task_success(_TASK_NAME_EXPIRE)
             return {"expired": count}
     except Exception as exc:
@@ -116,7 +123,7 @@ async def expire_old_notifications() -> dict[str, int]:
 async def _schedule_notifications_impl(limit: int = _BATCH_SIZE) -> dict[str, int]:
     async for container in get_container():
         service = container.notification_scheduling_service
-        result = await service.batch_schedule_pending(limit=limit)
+        result: dict[str, int] = await service.batch_schedule_pending(limit=limit)
         return result
     return {"scheduled": 0}
 
@@ -144,7 +151,8 @@ async def schedule_notifications(limit: int = _BATCH_SIZE) -> dict[str, int]:
 async def _process_scheduled_deliveries_impl(limit: int = _BATCH_SIZE) -> dict[str, int]:
     async for container in get_container():
         service = container.notification_delivery_service
-        return await service.process_scheduled_deliveries(limit=limit)
+        result: dict[str, int] = await service.process_scheduled_deliveries(limit=limit)
+        return result
     return {"processed": 0, "failed": 0}
 
 
@@ -159,6 +167,12 @@ async def process_scheduled_deliveries(limit: int = _BATCH_SIZE) -> dict[str, in
     try:
         result = await _process_scheduled_deliveries_impl(limit=limit)
         await record_celery_task_success(_TASK_NAME_PROCESS_SCHEDULED)
+        processed = result.get("processed", 0)
+        failed = result.get("failed", 0)
+        record_delivery_attempted(processed + failed)
+        record_delivery_succeeded(processed)
+        if failed:
+            record_delivery_failed_permanently(failed)
         return result
     except Exception as exc:
         logger.error("Scheduled delivery processing failed", error=str(exc))
@@ -171,7 +185,8 @@ async def process_scheduled_deliveries(limit: int = _BATCH_SIZE) -> dict[str, in
 async def _process_immediate_deliveries_impl(limit: int = _BATCH_SIZE) -> dict[str, int]:
     async for container in get_container():
         service = container.notification_delivery_service
-        return await service.process_immediate_deliveries(limit=limit)
+        result: dict[str, int] = await service.process_immediate_deliveries(limit=limit)
+        return result
     return {"processed": 0, "failed": 0}
 
 
@@ -186,6 +201,12 @@ async def process_immediate_deliveries(limit: int = _BATCH_SIZE) -> dict[str, in
     try:
         result = await _process_immediate_deliveries_impl(limit=limit)
         await record_celery_task_success(_TASK_NAME_PROCESS_IMMEDIATE)
+        processed = result.get("processed", 0)
+        failed = result.get("failed", 0)
+        record_delivery_attempted(processed + failed)
+        record_delivery_succeeded(processed)
+        if failed:
+            record_delivery_failed_permanently(failed)
         return result
     except Exception as exc:
         logger.error("Immediate delivery processing failed", error=str(exc))
@@ -198,7 +219,8 @@ async def process_immediate_deliveries(limit: int = _BATCH_SIZE) -> dict[str, in
 async def _retry_failed_deliveries_impl(limit: int = _BATCH_SIZE) -> dict[str, int]:
     async for container in get_container():
         service = container.notification_delivery_service
-        return await service.retry_failed_deliveries(limit=limit)
+        result: dict[str, int] = await service.retry_failed_deliveries(limit=limit)
+        return result
     return {"retried": 0, "failed": 0}
 
 
@@ -213,6 +235,12 @@ async def retry_failed_deliveries(limit: int = _BATCH_SIZE) -> dict[str, int]:
     try:
         result = await _retry_failed_deliveries_impl(limit=limit)
         await record_celery_task_success(_TASK_NAME_RETRY_FAILED)
+        retried = result.get("retried", 0)
+        failed = result.get("failed", 0)
+        record_delivery_attempted(retried)
+        record_delivery_succeeded(retried)
+        if failed:
+            record_delivery_failed_permanently(failed)
         return result
     except Exception as exc:
         logger.error("Retry failed deliveries failed", error=str(exc))
@@ -228,10 +256,11 @@ async def _recover_stuck_deliveries_impl(
 ) -> dict[str, int]:
     async for container in get_container():
         service = container.notification_delivery_service
-        return await service.recover_stuck_deliveries(
+        result: dict[str, int] = await service.recover_stuck_deliveries(
             timeout_minutes=timeout_minutes,
             limit=limit,
         )
+        return result
     return {"recovered": 0}
 
 
@@ -252,6 +281,8 @@ async def recover_stuck_deliveries(
             limit=limit,
         )
         await record_celery_task_success(_TASK_NAME_RECOVER_STUCK)
+        recovered = result.get("recovered", 0)
+        record_delivery_recovered(recovered)
         return result
     except Exception as exc:
         logger.error("Stuck delivery recovery failed", error=str(exc))
@@ -268,10 +299,7 @@ async def _cleanup_old_deliveries_impl(days: int = 30) -> dict[str, int]:
         delivery_repo = container.notification_delivery_repository
         while True:
             batch = await delivery_repo.list_pending(limit=_BATCH_SIZE)
-            to_delete = [
-                d for d in batch
-                if d.created_at is not None and d.created_at < cutoff
-            ]
+            to_delete = [d for d in batch if d.created_at is not None and d.created_at < cutoff]
             if not to_delete:
                 break
             for delivery in to_delete:
@@ -307,6 +335,7 @@ async def cleanup_old_notification_deliveries(days: int = 30) -> dict[str, int]:
     try:
         result = await _cleanup_old_deliveries_impl(days=days)
         await record_celery_task_success(_TASK_NAME_CLEANUP_DELIVERIES)
+        record_cleanup_operation(result.get("deleted", 0))
         return result
     except Exception as exc:
         logger.error("Notification delivery cleanup failed", error=str(exc))
@@ -343,6 +372,7 @@ async def cleanup_old_notifications(days: int = 90) -> dict[str, int]:
                     break
             break
         await record_celery_task_success(_TASK_NAME_CLEANUP_NOTIFICATIONS)
+        record_cleanup_operation(deleted)
         return {"deleted": deleted, "days": days}
     except Exception as exc:
         logger.error("Notification cleanup failed", error=str(exc))
@@ -366,4 +396,3 @@ __all__ = [
     "retry_failed_deliveries",
     "schedule_notifications",
 ]
-

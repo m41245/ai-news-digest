@@ -5,6 +5,8 @@ Unit tests for migration and schema consistency.
 from __future__ import annotations
 
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 from alembic.config import Config
@@ -83,3 +85,53 @@ def test_article_status_enum_in_migration() -> None:
     assert "summarized" in all_migration_content
     assert "categorized" in all_migration_content
     assert "ready" in all_migration_content
+
+
+def test_migration_files_are_importable() -> None:
+    """Test that all migration modules can be imported without errors."""
+    migrations_dir = Path(__file__).resolve().parent.parent.parent / "migrations" / "versions"
+    project_root = Path(__file__).resolve().parent.parent.parent
+
+    for migration_file in sorted(migrations_dir.glob("*.py")):
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import sys; import importlib.util; "
+                f"sys.path.insert(0, r'{project_root}'); "
+                f"spec = importlib.util.spec_from_file_location('migration', r'{migration_file}'); "
+                "mod = importlib.util.module_from_spec(spec); "
+                "spec.loader.exec_module(mod); print('OK')",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, (
+            f"Failed to import {migration_file.name}: {result.stderr}"
+        )
+
+
+def test_migration_revision_ids_are_unique() -> None:
+    """Test that all migration revision IDs are unique."""
+    migrations_dir = Path(__file__).resolve().parent.parent.parent / "migrations" / "versions"
+    revision_ids = []
+
+    for migration_file in sorted(migrations_dir.glob("*.py")):
+        content = migration_file.read_text()
+        revision_match = re.search(r"Revision ID:\s*(\w+)", content)
+        assert revision_match is not None, f"Missing revision in {migration_file}"
+        revision_ids.append(revision_match.group(1))
+
+    assert len(revision_ids) == len(set(revision_ids)), "Duplicate revision IDs found"
+
+
+def test_migration_heads_are_consistent() -> None:
+    """Test that alembic heads can be resolved without errors."""
+    alembic_ini = Path(__file__).resolve().parent.parent.parent / "alembic.ini"
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", "-c", str(alembic_ini), "heads"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"alembic heads failed: {result.stderr}"
+    assert "head" in result.stdout.lower() or "revision" in result.stdout.lower()

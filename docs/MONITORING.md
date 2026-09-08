@@ -207,6 +207,17 @@ Authorization: Bearer <admin_token>
 | `rss_ingestion_total` | Counter | RSS feed ingestion results by `source:status` |
 | `email_delivery_total` | Counter | Email delivery results by `status` with `sent_count` |
 | `ai_request_total` | Counter | AI provider requests by `provider:status` |
+| `notification_evaluations` | Counter | Notification eligibility evaluations |
+| `notifications_created` | Counter | Notifications created |
+| `deliveries_attempted` | Counter | Delivery attempts |
+| `deliveries_succeeded` | Counter | Successful deliveries |
+| `deliveries_deferred` | Counter | Deferred deliveries |
+| `deliveries_failed_permanently` | Counter | Permanently failed deliveries |
+| `deliveries_recovered` | Counter | Recovered stuck deliveries |
+| `digest_batches_created` | Counter | Digest batches created |
+| `cleanup_operations` | Counter | Cleanup task executions |
+| `auth_failures` | Counter | Authentication failures |
+| `rate_limit_events` | Counter | Rate limit trigger events |
 
 **Note:** `task_total` metrics are in-process only. When Celery workers run in separate containers, task metrics are not shared across processes. A shared backend (Redis or Prometheus Push Gateway) is required for distributed task metrics.
 
@@ -420,3 +431,65 @@ Schedule maintenance windows for:
 - Infrastructure updates
 
 During maintenance windows, silence non-critical alerts to prevent noise.
+
+---
+
+## Milestone 44 Monitoring Enhancements
+
+M44 adds new metrics for notification and delivery observability:
+
+### New Metrics
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `notification_evaluations` | Counter | Notification eligibility evaluations |
+| `notifications_created` | Counter | Notifications created |
+| `deliveries_attempted` | Counter | Delivery attempts |
+| `deliveries_succeeded` | Counter | Successful deliveries |
+| `deliveries_deferred` | Counter | Deferred deliveries |
+| `deliveries_failed_permanently` | Counter | Permanently failed deliveries |
+| `deliveries_recovered` | Counter | Recovered stuck deliveries |
+| `digest_batches_created` | Counter | Digest batches created |
+| `cleanup_operations` | Counter | Cleanup task executions |
+| `auth_failures` | Counter | Authentication failures |
+| `rate_limit_events` | Counter | Rate limit trigger events |
+
+### Recommended Alert Rules
+
+```yaml
+groups:
+  - name: ai-news-digest-notifications
+    rules:
+      - alert: HighDeliveryFailureRate
+        expr: rate(deliveries_failed_permanently[15m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High email delivery failure rate"
+
+      - alert: AuthFailureSpike
+        expr: rate(auth_failures[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Authentication failure spike detected"
+
+      - alert: RateLimitSpike
+        expr: rate(rate_limit_events[5m]) > 20
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Rate limit events spike detected"
+```
+
+### Security Monitoring
+
+Monitor security-related events:
+- `auth_failures` — track authentication failures per client
+- `rate_limit_events` — track rate limit triggers
+- `login_brute_force_lockout` — log event for brute force protection
+- Security headers presence on all responses
+- CORS configuration validation

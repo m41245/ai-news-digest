@@ -128,34 +128,24 @@ async def metrics(
     lines.append(f"digests_generated_total {app_metrics['digests_generated_total']}")
 
     ai_failures = app_metrics["ai_provider_failures_total"]
-    if not isinstance(ai_failures, dict):
-        ai_failures = {}
     for provider, count in ai_failures.items():
         lines.append(f'ai_provider_failures_total{{provider="{provider}"}} {count}')
 
     ai_requests = app_metrics.get("ai_provider_requests_total", {})
-    if not isinstance(ai_requests, dict):
-        ai_requests = {}
     for provider, count in ai_requests.items():
         lines.append(f'ai_provider_requests_total{{provider="{provider}"}} {count}')
 
     ai_latencies = app_metrics["ai_processing_latencies"]
-    if not isinstance(ai_latencies, dict):
-        ai_latencies = {}
     for provider, samples in ai_latencies.items():
         if samples:
             avg = sum(samples) / len(samples)
             lines.append(f'ai_processing_duration_seconds{{provider="{provider}"}} {avg:.4f}')
 
     rss_success = app_metrics.get("rss_ingestion_success_total", {})
-    if not isinstance(rss_success, dict):
-        rss_success = {}
     for source, count in rss_success.items():
         lines.append(f'rss_ingestion_success_total{{source="{source}"}} {count}')
 
     rss_failure = app_metrics.get("rss_ingestion_failure_total", {})
-    if not isinstance(rss_failure, dict):
-        rss_failure = {}
     for source, count in rss_failure.items():
         lines.append(f'rss_ingestion_failure_total{{source="{source}"}} {count}')
 
@@ -164,6 +154,39 @@ async def metrics(
 
     email_failure = app_metrics.get("email_delivery_failure_total", 0)
     lines.append(f"email_delivery_failure_total {email_failure}")
+
+    notification_evaluations = app_metrics.get("notification_evaluations_total", 0)
+    lines.append(f"notification_evaluations_total {notification_evaluations}")
+
+    notifications_created = app_metrics.get("notifications_created_total", 0)
+    lines.append(f"notifications_created_total {notifications_created}")
+
+    deliveries_attempted = app_metrics.get("deliveries_attempted_total", 0)
+    lines.append(f"deliveries_attempted_total {deliveries_attempted}")
+
+    deliveries_succeeded = app_metrics.get("deliveries_succeeded_total", 0)
+    lines.append(f"deliveries_succeeded_total {deliveries_succeeded}")
+
+    deliveries_deferred = app_metrics.get("deliveries_deferred_total", 0)
+    lines.append(f"deliveries_deferred_total {deliveries_deferred}")
+
+    deliveries_failed_permanently = app_metrics.get("deliveries_failed_permanently_total", 0)
+    lines.append(f"deliveries_failed_permanently_total {deliveries_failed_permanently}")
+
+    deliveries_recovered = app_metrics.get("deliveries_recovered_total", 0)
+    lines.append(f"deliveries_recovered_total {deliveries_recovered}")
+
+    digest_batches_created = app_metrics.get("digest_batches_created_total", 0)
+    lines.append(f"digest_batches_created_total {digest_batches_created}")
+
+    cleanup_operations = app_metrics.get("cleanup_operations_total", 0)
+    lines.append(f"cleanup_operations_total {cleanup_operations}")
+
+    auth_failures = app_metrics.get("auth_failures_total", 0)
+    lines.append(f"auth_failures_total {auth_failures}")
+
+    rate_limit_events = app_metrics.get("rate_limit_events_total", 0)
+    lines.append(f"rate_limit_events_total {rate_limit_events}")
 
     celery = await read_celery_metrics()
     lines.append(f"task_success_total {celery['task_success_total']:.0f}")

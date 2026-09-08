@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 from collections import defaultdict
 from threading import Lock
+from typing import TypedDict
 
 import redis.asyncio as aioredis
 
@@ -10,6 +11,32 @@ from ai_news_digest.core.config import settings
 from ai_news_digest.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+class ApplicationMetrics(TypedDict):
+    articles_collected_total: int
+    articles_processed_total: int
+    articles_deduplicated_total: int
+    digests_generated_total: int
+    ai_provider_failures_total: dict[str, int]
+    ai_provider_requests_total: dict[str, int]
+    ai_processing_latencies: dict[str, list[float]]
+    rss_ingestion_success_total: dict[str, int]
+    rss_ingestion_failure_total: dict[str, int]
+    email_delivery_success_total: int
+    email_delivery_failure_total: int
+    notification_evaluations_total: int
+    notifications_created_total: int
+    deliveries_attempted_total: int
+    deliveries_succeeded_total: int
+    deliveries_deferred_total: int
+    deliveries_failed_permanently_total: int
+    deliveries_recovered_total: int
+    digest_batches_created_total: int
+    cleanup_operations_total: int
+    auth_failures_total: int
+    rate_limit_events_total: int
+
 
 # ---------------------------------------------------------------------------
 # In-process application metrics
@@ -32,6 +59,18 @@ _rss_ingestion_failure_total: dict[str, int] = defaultdict(int)
 
 _email_delivery_success_total = 0
 _email_delivery_failure_total = 0
+
+_notification_evaluations_total = 0
+_notifications_created_total = 0
+_deliveries_attempted_total = 0
+_deliveries_succeeded_total = 0
+_deliveries_deferred_total = 0
+_deliveries_failed_permanently_total = 0
+_deliveries_recovered_total = 0
+_digest_batches_created_total = 0
+_cleanup_operations_total = 0
+_auth_failures_total = 0
+_rate_limit_events_total = 0
 
 _lock = Lock()
 
@@ -137,7 +176,106 @@ def record_email_delivery_failure(count: int = 1) -> None:
         _email_delivery_failure_total += count
 
 
-def snapshot_application_metrics() -> dict[str, object]:
+def record_notification_evaluation(count: int = 1) -> None:
+    """Record notification eligibility evaluations performed."""
+    global _notification_evaluations_total
+    if count <= 0:
+        return
+    with _lock:
+        _notification_evaluations_total += count
+
+
+def record_notification_created(count: int = 1) -> None:
+    """Record notifications created."""
+    global _notifications_created_total
+    if count <= 0:
+        return
+    with _lock:
+        _notifications_created_total += count
+
+
+def record_delivery_attempted(count: int = 1) -> None:
+    """Record notification deliveries attempted."""
+    global _deliveries_attempted_total
+    if count <= 0:
+        return
+    with _lock:
+        _deliveries_attempted_total += count
+
+
+def record_delivery_succeeded(count: int = 1) -> None:
+    """Record successful notification deliveries."""
+    global _deliveries_succeeded_total
+    if count <= 0:
+        return
+    with _lock:
+        _deliveries_succeeded_total += count
+
+
+def record_delivery_deferred(count: int = 1) -> None:
+    """Record deferred notification deliveries."""
+    global _deliveries_deferred_total
+    if count <= 0:
+        return
+    with _lock:
+        _deliveries_deferred_total += count
+
+
+def record_delivery_failed_permanently(count: int = 1) -> None:
+    """Record permanently failed notification deliveries."""
+    global _deliveries_failed_permanently_total
+    if count <= 0:
+        return
+    with _lock:
+        _deliveries_failed_permanently_total += count
+
+
+def record_delivery_recovered(count: int = 1) -> None:
+    """Record recovered stuck notification deliveries."""
+    global _deliveries_recovered_total
+    if count <= 0:
+        return
+    with _lock:
+        _deliveries_recovered_total += count
+
+
+def record_digest_batch_created(count: int = 1) -> None:
+    """Record digest batches created."""
+    global _digest_batches_created_total
+    if count <= 0:
+        return
+    with _lock:
+        _digest_batches_created_total += count
+
+
+def record_cleanup_operation(count: int = 1) -> None:
+    """Record cleanup operations performed."""
+    global _cleanup_operations_total
+    if count <= 0:
+        return
+    with _lock:
+        _cleanup_operations_total += count
+
+
+def record_auth_failure(count: int = 1) -> None:
+    """Record authentication failures (invalid credentials, expired tokens)."""
+    global _auth_failures_total
+    if count <= 0:
+        return
+    with _lock:
+        _auth_failures_total += count
+
+
+def record_rate_limit_event(count: int = 1) -> None:
+    """Record rate-limit throttling events."""
+    global _rate_limit_events_total
+    if count <= 0:
+        return
+    with _lock:
+        _rate_limit_events_total += count
+
+
+def snapshot_application_metrics() -> ApplicationMetrics:
     """Return a copy of the current application-level metric values."""
     with _lock:
         return {
@@ -154,6 +292,17 @@ def snapshot_application_metrics() -> dict[str, object]:
             "rss_ingestion_failure_total": dict(_rss_ingestion_failure_total),
             "email_delivery_success_total": _email_delivery_success_total,
             "email_delivery_failure_total": _email_delivery_failure_total,
+            "notification_evaluations_total": _notification_evaluations_total,
+            "notifications_created_total": _notifications_created_total,
+            "deliveries_attempted_total": _deliveries_attempted_total,
+            "deliveries_succeeded_total": _deliveries_succeeded_total,
+            "deliveries_deferred_total": _deliveries_deferred_total,
+            "deliveries_failed_permanently_total": _deliveries_failed_permanently_total,
+            "deliveries_recovered_total": _deliveries_recovered_total,
+            "digest_batches_created_total": _digest_batches_created_total,
+            "cleanup_operations_total": _cleanup_operations_total,
+            "auth_failures_total": _auth_failures_total,
+            "rate_limit_events_total": _rate_limit_events_total,
         }
 
 
@@ -302,13 +451,24 @@ __all__ = [
     "record_article_collected",
     "record_article_deduplicated",
     "record_article_processed",
+    "record_auth_failure",
     "record_celery_task_duration",
     "record_celery_task_failure",
     "record_celery_task_retry",
     "record_celery_task_success",
+    "record_cleanup_operation",
+    "record_delivery_attempted",
+    "record_delivery_deferred",
+    "record_delivery_failed_permanently",
+    "record_delivery_recovered",
+    "record_delivery_succeeded",
+    "record_digest_batch_created",
     "record_digest_generated",
     "record_email_delivery_failure",
     "record_email_delivery_success",
+    "record_notification_created",
+    "record_notification_evaluation",
+    "record_rate_limit_event",
     "record_rss_ingestion_failure",
     "record_rss_ingestion_success",
     "snapshot_application_metrics",

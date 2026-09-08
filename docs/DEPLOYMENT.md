@@ -371,3 +371,52 @@ For comprehensive operational procedures, see [`docs/RUNBOOK.md`](RUNBOOK.md), w
 - Secret rotation
 - Certificate renewal
 - Incident investigation
+
+---
+
+## Milestone 44 Hardening
+
+M44 adds production readiness hardening without breaking changes:
+
+### New Validation Scripts
+
+- `scripts/validate_deployment.sh` — 10 pre-deployment checks
+- `scripts/pre_deploy_check.sh` — comprehensive pre-deployment validation
+- `scripts/validate_staging.sh` — 11 validation sections for staging
+
+### Entrypoint Hardening
+
+The `entrypoint.sh` now includes:
+- `set -euo pipefail` for strict error handling
+- Pre-flight checks for required environment variables
+- PostgreSQL readiness wait with timeout
+- Structured logging from startup
+
+### Metrics Expansion
+
+New metrics added to `/metrics`:
+- `notification_evaluations` — notification eligibility evaluations
+- `notifications_created` — notifications created
+- `deliveries_attempted` / `deliveries_succeeded` / `deliveries_deferred` / `deliveries_failed_permanently` / `deliveries_recovered` — delivery lifecycle
+- `digest_batches_created` — digest batching operations
+- `cleanup_operations` — cleanup task executions
+- `auth_failures` — authentication failures
+- `rate_limit_events` — rate limit trigger events
+
+### Security Regression Tests
+
+New test suite `tests/unit/test_security_regression.py` covers:
+- JWT authentication enforcement
+- CORS header validation
+- Security header presence
+- Rate limiting behavior
+- Brute force protection
+- Protected endpoint authorization
+
+### Frontend Production Tests
+
+New test suite `tests/unit/frontend/test_frontend_production.py` covers:
+- Dockerfile multi-stage build and non-root user
+- nginx.conf security headers and caching
+- vite.config.ts production settings
+- package.json build scripts

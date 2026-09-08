@@ -12,6 +12,7 @@ from starlette.types import ASGIApp
 from ai_news_digest.core.config import settings
 from ai_news_digest.core.exceptions import ExternalServiceError
 from ai_news_digest.core.logging import get_logger
+from ai_news_digest.core.metrics import record_auth_failure, record_rate_limit_event
 
 if TYPE_CHECKING:
     from ai_news_digest.domain.ports.cache_store import CacheStore
@@ -163,6 +164,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     "login_brute_force_lockout",
                     client_id=self._get_client_id(request),
                 )
+                record_auth_failure()
+                record_rate_limit_event()
                 return JSONResponse(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                     headers={"Retry-After": str(retry_after)},
@@ -192,6 +195,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                         path=path,
                         auth=is_auth,
                     )
+                    record_rate_limit_event()
+                    if is_auth:
+                        record_auth_failure()
                     return JSONResponse(
                         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                         content={"detail": "Rate limit exceeded."},
@@ -223,6 +229,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if bf_key is not None and self._is_login_path(path):
             if response.status_code == status.HTTP_401_UNAUTHORIZED:
                 await self._protector.record_failure(bf_key)
+                record_auth_failure()
             elif response.status_code == status.HTTP_200_OK:
                 await self._protector.record_success(bf_key)
 

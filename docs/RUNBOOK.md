@@ -723,3 +723,60 @@ poetry run python tests/smoke_prod.py
 - [Deployment Guide](DEPLOYMENT.md) - Full deployment procedures
 - [Incident Response](INCIDENT_RESPONSE.md) - Incident classification and common issues
 - [Production Configuration](PRODUCTION_CONFIGURATION.md) - Environment variables and secrets
+
+---
+
+## 10. Milestone 44 Hardening Verification
+
+Use this procedure to verify M44 production readiness hardening is in place.
+
+### Pre-Deployment Validation
+
+```bash
+# Run comprehensive pre-deployment checks
+bash scripts/pre_deploy_check.sh
+
+# Validate staging environment
+bash scripts/validate_staging.sh
+
+# Validate deployment scripts
+bash scripts/validate_deployment.sh
+```
+
+### Security Verification
+
+```bash
+# Verify security headers
+curl -I http://localhost:8000/health/live | grep -i "x-frame-options\|x-content-type-options\|strict-transport-security"
+
+# Verify CORS configuration
+curl -H "Origin: http://localhost:3000" -H "Access-Control-Request-Method: GET" -X OPTIONS http://localhost:8000/api/v1/users/me -I
+
+# Verify JWT authentication
+curl -H "Authorization: Bearer invalid-token" http://localhost:8000/api/v1/users/me
+# Expected: 401
+
+# Verify rate limiting (make multiple requests)
+for i in {1..20}; do curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8000/health/live; done
+```
+
+### Metrics Verification
+
+```bash
+# Verify new M44 metrics are exposed
+curl -s http://localhost:8000/metrics | grep -E "notification_evaluations|notifications_created|deliveries_attempted|auth_failures|rate_limit_events"
+
+# Verify health endpoints
+curl -f http://localhost:8000/health/live
+curl -f http://localhost:8000/health/ready
+```
+
+### Test Verification
+
+```bash
+# Run M44 test suites
+poetry run pytest tests/unit/workers/test_restart_recovery.py -v
+poetry run pytest tests/unit/frontend/test_frontend_production.py -v
+poetry run pytest tests/unit/test_security_regression.py -v
+poetry run pytest tests/unit/test_migrations.py -v
+```

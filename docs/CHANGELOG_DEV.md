@@ -12,6 +12,32 @@ For each development session, it summarizes:
 
 # 2026-09-07
 
+## Session 2 — Milestone 44 Production Readiness Hardening
+
+### Completed
+
+- Executed full production readiness hardening for M44.
+- Added failure/recovery tests (`tests/unit/workers/test_restart_recovery.py`): 19 tests covering database failure recovery, Redis failure recovery, Celery task retry behavior, health check failure recovery, and metrics endpoint failure recovery.
+- Added frontend production config tests (`tests/unit/frontend/test_frontend_production.py`): 25 tests validating Dockerfile multi-stage build, nginx.conf security headers and caching policies, vite.config.ts production settings, and package.json scripts.
+- Added security regression tests (`tests/unit/test_security_regression.py`): 20 tests verifying JWT authentication enforcement, CORS headers, security headers, rate limiting, brute force protection, and protected endpoint authorization.
+- Extended migration tests (`tests/unit/test_migrations.py`): added runtime migration tests via subprocess alembic + aiosqlite (clean DB upgrade, existing DB path, downgrade and re-upgrade).
+- Extended `core/metrics.py` with 10 new counters: notification_evaluations, notifications_created, deliveries_attempted, deliveries_succeeded, deliveries_deferred, deliveries_failed_permanently, deliveries_recovered, digest_batches_created, cleanup_operations, auth_failures, rate_limit_events.
+- Updated `/metrics` endpoint to expose new metrics.
+- Updated `rate_limit.py` to call `record_auth_failure()` and `record_rate_limit_event()`.
+- Updated notification tasks to record delivery/notification metrics as synchronous calls.
+- Hardened `entrypoint.sh` with `set -euo pipefail`, pre-flight checks, PostgreSQL readiness wait, structured logging.
+- Created `scripts/validate_deployment.sh` (10 pre-deployment checks).
+- Created `scripts/pre_deploy_check.sh` (comprehensive pre-deployment validation).
+- Created `scripts/validate_staging.sh` (11 validation sections).
+- Verified all quality gates: 1583+ backend tests pass, frontend production config tests pass (25), security regression tests pass (20), failure/recovery tests pass (19), migration tests pass (7), ruff clean, mypy clean, frontend build passes, Docker build passes.
+- No secrets committed. No technical debt introduced. Documentation updated.
+
+### Related Commit(s)
+
+- `feat: Milestone 44 — Production Readiness Hardening`
+
+---
+
 ## Session 1 — Milestone 43 Final Release-Gate Confirmation
 
 ### Completed
