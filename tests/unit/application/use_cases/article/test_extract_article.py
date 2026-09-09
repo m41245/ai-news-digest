@@ -13,14 +13,19 @@ import pytest
 from ai_news_digest.application.use_cases.article.extract_article import (
     ExtractArticleUseCase,
 )
-from ai_news_digest.domain.enums.article_status import ArticleStatus
 from ai_news_digest.domain.models.article import Article
 
 
 class MockFetchResult:
     """Mock fetch result."""
 
-    def __init__(self, content: str, method: str = "test", quality: str = "high", extracted_at: datetime | None = None) -> None:
+    def __init__(
+        self,
+        content: str,
+        method: str = "test",
+        quality: str = "high",
+        extracted_at: datetime | None = None,
+    ) -> None:
         self.content = content
         self.method = method
         self.quality = quality
@@ -46,7 +51,9 @@ async def test_extract_article_success(
     """Test successful article extraction."""
     # Arrange
     article_fetcher = MagicMock()
-    article_fetcher.fetch = AsyncMock(return_value=MockFetchResult(content="<html>Extracted text</html>"))
+    article_fetcher.fetch = AsyncMock(
+        return_value=MockFetchResult(content="<html>Extracted text</html>"),
+    )
 
     html_extractor = MagicMock()
     html_extractor.extract = AsyncMock(return_value="Extracted text")
