@@ -14,6 +14,10 @@ def _get_settings(environment: str = "development", debug: bool = False) -> Sett
         environment=environment,
         debug=debug,
         jwt_secret_key="a-secure-secret-key-that-is-at-least-32-chars",  # noqa: S106
+        email_provider="smtp",
+        email_development_mode=False,
+        email_base_url="https://example.com",
+        smtp_host="smtp.example.com",
     )
 
 

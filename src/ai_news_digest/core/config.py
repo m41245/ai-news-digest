@@ -163,7 +163,7 @@ class Settings(BaseSettings):
     )
 
     openai_enabled: bool = Field(
-        default=True,
+        default=False,
         validation_alias="OPENAI_ENABLED",
     )
 
@@ -378,8 +378,8 @@ class Settings(BaseSettings):
     )
 
     email_base_url: str = Field(
-        default="http://localhost:8000",
-        description="Base URL used in email links.",
+        default="",
+        description="Base URL used in email links. Must be set in production.",
     )
 
     email_max_retries: int = Field(
@@ -699,6 +699,8 @@ class Settings(BaseSettings):
             "ci-fake",
             "your-secret-key-here",
             "your_secret_key_here",
+            "use_openssl_rand",
+            "change_me",
         )
         normalized = value.strip().lower()
         if normalized in weak_defaults:
@@ -768,6 +770,88 @@ class Settings(BaseSettings):
                 f"DIGEST_TIMEZONE '{candidate}' is not a valid IANA timezone name."
             ) from exc
         return candidate
+
+    @field_validator("email_development_mode")
+    @classmethod
+    def validate_email_development_mode(cls, value: bool, info: ValidationInfo) -> bool:
+        """Ensure email development mode is disabled in production."""
+        environment = info.data.get("environment", "development")
+        if environment == "production" and value:
+            raise ValueError(
+                "EMAIL_DEVELOPMENT_MODE must be 'false' in production. "
+                "Emails must be delivered via the configured SMTP provider."
+            )
+        return value
+
+    @field_validator("email_provider")
+    @classmethod
+    def validate_email_provider_production(
+        cls, value: str, info: ValidationInfo
+    ) -> str:
+        """Ensure production uses a real email provider when email is enabled."""
+        environment = info.data.get("environment", "development")
+        email_enabled = info.data.get("email_enabled", True)
+        if (
+            environment == "production"
+            and email_enabled
+            and value == "console"
+        ):
+            raise ValueError(
+                "EMAIL_PROVIDER must be 'smtp' in production when email is enabled. "
+                "Console sender is for development only."
+            )
+        return value
+
+    @field_validator("email_base_url")
+    @classmethod
+    def validate_email_base_url(cls, value: str, info: ValidationInfo) -> str:
+        """Ensure email_base_url is set in production."""
+        environment = info.data.get("environment", "development")
+        if environment == "production" and not value.strip():
+            raise ValueError(
+                "EMAIL_BASE_URL must be set to the public application URL in production."
+            )
+        return value
+
+    @field_validator("openai_api_key")
+    @classmethod
+    def validate_openai_api_key(
+        cls, value: SecretStr | None, info: ValidationInfo
+    ) -> SecretStr | None:
+        """Ensure OPENAI_API_KEY is set when OpenAI is enabled in production."""
+        environment = info.data.get("environment", "development")
+        openai_enabled = info.data.get("openai_enabled", False)
+        if environment == "production" and openai_enabled and not value:
+            raise ValueError(
+                "OPENAI_API_KEY must be set when OPENAI_ENABLED=true in production."
+            )
+        return value
+
+    @field_validator("anthropic_api_key")
+    @classmethod
+    def validate_anthropic_api_key(
+        cls, value: SecretStr | None, info: ValidationInfo
+    ) -> SecretStr | None:
+        """Ensure ANTHROPIC_API_KEY is set when Anthropic is enabled in production."""
+        environment = info.data.get("environment", "development")
+        anthropic_enabled = info.data.get("anthropic_enabled", False)
+        if environment == "production" and anthropic_enabled and not value:
+            raise ValueError(
+                "ANTHROPIC_API_KEY must be set when ANTHROPIC_ENABLED=true in production."
+            )
+        return value
+
+    @field_validator("smtp_host")
+    @classmethod
+    def validate_smtp_host(cls, value: str | None, info: ValidationInfo) -> str | None:
+        """Ensure SMTP_HOST is set when email provider is smtp in production."""
+        environment = info.data.get("environment", "development")
+        email_provider = info.data.get("email_provider", "console")
+        if environment == "production" and email_provider == "smtp" and not value:
+            raise ValueError(
+                "SMTP_HOST must be set when EMAIL_PROVIDER=smtp in production."
+            )
+        return value
 
 
 class _LazySettingsMeta(type):

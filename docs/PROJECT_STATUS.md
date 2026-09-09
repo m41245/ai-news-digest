@@ -2,9 +2,9 @@
 
 ## Current Phase
 
-Milestone 48 — Production Deployment, Monitoring, and Launch Operations: **LAUNCH-READY WITH EXTERNAL ACTIONS REQUIRED**.
+Milestone 49 — Production Infrastructure Activation, Live Deployment, and Controlled Launch: **PRODUCTION DEPLOYMENT READY — EXTERNAL ACTIVATION BLOCKED**.
 
-All required production gates pass: 1452 backend tests passed, 25 frontend tests passed, Ruff check and format passed, MyPy passed, TypeScript passed, frontend lint passed, frontend build passed, security tests passed, migration tests passed, Docker Compose configs valid.
+All required production gates pass: 1452 backend tests passed, 31 integration tests passed, 25 frontend tests passed, Ruff check and format passed, MyPy passed, TypeScript passed, frontend lint passed, frontend build passed, security tests passed, migration tests passed, Docker Compose configs valid, dependency audit clean, secret scanning clean.
 
 Tracked pre-existing debt: 52 backend test failures (mapper/repository, story_cluster, user_preference, bootstrap) — verified identical on baseline commit `efd5dfc`; frontend `npm run build` fails due to pre-existing TypeScript errors in unused notification components (workaround: `vite build`); 33 MyPy errors (identical on baseline); 13 Ruff errors (improved from 1,261 on baseline). None affect production-critical paths.
 

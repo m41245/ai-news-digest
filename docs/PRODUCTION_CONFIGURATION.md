@@ -175,6 +175,43 @@ The application validates `JWT_SECRET_KEY` on startup:
 
 If validation fails, the application will refuse to start.
 
+### Production Configuration Validator
+
+A standalone validation script is provided at `scripts/validate_production_config.py`. Run it before starting the application in production:
+
+```bash
+python scripts/validate_production_config.py
+```
+
+The validator checks:
+- `ENVIRONMENT=production`
+- `DEBUG=false`
+- `JWT_SECRET_KEY` is set and secure (min 32 chars, not a placeholder)
+- `DATABASE_URL` is set and points to PostgreSQL
+- `REDIS_URL` is set and points to Redis
+- `REDIS_PASSWORD` is set (required in production)
+- `CELERY_BROKER_URL` is set
+- `CELERY_RESULT_BACKEND` is set
+- `CORS_ORIGINS` is set to real production origins (not empty)
+- `EMAIL_DEVELOPMENT_MODE=false`
+- `EMAIL_PROVIDER=smtp` when email is enabled
+- `EMAIL_BASE_URL` is set to the public application URL
+- `OPENAI_API_KEY` is set when `OPENAI_ENABLED=true`
+- `ANTHROPIC_API_KEY` is set when `ANTHROPIC_ENABLED=true`
+- `SMTP_HOST` is set when `EMAIL_PROVIDER=smtp`
+
+### Application-Level Production Validators
+
+In addition to the startup script, the application validates the following at Settings load time:
+- `EMAIL_DEVELOPMENT_MODE` must be `false` in production
+- `EMAIL_PROVIDER` must be `smtp` in production when email is enabled
+- `EMAIL_BASE_URL` must be set in production
+- `OPENAI_API_KEY` must be set when `OPENAI_ENABLED=true` in production
+- `ANTHROPIC_API_KEY` must be set when `ANTHROPIC_ENABLED=true` in production
+- `SMTP_HOST` must be set when `EMAIL_PROVIDER=smtp` in production
+
+If any validator fails, the application will refuse to start.
+
 ## JWT Token Lifecycle
 
 This application uses stateless JWT access tokens without refresh tokens or a server-side revocation blacklist. The security tradeoffs are:

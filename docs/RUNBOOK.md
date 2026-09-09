@@ -877,3 +877,152 @@ poetry run mypy src/
 ```
 
 ---
+
+## 13. Milestone 49 Production Infrastructure Activation
+
+Use this procedure to activate production infrastructure for the first time.
+
+### Pre-Activation Checklist
+
+1. **Verify repository readiness:**
+   ```bash
+   # Run full validation suite
+   poetry run pytest tests/unit tests/integration -q --no-cov
+   poetry run ruff check src/ tests/
+   poetry run mypy src/
+   cd frontend && npm test -- --run && npm run lint && npm run build
+   python scripts/check_secret_hygiene.py
+   poetry run pip-audit
+   ```
+
+2. **Validate production configuration:**
+   ```bash
+   # Set required environment variables
+   export ENVIRONMENT=production
+   export JWT_SECRET_KEY="$(openssl rand -hex 32)"
+   export DATABASE_URL="postgresql+asyncpg://user:pass@host:5432/ai_news_digest"
+   export REDIS_URL="redis://:password@host:6379/0"
+   export REDIS_PASSWORD="secure-redis-password"
+   export CELERY_BROKER_URL="redis://:password@host:6379/1"
+   export CELERY_RESULT_BACKEND="redis://:password@host:6379/2"
+   export CORS_ORIGINS='["https://your-domain.com"]'
+   export EMAIL_DEVELOPMENT_MODE=false
+   export EMAIL_PROVIDER=smtp
+   export EMAIL_BASE_URL="https://your-domain.com"
+   export SMTP_HOST="smtp.your-provider.com"
+   export SMTP_PORT=587
+   export SMTP_USER="your-smtp-user"
+   export SMTP_PASSWORD="your-smtp-password"
+   export EMAIL_FROM="noreply@your-domain.com"
+   
+   # Run production config validator
+   python scripts/validate_production_config.py
+   ```
+
+3. **Build production images:**
+   ```bash
+   docker compose -f docker-compose.prod.yml build
+   ```
+
+4. **Create pre-deployment backup:**
+   ```bash
+   bash scripts/backup_db.sh
+   ```
+
+### Infrastructure Activation Steps
+
+1. **Provision PostgreSQL:**
+   - Create PostgreSQL 16+ instance
+   - Create database `ai_news_digest`
+   - Create user with appropriate permissions
+   - Verify connectivity from deployment host
+
+2. **Provision Redis:**
+   - Create Redis 7+ instance
+   - Set strong password
+   - Enable AOF persistence
+   - Verify connectivity from deployment host
+
+3. **Configure DNS:**
+   - Set A/AAAA records for production domain
+   - Configure API subdomain
+   - Configure frontend subdomain
+   - Verify DNS propagation
+
+4. **Configure TLS:**
+   - Obtain TLS certificates (Let's Encrypt recommended)
+   - Configure reverse proxy (nginx/Traefik)
+   - Set up certificate renewal automation
+   - Verify HTTPS connectivity
+
+5. **Deploy application:**
+   ```bash
+   docker compose -f docker-compose.prod.yml --env-file .env.prod.local up -d
+   ```
+
+6. **Verify health:**
+   ```bash
+   curl -f https://your-domain.com/health/live
+   curl -f https://your-domain.com/health/ready
+   curl -f https://your-domain.com/metrics/health
+   ```
+
+7. **Run smoke tests:**
+   ```bash
+   poetry run python tests/smoke_prod.py
+   ```
+
+8. **Verify Celery workers:**
+   ```bash
+   docker compose -f docker-compose.prod.yml logs -f celery_worker
+   docker compose -f docker-compose.prod.yml logs -f celery_beat
+   ```
+
+### Post-Activation Verification
+
+1. **Database migrations:**
+   ```bash
+   docker compose -f docker-compose.prod.yml exec web alembic current
+   ```
+
+2. **Backup verification:**
+   ```bash
+   bash scripts/backup_db.sh
+   ```
+
+3. **Monitoring verification:**
+   - Verify metrics endpoint returns data
+   - Verify alert routing is configured
+   - Verify dashboard is accessible
+
+4. **Provider verification:**
+   - Test AI provider connectivity (if enabled)
+   - Test email delivery (if enabled)
+   - Verify notification delivery
+
+### Rollback Procedure
+
+If any critical check fails during activation:
+
+1. **Stop services:**
+   ```bash
+   docker compose -f docker-compose.prod.yml down
+   ```
+
+2. **Restore database (if migrations were applied):**
+   ```bash
+   bash scripts/restore_db.sh <pre-deployment-backup>.sql
+   ```
+
+3. **Re-deploy previous version:**
+   ```bash
+   git checkout <previous-stable-tag>
+   docker compose -f docker-compose.prod.yml --env-file .env.prod.local up -d
+   ```
+
+4. **Verify recovery:**
+   ```bash
+   curl -f https://your-domain.com/health/ready
+   ```
+
+---

@@ -33,6 +33,12 @@ if [ "${ENVIRONMENT:-development}" = "production" ]; then
     if [ -z "${REDIS_PASSWORD:-}" ]; then
         fail "REDIS_PASSWORD is not set. Redis authentication is required in production."
     fi
+    if [ "${DEBUG:-false}" = "true" ]; then
+        fail "DEBUG must be 'false' in production."
+    fi
+    if [ "${EMAIL_DEVELOPMENT_MODE:-true}" = "true" ]; then
+        fail "EMAIL_DEVELOPMENT_MODE must be 'false' in production."
+    fi
 fi
 
 log "Waiting for PostgreSQL to become available..."

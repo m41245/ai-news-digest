@@ -31,6 +31,13 @@ class TestSettings(Settings):
         frozen=True,
     )
 
+    # Production-safe email defaults for tests
+    email_provider: str = "smtp"
+    email_development_mode: bool = False
+    email_base_url: str = "https://example.com"
+    smtp_host: str = "smtp.example.com"
+    email_from: str = "noreply@example.com"
+
 
 def test_settings_default_values() -> None:
     """Test Settings with default values."""
@@ -61,6 +68,10 @@ def test_settings_custom_values() -> None:
         environment="production",
         debug=True,
         jwt_secret_key="a" * 64,
+        email_provider="smtp",
+        email_development_mode=False,
+        email_base_url="https://example.com",
+        smtp_host="smtp.example.com",
     )
 
     assert test_settings.app_name == "Custom App"
@@ -400,6 +411,10 @@ def test_cors_origins_explicit_value_overrides_default() -> None:
         celery_result_backend="redis://backend",
         environment="production",
         jwt_secret_key="a" * 64,
+        email_provider="smtp",
+        email_development_mode=False,
+        email_base_url="https://example.com",
+        smtp_host="smtp.example.com",
         cors_origins=["https://example.com"],
     )
     assert test_settings.cors_origins == ["https://example.com"]
@@ -501,6 +516,10 @@ class TestConfigurationIsolation:
             celery_result_backend="redis://backend",
             environment="production",
             jwt_secret_key="a" * 64,
+            email_provider="smtp",
+            email_development_mode=False,
+            email_base_url="https://example.com",
+            smtp_host="smtp.example.com",
             email_recipients=["explicit@example.com"],
         )
 
@@ -560,6 +579,10 @@ class TestProductionConfigurationValidation:
             celery_result_backend="redis://backend",
             environment="production",
             jwt_secret_key="a" * 64,
+            email_provider="smtp",
+            email_development_mode=False,
+            email_base_url="https://example.com",
+            smtp_host="smtp.example.com",
         )
         assert test_settings.jwt_secret_key == "a" * 64
 
@@ -724,6 +747,10 @@ class TestProductionConfigurationValidation:
             environment="production",
             jwt_secret_key="a" * 64,
             digest_timezone="America/New_York",
+            email_provider="smtp",
+            email_development_mode=False,
+            email_base_url="https://example.com",
+            smtp_host="smtp.example.com",
         )
         assert test_settings.digest_timezone == "America/New_York"
 

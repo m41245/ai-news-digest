@@ -41,6 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       deploy_production: ${{ steps.check.outputs.deploy_production }}
+      deploy_environment: ${{ steps.check.outputs.deploy_environment }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -56,14 +57,21 @@ jobs:
                 echo "ERROR: Production deployment requires approve_production=true" >&2
                 exit 1
               fi
+              if [ -z "${{ inputs.approved_by }}" ]; then
+                echo "ERROR: approved_by is required for production deployment" >&2
+                exit 1
+              fi
               echo "deploy_production=true" >> "$GITHUB_OUTPUT"
+              echo "deploy_environment=production" >> "$GITHUB_OUTPUT"
               echo "Deploying to PRODUCTION (approved by: ${{ inputs.approved_by }})"
             else
               echo "deploy_production=false" >> "$GITHUB_OUTPUT"
+              echo "deploy_environment=staging" >> "$GITHUB_OUTPUT"
               echo "Deploying to STAGING"
             fi
           else
             echo "deploy_production=false" >> "$GITHUB_OUTPUT"
+            echo "deploy_environment=staging" >> "$GITHUB_OUTPUT"
             echo "Deploying via tag/release (staging)"
           fi
 
@@ -77,6 +85,7 @@ jobs:
       backend-digest: ${{ steps.push-backend.outputs.digest }}
       frontend-image: ${{ steps.meta.outputs.tags }}
       frontend-digest: ${{ steps.push-frontend.outputs.digest }}
+      deployment-environment: ${{ needs.preflight.outputs.deploy_environment }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -146,6 +155,13 @@ jobs:
           echo "Backend image digest: ${{ steps.push-backend.outputs.digest }}"
           echo "Frontend image digest: ${{ steps.push-frontend.outputs.digest }}"
 
+      - name: Verify images
+        run: |
+          docker buildx imagetransform \
+            --format docker \
+            --output type=image,name=${{ steps.meta.outputs.tags }},push=false \
+            ${{ steps.meta.outputs.tags }}
+
   deployment-status:
     name: Deployment Status
     runs-on: ubuntu-latest
@@ -167,3 +183,7 @@ jobs:
             echo "   gh run view ${{ github.run_id }}"
             exit 1
           fi
+          echo "Deployment artifacts built and pushed successfully."
+          echo "Environment: ${{ needs.build-and-push.outputs.deployment-environment }}"
+          echo "Backend: ${{ needs.build-and-push.outputs.backend-image }}"
+          echo "Frontend: ${{ needs.build-and-push.outputs.frontend-image }}"
