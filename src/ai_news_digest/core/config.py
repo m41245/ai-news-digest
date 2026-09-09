@@ -785,17 +785,11 @@ class Settings(BaseSettings):
 
     @field_validator("email_provider")
     @classmethod
-    def validate_email_provider_production(
-        cls, value: str, info: ValidationInfo
-    ) -> str:
+    def validate_email_provider_production(cls, value: str, info: ValidationInfo) -> str:
         """Ensure production uses a real email provider when email is enabled."""
         environment = info.data.get("environment", "development")
         email_enabled = info.data.get("email_enabled", True)
-        if (
-            environment == "production"
-            and email_enabled
-            and value == "console"
-        ):
+        if environment == "production" and email_enabled and value == "console":
             raise ValueError(
                 "EMAIL_PROVIDER must be 'smtp' in production when email is enabled. "
                 "Console sender is for development only."
@@ -822,9 +816,7 @@ class Settings(BaseSettings):
         environment = info.data.get("environment", "development")
         openai_enabled = info.data.get("openai_enabled", False)
         if environment == "production" and openai_enabled and not value:
-            raise ValueError(
-                "OPENAI_API_KEY must be set when OPENAI_ENABLED=true in production."
-            )
+            raise ValueError("OPENAI_API_KEY must be set when OPENAI_ENABLED=true in production.")
         return value
 
     @field_validator("anthropic_api_key")
@@ -848,9 +840,7 @@ class Settings(BaseSettings):
         environment = info.data.get("environment", "development")
         email_provider = info.data.get("email_provider", "console")
         if environment == "production" and email_provider == "smtp" and not value:
-            raise ValueError(
-                "SMTP_HOST must be set when EMAIL_PROVIDER=smtp in production."
-            )
+            raise ValueError("SMTP_HOST must be set when EMAIL_PROVIDER=smtp in production.")
         return value
 
 

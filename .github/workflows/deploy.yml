@@ -122,7 +122,6 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-            type=raw,value=latest,enable=${{ needs.preflight.outputs.deploy_production == 'true' && github.ref == 'refs/heads/main' }}
 
       - name: Build and push backend Docker image
         id: push-backend
@@ -155,17 +154,84 @@ jobs:
           echo "Backend image digest: ${{ steps.push-backend.outputs.digest }}"
           echo "Frontend image digest: ${{ steps.push-frontend.outputs.digest }}"
 
-      - name: Verify images
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-and-push]
+    if: always() && needs.build-and-push.result == 'success' && needs.preflight.outputs.deploy_production == 'true'
+    environment:
+      name: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify production deployment target
         run: |
-          docker buildx imagetransform \
-            --format docker \
-            --output type=image,name=${{ steps.meta.outputs.tags }},push=false \
-            ${{ steps.meta.outputs.tags }}
+          if [ -z "${{ secrets.PROD_DEPLOY_HOST }}" ]; then
+            echo "PROD_DEPLOY_HOST secret is not configured."
+            echo "Production images have been built and pushed to GHCR."
+            echo "Deploy manually using:"
+            echo "  docker compose -f docker-compose.prod.yml --env-file .env.prod.local up -d"
+            exit 0
+          fi
+          echo "PROD_DEPLOY_HOST is configured. Proceeding with automated deployment."
+
+      - name: Run pre-deployment backup
+        if: ${{ secrets.PROD_DEPLOY_HOST != '' }}
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_DEPLOY_HOST }}
+          username: ${{ secrets.PROD_DEPLOY_USERNAME }}
+          key: ${{ secrets.PROD_DEPLOY_SSH_KEY }}
+          port: ${{ secrets.PROD_DEPLOY_PORT || 22 }}
+          script: |
+            set -e
+            echo "Creating pre-deployment database backup..."
+            cd /opt/ai-news-digest
+            bash scripts/backup_db.sh
+            echo "Backup completed."
+
+      - name: Deploy to production host
+        if: ${{ secrets.PROD_DEPLOY_HOST != '' }}
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_DEPLOY_HOST }}
+          username: ${{ secrets.PROD_DEPLOY_USERNAME }}
+          key: ${{ secrets.PROD_DEPLOY_SSH_KEY }}
+          port: ${{ secrets.PROD_DEPLOY_PORT || 22 }}
+          script: |
+            set -e
+            IMAGE_TAG="${{ github.ref_name }}"
+            echo "Deploying production image: $IMAGE_TAG"
+            cd /opt/ai-news-digest
+            export IMAGE_TAG="$IMAGE_TAG"
+            docker compose -f docker-compose.prod.yml --env-file .env.prod.local up -d --force-recreate
+            echo "Waiting for health checks..."
+            sleep 30
+            curl -f http://localhost:8000/health/live
+            curl -f http://localhost:8000/health/ready
+            echo "Production deployment completed successfully."
+
+      - name: Rollback on failure
+        if: ${{ failure() && secrets.PROD_DEPLOY_HOST != '' }}
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_DEPLOY_HOST }}
+          username: ${{ secrets.PROD_DEPLOY_USERNAME }}
+          key: ${{ secrets.PROD_DEPLOY_SSH_KEY }}
+          port: ${{ secrets.PROD_DEPLOY_PORT || 22 }}
+          script: |
+            set -e
+            echo "Deployment failed. Initiating rollback..."
+            cd /opt/ai-news-digest
+            export IMAGE_TAG="${{ needs.preflight.outputs.deploy_environment == 'production' && 'v1.0.0' || 'staging-latest' }}"
+            docker compose -f docker-compose.prod.yml --env-file .env.prod.local up -d --force-recreate
+            echo "Rollback completed. Verify health manually."
 
   deployment-status:
     name: Deployment Status
     runs-on: ubuntu-latest
-    needs: [build-and-push]
+    needs: [build-and-push, deploy]
     if: always()
     steps:
       - name: Check deployment result
@@ -187,3 +253,4 @@ jobs:
           echo "Environment: ${{ needs.build-and-push.outputs.deployment-environment }}"
           echo "Backend: ${{ needs.build-and-push.outputs.backend-image }}"
           echo "Frontend: ${{ needs.build-and-push.outputs.frontend-image }}"
+          echo "Deploy job result: ${{ needs.deploy.result }}"
