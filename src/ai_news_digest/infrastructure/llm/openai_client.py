@@ -118,7 +118,7 @@ class OpenAIProvider(AIProvider):
     @property
     def capabilities(self) -> set[str]:
         """Set of capability names exposed by the plugin."""
-        return {"summarization", "categorization"}
+        return {"summarization", "categorization", "analysis"}
 
     @property
     def enabled(self) -> bool:

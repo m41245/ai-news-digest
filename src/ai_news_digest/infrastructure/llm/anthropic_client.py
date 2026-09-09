@@ -103,11 +103,6 @@ class AnthropicProvider(AIProvider):
         return "Anthropic Claude API provider for text generation and summarization."
 
     @property
-    def capabilities(self) -> set[str]:
-        """Set of capability names exposed by the plugin."""
-        return {"summarization", "categorization"}
-
-    @property
     def enabled(self) -> bool:
         """Whether the plugin is currently enabled."""
         return self._config.enabled
@@ -145,6 +140,11 @@ class AnthropicProvider(AIProvider):
     def model_name(self) -> str:
         """Active model."""
         return self._model_name
+
+    @property
+    def capabilities(self) -> set[str]:
+        """Set of capability names exposed by the plugin."""
+        return {"summarization", "categorization", "analysis"}
 
     @property
     def supports_streaming(self) -> bool:

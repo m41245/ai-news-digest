@@ -234,6 +234,14 @@ class Container:
                 category="classification",
             )
         )
+        self._capability_registry.register_capability(
+            Capability(
+                id="analysis",
+                name="Analysis",
+                description="Extract structured intelligence from article content.",
+                category="intelligence",
+            )
+        )
 
     def _configure_providers(self) -> None:
         """Configure and register AI providers."""
@@ -422,7 +430,10 @@ class Container:
 
     @property
     def analyze_article(self) -> AnalyzeArticleUseCase | None:
-        provider_id = get_provider_priority_provider_id(self.provider_registry)
+        provider_id = get_provider_priority_provider_id(
+            self.provider_registry,
+            self.capability_registry,
+        )
         if provider_id is None:
             return None
         return AnalyzeArticleUseCase(

@@ -165,6 +165,14 @@ celery_app.conf.update(
                 "send_events": True,
             },
         },
+        "daily-article-analysis": {
+            "task": "workers.tasks.process.analyze_pending_articles",
+            "schedule": crontab(hour=7, minute=30),
+            "options": {
+                "expires": 7200,
+                "send_events": True,
+            },
+        },
         "daily-digest-generation": {
             "task": "workers.tasks.digest.generate_daily_digest",
             "schedule": crontab(

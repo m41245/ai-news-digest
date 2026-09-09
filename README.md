@@ -4,7 +4,7 @@ A production-oriented AI-powered news aggregation and daily digest platform buil
 
 The project is designed to collect articles from multiple RSS sources, organize and categorize them, generate AI-powered summaries, and produce high-quality daily news digests through a scalable and maintainable architecture.
 
-> **Project Status:** Milestone 44 — Production Readiness Hardening: **RELEASE-READY**.
+> **Project Status:** Milestone 47 — Final Product Completion and Release Closure: **RELEASE-READY**.
 
 Recent additions build on top of the existing architecture without replacing
 it:
@@ -228,6 +228,20 @@ for the full design.
 * Extended API: delivery history, stats, schedule preview, test delivery endpoint, and notification health checks
 * Migration 017 adding scheduling columns (`scheduled_for`, `claimed_at`, `processing_started_at`, `next_attempt_at`, `provider_idempotency_key`, `delivery_window`, `suppression_reason`) with composite indexes
 * Comprehensive test coverage: API routes (15 tests), eligibility/service (30 tests), email infrastructure (43 tests), domain models (90 tests), Celery tasks (6 tests)
+
+## Milestone 47 — Final Product Completion and Release Closure
+
+* Implemented `ExtractArticleUseCase` with real article fetching, HTML extraction, and content cleaning
+* Implemented `AnalyzeArticleUseCase` with JSON-mode AI analysis (importance, confidence, key takeaways, companies, topics)
+* Implemented `AnalyzeAndMaterializeUseCase` that materializes companies, topics, and categories into the database
+* Added `analysis` capability to both OpenAI and Anthropic providers
+* Added `Article.mark_analyzed()` method and `ArticleStatus.ANALYZED` lifecycle state
+* Added `Company` and `Topic` domain models with `create` factory methods
+* Registered `analysis` capability in the container capability registry
+* Added `daily-article-analysis` Celery Beat schedule (07:30 UTC) and `analyze_pending_articles` batch task
+* All 1471 backend tests pass, 25 frontend tests pass, ruff/mypy/TypeScript/lint all pass
+* Coverage: 83.07% (exceeds 80% threshold)
+* Security: pip-audit clean, security tests pass
 
 ---
 

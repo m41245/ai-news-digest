@@ -65,6 +65,10 @@ class Article:
         """Mark the article as failed."""
         self.status = ArticleStatus.FAILED
 
+    def mark_analyzed(self) -> None:
+        """Mark the article as analyzed."""
+        self.status = ArticleStatus.ANALYZED
+
     @classmethod
     def create(
         cls,
