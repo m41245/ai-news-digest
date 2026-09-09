@@ -4,7 +4,7 @@ A production-oriented AI-powered news aggregation and daily digest platform buil
 
 The project is designed to collect articles from multiple RSS sources, organize and categorize them, generate AI-powered summaries, and produce high-quality daily news digests through a scalable and maintainable architecture.
 
-> **Project Status:** Milestone 51 — Production Infrastructure Activation, Live Deployment, and Launch Verification: **PRODUCTION DEPLOYMENT READY — EXTERNAL ACTIVATION BLOCKED**.
+> **Project Status:** Milestone 52 — External Infrastructure Activation, First Production Deployment, and Live Verification: **PRODUCTION DEPLOYMENT READY — EXTERNAL ACTIVATION BLOCKED**.
 
 Recent additions build on top of the existing architecture without replacing
 it:
@@ -554,6 +554,12 @@ Current migration chain:
 - `009` — Article extraction pipeline columns (extraction_method, extraction_quality, extracted_at, content_char_count)
 - `010` — Structured AI intelligence columns (importance_score, confidence, ai_provider, ai_model, key_takeaways, why_it_matters, topics)
 - `011` — Companies, topics, and many-to-many associations (article_companies, article_topics, article_categories with backfill)
+- `012` — Story clusters table (`story_clusters`) and `articles.cluster_id` foreign key
+- `013` — `story_clusters.latest_article_id` column
+- `014` — User preferences table (`user_preferences`) and follow/mute junction tables
+- `015` — Composite indexes for personalized feed performance and source filtering
+- `016` — Notifications tables (`notifications`, `notification_deliveries`, `notification_preferences`)
+- `017` — Notification scheduling columns (`scheduled_for`, `claimed_at`, `processing_started_at`, `next_attempt_at`, `provider_idempotency_key`, `delivery_window`, `suppression_reason`) with composite indexes
 
 ---
 

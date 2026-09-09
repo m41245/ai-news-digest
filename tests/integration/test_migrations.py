@@ -6,7 +6,7 @@ explicitly drop the ``articlestatus`` PostgreSQL native enum type, causing
 re-upgrade to fail with ``type "articlestatus" already exists``.
 
 These tests run against a real PostgreSQL container and exercise the full
-Alembic migration chain (001 → 007) end-to-end.
+Alembic migration chain (001 → 017) end-to-end.
 """
 
 from __future__ import annotations
