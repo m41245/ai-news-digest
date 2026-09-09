@@ -40,8 +40,8 @@ if [ "${YES}" -ne 1 ]; then
     fi
 fi
 
-echo "Stopping Celery workers..."
-docker compose stop celery_worker celery_beat || true
+echo "Stopping application services..."
+docker compose stop web celery_worker celery_beat || true
 
 echo "Dropping and recreating database..."
 docker exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -c "DROP DATABASE IF EXISTS ${DB_NAME};"
@@ -51,9 +51,21 @@ echo "Restoring from backup..."
 cat "${BACKUP_FILE}" | docker exec -i "${CONTAINER_NAME}" psql -U "${DB_USER}" -d "${DB_NAME}"
 
 echo "Running migrations..."
-poetry run alembic upgrade head || true
+docker compose exec -T web python -m alembic upgrade head || true
 
 echo "Restarting services..."
-docker compose start celery_worker celery_beat || true
+docker compose up -d web celery_worker celery_beat || true
+
+echo "Waiting for web service to become healthy..."
+for i in $(seq 1 60); do
+    if docker compose ps web | grep -q "healthy"; then
+        echo "Web service is healthy."
+        break
+    fi
+    if [ $i -eq 60 ]; then
+        echo "WARNING: Web service did not become healthy within timeout." >&2
+    fi
+    sleep 2
+done
 
 echo "Restore complete."

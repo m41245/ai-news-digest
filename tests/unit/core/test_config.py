@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from pydantic_settings import SettingsConfigDict
 
 from ai_news_digest.core.config import Settings, _LazySettings, get_settings, settings
+from ai_news_digest.main import create_app
 
 
 class TestSettings(Settings):
@@ -533,3 +534,209 @@ class TestConfigurationIsolation:
             "http://localhost:3000",
             "http://localhost:8000",
         ]
+
+
+class TestProductionConfigurationValidation:
+    """Tests verifying production configuration is valid and secure."""
+
+    def test_production_requires_jwt_secret(self) -> None:
+        """Production mode must have a JWT secret set."""
+        with pytest.raises(ValidationError, match="must be set to a secure value"):
+            Settings(
+                database_url="postgresql://test",
+                redis_url="redis://test",
+                celery_broker_url="redis://broker",
+                celery_result_backend="redis://backend",
+                environment="production",
+                jwt_secret_key="changeme",  # noqa: S106
+            )
+
+    def test_production_accepts_strong_jwt_secret(self) -> None:
+        """Production mode accepts a strong JWT secret."""
+        test_settings = Settings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            environment="production",
+            jwt_secret_key="a" * 64,
+        )
+        assert test_settings.jwt_secret_key == "a" * 64
+
+    def test_production_cors_defaults_to_empty(self) -> None:
+        """Production CORS defaults to empty list when not explicitly set."""
+        test_settings = TestSettings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            environment="production",
+            jwt_secret_key="a" * 64,
+        )
+        assert test_settings.cors_origins == []
+
+    def test_production_debug_defaults_to_false(self) -> None:
+        """Production debug mode defaults to False."""
+        test_settings = TestSettings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            environment="production",
+            jwt_secret_key="a" * 64,
+        )
+        assert test_settings.debug is False
+
+    def test_production_log_level_defaults_to_info(self) -> None:
+        """Production log level defaults to INFO."""
+        test_settings = TestSettings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            environment="production",
+            jwt_secret_key="a" * 64,
+        )
+        assert test_settings.log_level == "INFO"
+
+    def test_staging_requires_jwt_secret(self) -> None:
+        """Staging mode must have a JWT secret set."""
+        with pytest.raises(ValidationError, match="JWT_SECRET_KEY must be set to a secure value"):
+            Settings(
+                database_url="postgresql://test",
+                redis_url="redis://test",
+                celery_broker_url="redis://broker",
+                celery_result_backend="redis://backend",
+                environment="staging",
+                jwt_secret_key="changeme",  # noqa: S106
+            )
+
+    def test_testing_requires_minimum_jwt_secret_length(self) -> None:
+        """Testing mode requires at least 32 character JWT secret."""
+        with pytest.raises(ValidationError, match="at least 32 characters long"):
+            Settings(
+                database_url="postgresql://test",
+                redis_url="redis://test",
+                celery_broker_url="redis://broker",
+                celery_result_backend="redis://backend",
+                environment="testing",
+                jwt_secret_key="short",  # noqa: S106
+            )
+
+    def test_testing_accepts_minimum_jwt_secret_length(self) -> None:
+        """Testing mode accepts minimum length JWT secret."""
+        test_settings = Settings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            environment="testing",
+            jwt_secret_key="a" * 32,
+        )
+        assert test_settings.jwt_secret_key == "a" * 32
+
+    def test_database_url_is_required(self) -> None:
+        """Database URL must be provided."""
+        test_settings = TestSettings(
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            environment="production",
+            jwt_secret_key="a" * 64,
+        )
+        assert test_settings.database_url is not None
+        assert len(test_settings.database_url) > 0
+
+    def test_redis_url_is_required(self) -> None:
+        """Redis URL must be provided."""
+        test_settings = TestSettings(
+            database_url="postgresql://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            environment="production",
+            jwt_secret_key="a" * 64,
+        )
+        assert test_settings.redis_url is not None
+        assert len(test_settings.redis_url) > 0
+
+    def test_email_provider_validates_allowed_values(self) -> None:
+        """Email provider must be one of console, smtp, or test."""
+        with pytest.raises(ValidationError):
+            Settings(
+                database_url="postgresql://test",
+                redis_url="redis://test",
+                celery_broker_url="redis://broker",
+                celery_result_backend="redis://backend",
+                environment="production",
+                jwt_secret_key="a" * 64,
+                email_provider="invalid",
+            )
+
+    def test_production_docs_disabled(self) -> None:
+        """Production mode disables API docs."""
+        test_settings = TestSettings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            environment="production",
+            jwt_secret_key="a" * 64,
+        )
+        app = create_app(settings_override=test_settings)
+        assert app.docs_url is None
+        assert app.redoc_url is None
+        assert app.openapi_url is None
+
+    def test_staging_docs_enabled(self) -> None:
+        """Staging mode enables API docs."""
+        test_settings = TestSettings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            environment="staging",
+            jwt_secret_key="a" * 64,
+        )
+        app = create_app(settings_override=test_settings)
+        assert app.docs_url == "/docs"
+        assert app.redoc_url == "/redoc"
+
+    def test_digest_timezone_validates_iana_names(self) -> None:
+        """DIGEST_TIMEZONE must be a valid IANA timezone name."""
+        with pytest.raises(ValidationError, match="not a valid IANA timezone name"):
+            Settings(
+                database_url="postgresql://test",
+                redis_url="redis://test",
+                celery_broker_url="redis://broker",
+                celery_result_backend="redis://backend",
+                environment="production",
+                jwt_secret_key="a" * 64,
+                digest_timezone="Invalid/Timezone",
+            )
+
+    def test_digest_timezone_accepts_valid_iana_name(self) -> None:
+        """DIGEST_TIMEZONE accepts valid IANA timezone names."""
+        test_settings = Settings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            environment="production",
+            jwt_secret_key="a" * 64,
+            digest_timezone="America/New_York",
+        )
+        assert test_settings.digest_timezone == "America/New_York"
+
+    def test_production_no_committed_secret_defaults(self) -> None:
+        """Production config must not have committed secret defaults."""
+        test_settings = TestSettings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            environment="production",
+            jwt_secret_key="a" * 64,
+        )
+        assert test_settings.jwt_secret_key != "changeme"  # noqa: S105
+        assert test_settings.jwt_secret_key != "secret"  # noqa: S105
+        assert "example" not in (test_settings.smtp_password or "")

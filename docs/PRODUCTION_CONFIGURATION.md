@@ -89,6 +89,15 @@ Configuration is loaded in the following order (highest precedence first):
 | `DIGEST_TIMEZONE` | Digest scheduling timezone | `UTC` |
 | `DIGEST_SCHEDULE_HOUR` | Hour for daily digest (0-23) | `8` |
 | `DIGEST_SCHEDULE_MINUTE` | Minute for daily digest (0-59) | `0` |
+| `METRICS_ALLOWED_IPS` | Comma-separated list of IPs allowed to access `/metrics` | (empty = admin auth only) |
+| `EMAIL_DEVELOPMENT_MODE` | Force console email sender even in non-development environments | `true` |
+
+### Monitoring
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `METRICS_ALLOWED_IPS` | Optional IP allow-list for `/metrics` endpoint (defense-in-depth) | (empty) |
+| `SENTRY_DSN` | Sentry DSN for error tracking | (empty) |
 
 ---
 
@@ -165,3 +174,25 @@ The application validates `JWT_SECRET_KEY` on startup:
 - Must not match known weak defaults
 
 If validation fails, the application will refuse to start.
+
+## JWT Token Lifecycle
+
+This application uses stateless JWT access tokens without refresh tokens or a server-side revocation blacklist. The security tradeoffs are:
+
+- **Access token lifetime**: Default 60 minutes (configurable via `JWT_EXPIRATION_MINUTES`)
+- **No refresh tokens**: Users must re-authenticate after token expiration
+- **No revocation blacklist**: A compromised token remains valid until its expiration time
+- **Logout is client-side**: The `/auth/logout` endpoint returns a success message but does not invalidate the token server-side
+
+**Operational implications:**
+- If a token needs to be invalidated early (e.g., user compromise), change `JWT_SECRET_KEY` to invalidate all active sessions
+- For production deployments requiring token revocation, implement a Redis-backed blacklist and add `jti` claims to tokens
+- Keep `JWT_SECRET_KEY` consistent across rolling restarts to avoid invalidating active sessions
+
+## Email Development Mode
+
+The `EMAIL_DEVELOPMENT_MODE` setting controls email delivery behavior:
+- `true` (default): All emails are printed to console logs instead of being sent via SMTP
+- `false`: Emails are sent via the configured SMTP provider
+
+**In production, always set `EMAIL_DEVELOPMENT_MODE=false`** to ensure emails are actually delivered to recipients.

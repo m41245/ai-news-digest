@@ -231,6 +231,44 @@ class TestBruteForceProtection:
         )
         assert response.status_code in (401, 422, 429)
 
+    def test_login_timing_does_not_leak_user_existence(self) -> None:
+        """Login endpoint should not leak user existence via timing differences."""
+        import time
+
+        from fastapi.testclient import TestClient
+
+        client = TestClient(_get_app())
+
+        unknown_email_times = []
+        for _ in range(5):
+            start = time.perf_counter()
+            client.post(
+                "/api/v1/auth/login",
+                json={"email": "nonexistent-user-12345@example.com", "password": "wrong"},
+            )
+            unknown_email_times.append(time.perf_counter() - start)
+
+        known_email_times = []
+        for _ in range(5):
+            start = time.perf_counter()
+            client.post(
+                "/api/v1/auth/login",
+                json={"email": "test@example.com", "password": "wrong"},
+            )
+            known_email_times.append(time.perf_counter() - start)
+
+        avg_unknown = sum(unknown_email_times) / len(unknown_email_times)
+        avg_known = sum(known_email_times) / len(known_email_times)
+
+        max_time = max(avg_unknown, avg_known)
+        min_time = min(avg_unknown, avg_known)
+        if max_time > 0:
+            ratio = min_time / max_time
+            assert ratio > 0.5, (
+                f"Timing difference detected: unknown={avg_unknown:.4f}s, "
+                f"known={avg_known:.4f}s, ratio={ratio:.2f}"
+            )
+
 
 class TestProtectedEndpoints:
     """Tests verifying protected endpoints require authentication."""

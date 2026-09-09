@@ -23,6 +23,18 @@ if [ -z "${JWT_SECRET_KEY:-}" ]; then
     fail "JWT_SECRET_KEY is not set. Cannot start application."
 fi
 
+if [ "${ENVIRONMENT:-development}" = "production" ]; then
+    if [ -z "${REDIS_URL:-}" ]; then
+        fail "REDIS_URL is not set. Cannot start application in production."
+    fi
+    if [ -z "${CELERY_BROKER_URL:-}" ]; then
+        fail "CELERY_BROKER_URL is not set. Cannot start application in production."
+    fi
+    if [ -z "${REDIS_PASSWORD:-}" ]; then
+        fail "REDIS_PASSWORD is not set. Redis authentication is required in production."
+    fi
+fi
+
 log "Waiting for PostgreSQL to become available..."
 python -c "
 import sys

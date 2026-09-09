@@ -6,9 +6,11 @@ set -o pipefail 2>/dev/null || true
 # Usage: ./scripts/test_restore.sh <backup_file>
 
 BACKUP_FILE="${1:-}"
-TEST_DB_NAME="ai_news_digest_restore_test"
-TEST_CONTAINER="ai_news_digest_test_restore_$$"
-TEST_PORT="5433"
+TEST_DB_NAME="${TEST_DB_NAME:-ai_news_digest_restore_test}"
+TEST_CONTAINER="${TEST_CONTAINER:-ai_news_digest_test_restore_$$}"
+TEST_PORT="${TEST_PORT:-5433}"
+TEST_DB_USER="${TEST_DB_USER:-postgres}"
+TEST_DB_PASSWORD="${TEST_DB_PASSWORD:-postgres}"
 
 if [ -z "${BACKUP_FILE}" ]; then
     echo "Error: Backup file not specified."
@@ -49,14 +51,14 @@ docker run -d \
     --name "${TEST_CONTAINER}" \
     -p "${TEST_PORT}:5432" \
     -e POSTGRES_DB="${TEST_DB_NAME}" \
-    -e POSTGRES_USER=postgres \
-    -e POSTGRES_PASSWORD=postgres \
+    -e POSTGRES_USER="${TEST_DB_USER}" \
+    -e POSTGRES_PASSWORD="${TEST_DB_PASSWORD}" \
     postgres:16-alpine >/dev/null
 
 # Wait for PostgreSQL to be ready
 echo "Waiting for PostgreSQL to be ready..."
 for i in $(seq 1 30); do
-    if docker exec "${TEST_CONTAINER}" pg_isready -U postgres >/dev/null 2>&1; then
+    if docker exec "${TEST_CONTAINER}" pg_isready -U "${TEST_DB_USER}" >/dev/null 2>&1; then
         echo "PostgreSQL is ready."
         break
     fi
@@ -70,13 +72,13 @@ done
 # Step 2: Restore backup
 echo ""
 echo "Step 2: Restoring backup into test database..."
-cat "${BACKUP_FILE}" | docker exec -i "${TEST_CONTAINER}" psql -U postgres -d "${TEST_DB_NAME}" >/dev/null
+cat "${BACKUP_FILE}" | docker exec -i "${TEST_CONTAINER}" psql -U "${TEST_DB_USER}" -d "${TEST_DB_NAME}" >/dev/null
 echo "Restore complete."
 
 # Step 3: Verify tables exist
 echo ""
 echo "Step 3: Verifying database schema..."
-TABLES=$(docker exec "${TEST_CONTAINER}" psql -U postgres -d "${TEST_DB_NAME}" -tAc "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;")
+TABLES=$(docker exec "${TEST_CONTAINER}" psql -U "${TEST_DB_USER}" -d "${TEST_DB_NAME}" -tAc "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;")
 
 EXPECTED_TABLES=("articles" "categories" "deliveries" "digest_articles" "digests" "sources" "users")
 for table in "${EXPECTED_TABLES[@]}"; do
@@ -92,7 +94,7 @@ done
 echo ""
 echo "Step 4: Verifying data counts..."
 for table in "${EXPECTED_TABLES[@]}"; do
-    count=$(docker exec "${TEST_CONTAINER}" psql -U postgres -d "${TEST_DB_NAME}" -tAc "SELECT COUNT(*) FROM ${table};" 2>/dev/null || echo "0")
+    count=$(docker exec "${TEST_CONTAINER}" psql -U "${TEST_DB_USER}" -d "${TEST_DB_NAME}" -tAc "SELECT COUNT(*) FROM ${table};" 2>/dev/null || echo "0")
     echo "  ${table}: ${count} rows"
 done
 
@@ -112,7 +114,7 @@ fi
 # Step 6: Verify indexes exist
 echo ""
 echo "Step 6: Verifying critical indexes..."
-INDEXES=$(docker exec "${TEST_CONTAINER}" psql -U postgres -d "${TEST_DB_NAME}" -tAc "SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname != 'index' ORDER BY indexname;")
+INDEXES=$(docker exec "${TEST_CONTAINER}" psql -U "${TEST_DB_USER}" -d "${TEST_DB_NAME}" -tAc "SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname != 'index' ORDER BY indexname;")
 
 CRITICAL_INDEXES=("idx_articles_published_at" "idx_articles_status" "idx_articles_url" "idx_sources_feed_url" "idx_digests_generated_at")
 for idx in "${CRITICAL_INDEXES[@]}"; do
