@@ -42,9 +42,7 @@ class EvidenceItem:
             "evidence_type": self.evidence_type,
             "fields_used": self.fields_used,
             "items": self.items,
-            "evidence": [
-                {"article_id": ref.article_id} for ref in self.evidence
-            ],
+            "evidence": [{"article_id": ref.article_id} for ref in self.evidence],
             "confidence": self.confidence,
             "reason": self.reason,
             "detected_at": self.detected_at,

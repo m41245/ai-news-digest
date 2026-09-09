@@ -239,8 +239,8 @@ for the full design.
 * Added `Company` and `Topic` domain models with `create` factory methods
 * Registered `analysis` capability in the container capability registry
 * Added `daily-article-analysis` Celery Beat schedule (07:30 UTC) and `analyze_pending_articles` batch task
-* All 1471 backend tests pass, 25 frontend tests pass, ruff/mypy/TypeScript/lint all pass
-* Coverage: 83.07% (exceeds 80% threshold)
+* All 1485 backend tests pass, 25 frontend tests pass, ruff/mypy/TypeScript/lint all pass
+* Coverage: 84.29% (exceeds 84.06% M46 baseline)
 * Security: pip-audit clean, security tests pass
 
 ---

@@ -65,7 +65,7 @@ M47 final product completion is complete. All required production gates pass. Th
 ## Validation Summary
 
 ### Backend Tests
-- **Result:** 1471 passed, 0 failed
+- **Result:** 1485 passed, 0 failed
 - **Command:** `poetry run pytest tests/ --no-cov -q`
 - **Duration:** ~11 minutes
 
@@ -98,9 +98,9 @@ M47 final product completion is complete. All required production gates pass. Th
 - **Command:** `cd frontend && npx vite build`
 
 ### Coverage
-- **Result:** 83.07%
-- **Threshold:** 80.0% — PASS
-- **Note:** Slight decrease from M46 baseline (84.06%) due to new code in `analyze_article.py`, `analyze_and_materialize.py`, and `extract_article.py` that is exercised by existing integration tests but not fully covered by unit tests
+- **Result:** 84.29%
+- **Threshold:** 84.06% — PASS
+- **Note:** Coverage restored above M46 baseline by adding unit tests for ExtractArticleUseCase, AnalyzeArticleUseCase, and AnalyzeAndMaterializeUseCase
 
 ### Security Tests
 - **Result:** 27 passed
