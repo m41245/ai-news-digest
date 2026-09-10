@@ -1,0 +1,70 @@
+services:
+  - type: web
+    name: ai-news-digest-api
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health/live
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ai-news-digest-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: ai-news-digest-redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: ai-news-digest-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: ai-news-digest-redis
+          property: connectionString
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: CORS_ORIGINS
+        value: '["https://ai-news-digest-frontend.onrender.com"]'
+      - key: OPENAI_ENABLED
+        value: "false"
+      - key: ANTHROPIC_ENABLED
+        value: "false"
+      - key: EMAIL_DEVELOPMENT_MODE
+        value: "false"
+      - key: EMAIL_PROVIDER
+        value: console
+
+  - type: redis
+    name: ai-news-digest-redis
+    plan: free
+    region: oregon
+    maxmemoryPolicy: allkeys-lru
+
+  - type: pserv
+    name: ai-news-digest-db
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: POSTGRES_DB
+        value: ai_news_digest
+      - key: POSTGRES_USER
+        value: ai_news_digest
+      - key: POSTGRES_PASSWORD
+        generateValue: true

@@ -1,0 +1,87 @@
+name: Scheduled Tasks (Free-Tier Alternative to Celery Beat)
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+    - cron: "30 6 * * *"
+    - cron: "0 7 * * *"
+    - cron: "30 7 * * *"
+    - cron: "0 8 * * *"
+    - cron: "30 8 * * *"
+    - cron: "*/15 * * * *"
+    - cron: "*/10 * * * *"
+    - cron: "*/5 * * * *"
+    - cron: "*/30 * * * *"
+    - cron: "0 2 * * *"
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Task to run"
+        required: true
+        type: choice
+        options:
+          - ingest
+          - summarize
+          - categorize
+          - analyze
+          - digest
+          - deliver
+          - notifications-schedule
+          - notifications-scheduled
+          - notifications-immediate
+          - notifications-retry
+          - notifications-recover
+          - notifications-cleanup-deliveries
+          - notifications-cleanup
+          - cleanup-articles
+          - cleanup-digests
+
+jobs:
+  scheduled-task:
+    name: Run Scheduled Task
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "poetry"
+
+      - name: Install Poetry
+        run: |
+          pip install --upgrade pip
+          pip install "poetry==2.1.0"
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-ansi
+
+      - name: Run scheduled task
+        env:
+          DATABASE_URL: ${{ secrets.FREE_DATABASE_URL }}
+          REDIS_URL: ${{ secrets.FREE_REDIS_URL }}
+          CELERY_BROKER_URL: ${{ secrets.FREE_CELERY_BROKER_URL }}
+          CELERY_RESULT_BACKEND: ${{ secrets.FREE_CELERY_RESULT_BACKEND }}
+          JWT_SECRET_KEY: ${{ secrets.FREE_JWT_SECRET_KEY }}
+          ENVIRONMENT: production
+          DEBUG: "false"
+          OPENAI_API_KEY: ${{ secrets.FREE_OPENAI_API_KEY }}
+          OPENAI_ENABLED: ${{ secrets.FREE_OPENAI_ENABLED || 'false' }}
+          ANTHROPIC_API_KEY: ${{ secrets.FREE_ANTHROPIC_API_KEY }}
+          ANTHROPIC_ENABLED: ${{ secrets.FREE_ANTHROPIC_ENABLED || 'false' }}
+          SMTP_HOST: ${{ secrets.FREE_SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.FREE_SMTP_PORT }}
+          SMTP_USER: ${{ secrets.FREE_SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.FREE_SMTP_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.FREE_EMAIL_FROM }}
+          EMAIL_RECIPIENTS: ${{ secrets.FREE_EMAIL_RECIPIENTS }}
+          EMAIL_DEVELOPMENT_MODE: "false"
+          LOG_LEVEL: INFO
+        run: |
+          TASK="${{ github.event.inputs.task || 'ingest' }}"
+          echo "Running task: $TASK"
+          poetry run python scripts/scheduled/run_task.py "$TASK"
