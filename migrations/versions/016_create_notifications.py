@@ -5,8 +5,8 @@ Revises: 015
 """
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision: str = "016"
 down_revision: str | None = "015"

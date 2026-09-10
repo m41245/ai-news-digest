@@ -17,8 +17,7 @@ import os
 import platform
 import subprocess
 import sys
-from typing import Callable
-
+from collections.abc import Callable
 
 ValidationFn = Callable[[], tuple[bool, str]]
 
@@ -51,21 +50,26 @@ def check_dns_resolution(domain: str) -> tuple[bool, str]:
 def check_tls_certificate(domain: str, port: int = 443) -> tuple[bool, str]:
     """Check TLS certificate validity for a domain."""
     try:
-        import ssl
         import socket
+        import ssl
         context = ssl.create_default_context()
-        with socket.create_connection((domain, port), timeout=10) as sock:
-            with context.wrap_socket(sock, server_hostname=domain) as ssock:
-                cert = ssock.getpeercert()
-                subject = dict(x[0] for x in cert.get("subject", ()))
-                issuer = dict(x[0] for x in cert.get("issuer", ()))
-                not_after = cert.get("notAfter", "unknown")
-                return True, f"TLS certificate for {domain}: valid (issuer={issuer.get('organizationName', 'unknown')}, expires={not_after})"
+        with socket.create_connection((domain, port), timeout=10) as sock, context.wrap_socket(
+            sock, server_hostname=domain
+        ) as ssock:
+            cert = ssock.getpeercert()
+            issuer = dict(x[0] for x in cert.get("issuer", ()))
+            not_after = cert.get("notAfter", "unknown")
+            return True, (
+                f"TLS certificate for {domain}: valid "
+                f"(issuer={issuer.get('organizationName', 'unknown')}, expires={not_after})"
+            )
     except Exception as exc:
         return False, f"TLS certificate check for {domain}:{port} failed: {exc}"
 
 
-def check_http_availability(url: str, expected_status: int = 200, timeout: int = 10) -> tuple[bool, str]:
+def check_http_availability(
+    url: str, expected_status: int = 200, timeout: int = 10
+) -> tuple[bool, str]:
     """Check HTTP endpoint availability."""
     try:
         import urllib.request
@@ -78,15 +82,22 @@ def check_http_availability(url: str, expected_status: int = 200, timeout: int =
         return False, f"HTTP {url} failed: {exc}"
 
 
-def check_postgres_connectivity(host: str, port: int, database: str, user: str, password: str) -> tuple[bool, str]:
+def check_postgres_connectivity(
+    host: str, port: int, database: str, user: str, password: str
+) -> tuple[bool, str]:
     """Check PostgreSQL connectivity."""
     try:
-        import asyncpg
         import asyncio
+
+        import asyncpg
 
         async def _check():
             conn = await asyncpg.connect(
-                host=host, port=port, database=database, user=user, password=password,
+                host=host,
+                port=port,
+                database=database,
+                user=user,
+                password=password,
                 timeout=10,
             )
             version = await conn.fetchval("SELECT version()")
@@ -155,7 +166,9 @@ def main() -> int:
     # Read configuration from environment
     prod_frontend_domain = os.environ.get("PROD_FRONTEND_DOMAIN", "")
     prod_api_domain = os.environ.get("PROD_API_DOMAIN", "")
-    prod_api_url = os.environ.get("PROD_API_URL", f"https://{prod_api_domain}" if prod_api_domain else "")
+    prod_api_url = os.environ.get(
+        "PROD_API_URL", f"https://{prod_api_domain}" if prod_api_domain else ""
+    )
     prod_postgres_host = os.environ.get("PROD_POSTGRES_HOST", "")
     prod_postgres_port = int(os.environ.get("PROD_POSTGRES_PORT", "5432"))
     prod_postgres_db = os.environ.get("PROD_POSTGRES_DB", "ai_news_digest")
@@ -182,33 +195,72 @@ def main() -> int:
     validations: list[tuple[str, ValidationFn]] = []
 
     if prod_frontend_domain:
-        validations.append(("DNS: frontend domain", lambda: check_dns_resolution(prod_frontend_domain)))
-        validations.append(("TLS: frontend domain", lambda: check_tls_certificate(prod_frontend_domain)))
-        validations.append(("HTTP: frontend availability", lambda: check_http_availability(f"https://{prod_frontend_domain}")))
+        validations.append((
+            "DNS: frontend domain", lambda: check_dns_resolution(prod_frontend_domain)
+        ))
+        validations.append((
+            "TLS: frontend domain", lambda: check_tls_certificate(prod_frontend_domain)
+        ))
+        validations.append((
+            "HTTP: frontend availability",
+            lambda: check_http_availability(f"https://{prod_frontend_domain}"),
+        ))
 
     if prod_api_domain:
-        validations.append(("DNS: API domain", lambda: check_dns_resolution(prod_api_domain)))
-        validations.append(("TLS: API domain", lambda: check_tls_certificate(prod_api_domain)))
+        validations.append((
+            "DNS: API domain", lambda: check_dns_resolution(prod_api_domain)
+        ))
+        validations.append((
+            "TLS: API domain", lambda: check_tls_certificate(prod_api_domain)
+        ))
 
     if prod_api_url:
-        validations.append(("HTTP: API liveness", lambda: check_http_availability(f"{prod_api_url}/health/live")))
-        validations.append(("HTTP: API readiness", lambda: check_http_availability(f"{prod_api_url}/health/ready")))
-        validations.append(("Metrics: health", lambda: check_metrics_endpoint(f"{prod_api_url}", prod_metrics_token)))
+        validations.append((
+            "HTTP: API liveness",
+            lambda: check_http_availability(f"{prod_api_url}/health/live"),
+        ))
+        validations.append((
+            "HTTP: API readiness",
+            lambda: check_http_availability(f"{prod_api_url}/health/ready"),
+        ))
+        validations.append((
+            "Metrics: health",
+            lambda: check_metrics_endpoint(f"{prod_api_url}", prod_metrics_token),
+        ))
 
     if prod_postgres_host and prod_postgres_user and prod_postgres_password:
-        validations.append(("PostgreSQL: connectivity", lambda: check_postgres_connectivity(
-            prod_postgres_host, prod_postgres_port, prod_postgres_db, prod_postgres_user, prod_postgres_password,
-        )))
+        validations.append((
+            "PostgreSQL: connectivity",
+            lambda: check_postgres_connectivity(
+                prod_postgres_host,
+                prod_postgres_port,
+                prod_postgres_db,
+                prod_postgres_user,
+                prod_postgres_password,
+            ),
+        ))
 
     if prod_redis_host:
-        validations.append(("Redis: connectivity", lambda: check_redis_connectivity(
-            prod_redis_host, prod_redis_port, prod_redis_password or None,
-        )))
+        validations.append((
+            "Redis: connectivity",
+            lambda: check_redis_connectivity(
+                prod_redis_host, prod_redis_port, prod_redis_password or None
+            ),
+        ))
 
     # Check container health if running locally
-    containers = ["ai_news_digest_web", "ai_news_digest_db", "ai_news_digest_redis", "ai_news_digest_worker", "ai_news_digest_beat"]
+    containers = [
+        "ai_news_digest_web",
+        "ai_news_digest_db",
+        "ai_news_digest_redis",
+        "ai_news_digest_worker",
+        "ai_news_digest_beat",
+    ]
     for container in containers:
-        validations.append((f"Container: {container}", lambda c=container: check_container_health(c)))
+        validations.append((
+            f"Container: {container}",
+            lambda c=container: check_container_health(c),
+        ))
 
     passed = 0
     failed = 0

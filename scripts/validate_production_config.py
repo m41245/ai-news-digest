@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 import sys
 
-from ai_news_digest.core.config import Settings, get_settings
+from ai_news_digest.core.config import get_settings
 
 
 class ProductionConfigError(Exception):
