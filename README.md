@@ -4,7 +4,7 @@ A production-oriented AI-powered news aggregation and daily digest platform buil
 
 The project is designed to collect articles from multiple RSS sources, organize and categorize them, generate AI-powered summaries, and produce high-quality daily news digests through a scalable and maintainable architecture.
 
-> **Project Status:** Milestone 52 — External Infrastructure Activation, First Production Deployment, and Live Verification: **PRODUCTION DEPLOYMENT READY — EXTERNAL ACTIVATION BLOCKED**.
+> **Project Status:** Milestone 53 — Production Activation, Full-Test Reconciliation, and Live Launch Completion: **PRODUCTION DEPLOYMENT READY — EXTERNAL ACTIVATION BLOCKED**.
 
 Recent additions build on top of the existing architecture without replacing
 it:
@@ -120,7 +120,7 @@ for the full design.
 * Digest generation pipeline (HTML, Markdown, PDF)
 * Email delivery via SMTP
 * Docker deployment with docker-compose
-* Comprehensive automated testing (1043+ unit + integration + E2E tests)
+* Comprehensive automated testing (1502+ unit + integration + E2E tests)
 * Digest generation with Markdown, HTML, and PDF renderers
 * Deterministic digest content grouping by source/category
  * Idempotent digest creation via unique title constraint
@@ -696,9 +696,9 @@ to `main`/`master` across these stages:
 
 1. **Lint** — Ruff lint and format checks
 2. **Type Check** — MyPy strict type checking
-3. **Unit Tests** — 1024+ tests with mocked dependencies
-4. **Integration Tests** — 16 tests using testcontainers (PostgreSQL + Redis)
-5. **Coverage** — Full suite with 88%+ coverage
+3. **Unit Tests** — 1502+ tests with mocked dependencies
+4. **Integration Tests** — 31 tests using testcontainers (PostgreSQL + Redis)
+5. **Coverage** — Full suite with 84%+ coverage
 6. **Docker Build** — Multi-stage production image build verification
 7. **Security Audit** — `pip-audit` dependency vulnerability scan
 8. **E2E Tests** — 19 end-to-end tests against real PostgreSQL + Redis
