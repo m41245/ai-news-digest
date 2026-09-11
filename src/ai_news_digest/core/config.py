@@ -71,6 +71,13 @@ class Settings(BaseSettings):
     # Database
     # ======================================================================
 
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_database_url(cls, value: str | None) -> str | None:
+        if isinstance(value, str) and value.startswith("postgresql://"):
+            return value.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return value
+
     database_url: str = Field(
         default="postgresql+asyncpg://postgres:postgres@localhost:5432/ai_news_digest",
         validation_alias="DATABASE_URL",

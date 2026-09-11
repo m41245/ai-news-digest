@@ -35,7 +35,13 @@ Configuration is loaded in the following order (highest precedence first):
 | `POSTGRES_DB` | Database name | `ai_news_digest` |
 | `POSTGRES_USER` | Database user | `postgres` |
 | `POSTGRES_PASSWORD` | Database password | `<secure-password>` |
-| `DATABASE_URL` | Async PostgreSQL URL | `postgresql+asyncpg://postgres:postgres@postgres:5432/ai_news_digest` |
+| `DATABASE_URL` | Async PostgreSQL URL. Use `postgresql+asyncpg://` or `postgresql://` — the application automatically normalizes to asyncpg. | `postgresql+asyncpg://postgres:postgres@postgres:5432/ai_news_digest` |
+
+### PostgreSQL Driver
+
+The application and Alembic migrations use `asyncpg` as the PostgreSQL driver. If `DATABASE_URL` is provided in the standard `postgresql://` format (e.g., from Neon or Render), it is automatically normalized to `postgresql+asyncpg://`. SSL parameters such as `sslmode=require` are preserved during normalization.
+
+Do not install or configure `psycopg2` — it is not a dependency and will conflict with the async architecture.
 
 ### Redis
 

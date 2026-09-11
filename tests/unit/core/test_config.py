@@ -440,6 +440,57 @@ def test_cors_origins_explicit_value_overrides_default() -> None:
     assert test_settings.cors_origins == ["https://example.com"]
 
 
+class TestDatabaseUrlNormalization:
+    """Regression tests for PostgreSQL driver URL normalization."""
+
+    def test_postgresql_url_normalized_to_asyncpg(self) -> None:
+        """postgresql:// URLs are normalized to postgresql+asyncpg://."""
+        test_settings = Settings(
+            database_url="postgresql://user:pass@host:5432/dbname",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            jwt_secret_key="a" * 64,
+        )
+        assert test_settings.database_url == "postgresql+asyncpg://user:pass@host:5432/dbname"
+
+    def test_postgresql_asyncpg_url_preserved(self) -> None:
+        """postgresql+asyncpg:// URLs are preserved unchanged."""
+        test_settings = Settings(
+            database_url="postgresql+asyncpg://user:pass@host:5432/dbname",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            jwt_secret_key="a" * 64,
+        )
+        assert test_settings.database_url == "postgresql+asyncpg://user:pass@host:5432/dbname"
+
+    def test_postgresql_url_with_ssl_params_normalized(self) -> None:
+        """postgresql:// URLs with sslmode=require are normalized correctly."""
+        test_settings = Settings(
+            database_url="postgresql://user:pass@host:5432/dbname?sslmode=require",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            jwt_secret_key="a" * 64,
+        )
+        assert (
+            test_settings.database_url
+            == "postgresql+asyncpg://user:pass@host:5432/dbname?sslmode=require"
+        )
+
+    def test_non_postgresql_url_preserved(self) -> None:
+        """Non-PostgreSQL URLs like SQLite are preserved unchanged."""
+        test_settings = Settings(
+            database_url="sqlite:///test.db",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            jwt_secret_key="a" * 64,
+        )
+        assert test_settings.database_url == "sqlite:///test.db"
+
+
 class TestConfigurationIsolation:
     """Regression tests proving configuration is isolated from .env and environment."""
 

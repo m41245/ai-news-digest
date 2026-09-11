@@ -165,7 +165,7 @@ In the Render dashboard, set these environment variables for both the web and wo
 
 | Variable | Value | Notes |
 |----------|-------|-------|
-| `DATABASE_URL` | Neon PostgreSQL connection string | Use `postgresql+asyncpg://` format |
+| `DATABASE_URL` | Neon PostgreSQL connection string (use `postgresql+asyncpg://` format, or `postgresql://` — the application automatically normalizes to asyncpg) | `postgresql+asyncpg://user:pass@host/ai_news_digest` |
 | `REDIS_URL` | Upstash Redis URL (rediss://) | Database 0 |
 | `CELERY_BROKER_URL` | Upstash Redis URL (rediss://) | Database 1 |
 | `CELERY_RESULT_BACKEND` | Upstash Redis URL (rediss://) | Database 2 |
@@ -196,7 +196,9 @@ Render uses `/health/live` for health checks. This endpoint:
 
 ### Migrations
 
-Database migrations run automatically during Docker image build via the entrypoint script. For manual migrations:
+Database migrations run automatically during Docker image startup via the entrypoint script. Migrations use the same `asyncpg` driver as the application. The `DATABASE_URL` is automatically normalized from `postgresql://` to `postgresql+asyncpg://` if needed (e.g., when provided by Neon or Render).
+
+For manual migrations:
 
 ```bash
 poetry run alembic upgrade head

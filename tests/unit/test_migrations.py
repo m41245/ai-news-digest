@@ -133,3 +133,27 @@ def test_migration_heads_are_consistent() -> None:
     )
     assert result.returncode == 0, f"alembic heads failed: {result.stderr}"
     assert "head" in result.stdout.lower() or "revision" in result.stdout.lower()
+
+
+def test_psycopg2_not_in_dependencies() -> None:
+    """psycopg2 must not be a declared dependency; asyncpg is the driver."""
+    pyproject = Path(__file__).resolve().parent.parent.parent / "pyproject.toml"
+    content = pyproject.read_text()
+    assert "psycopg2" not in content, "psycopg2 must not be in pyproject.toml dependencies"
+
+
+def test_migrations_use_async_engine() -> None:
+    """migrations/env.py must use async_engine_from_config, not sync create_engine."""
+    env_py = Path(__file__).resolve().parent.parent.parent / "migrations" / "env.py"
+    content = env_py.read_text()
+    assert "async_engine_from_config" in content
+    assert "create_engine" not in content
+
+
+def test_migrations_env_normalizes_database_url() -> None:
+    """migrations/env.py must normalize postgresql:// to postgresql+asyncpg://."""
+    env_py = Path(__file__).resolve().parent.parent.parent / "migrations" / "env.py"
+    content = env_py.read_text()
+    assert "postgresql+asyncpg://" in content
+    assert 'database_url.startswith("postgresql://")' in content
+    assert ".replace(" in content
