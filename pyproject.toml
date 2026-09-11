@@ -30,7 +30,7 @@ feedparser = "^6.0.11"
 openai = "^1.57.0"
 anthropic = "^0.40.0"
 
-structlog = "^24.4.0"
+structlog = ">=24.4,<27.0"
 
 sentry-sdk = "^2.0.0"
 
