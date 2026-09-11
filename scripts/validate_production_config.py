@@ -62,10 +62,6 @@ def validate_production_config() -> list[str]:
     elif "redis" not in redis_url:
         errors.append("REDIS_URL must point to a Redis instance")
 
-    redis_password = os.environ.get("REDIS_PASSWORD", "")
-    if not redis_password:
-        errors.append("REDIS_PASSWORD is required in production")
-
     celery_broker_url = os.environ.get("CELERY_BROKER_URL", "")
     if not celery_broker_url:
         errors.append("CELERY_BROKER_URL is required")
@@ -81,6 +77,26 @@ def validate_production_config() -> list[str]:
     email_development_mode = os.environ.get("EMAIL_DEVELOPMENT_MODE", "true").lower()
     if email_development_mode == "true":
         errors.append("EMAIL_DEVELOPMENT_MODE must be 'false' in production")
+
+    email_enabled = os.environ.get("EMAIL_ENABLED", "false").lower()
+    if email_enabled == "true":
+        smtp_host = os.environ.get("SMTP_HOST", "")
+        if not smtp_host:
+            errors.append("SMTP_HOST is required when EMAIL_ENABLED=true")
+
+        email_base_url = os.environ.get("EMAIL_BASE_URL", "")
+        if not email_base_url:
+            errors.append("EMAIL_BASE_URL is required when EMAIL_ENABLED=true")
+
+        email_provider = os.environ.get("EMAIL_PROVIDER", "console")
+        if email_provider != "smtp":
+            errors.append("EMAIL_PROVIDER must be 'smtp' when EMAIL_ENABLED=true in production")
+    else:
+        if os.environ.get("EMAIL_PROVIDER", "console") == "smtp":
+            warnings.append(
+                "EMAIL_PROVIDER=smtp but EMAIL_ENABLED=false - "
+                "SMTP settings will be ignored"
+            )
 
     smtp_host = os.environ.get("SMTP_HOST", "")
     if not smtp_host:

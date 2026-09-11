@@ -28,6 +28,22 @@ class Settings(BaseSettings):
     )
 
     # ======================================================================
+    # Server
+    # ======================================================================
+
+    host: str = Field(
+        default="127.0.0.1",
+        description="Host to bind the ASGI server to. Render requires 0.0.0.0.",
+    )
+
+    port: int = Field(
+        default=8000,
+        ge=1,
+        le=65535,
+        description="Port for the ASGI server. Render provides PORT env var.",
+    )
+
+    # ======================================================================
     # Application
     # ======================================================================
 
@@ -799,9 +815,10 @@ class Settings(BaseSettings):
     @field_validator("email_base_url")
     @classmethod
     def validate_email_base_url(cls, value: str, info: ValidationInfo) -> str:
-        """Ensure email_base_url is set in production."""
+        """Ensure email_base_url is set in production when email is enabled."""
         environment = info.data.get("environment", "development")
-        if environment == "production" and not value.strip():
+        email_enabled = info.data.get("email_enabled", True)
+        if environment == "production" and email_enabled and not value.strip():
             raise ValueError(
                 "EMAIL_BASE_URL must be set to the public application URL in production."
             )
@@ -836,10 +853,11 @@ class Settings(BaseSettings):
     @field_validator("smtp_host")
     @classmethod
     def validate_smtp_host(cls, value: str | None, info: ValidationInfo) -> str | None:
-        """Ensure SMTP_HOST is set when email provider is smtp in production."""
+        """Ensure SMTP_HOST is set when email is enabled and provider is smtp in production."""
         environment = info.data.get("environment", "development")
+        email_enabled = info.data.get("email_enabled", True)
         email_provider = info.data.get("email_provider", "console")
-        if environment == "production" and email_provider == "smtp" and not value:
+        if environment == "production" and email_enabled and email_provider == "smtp" and not value:
             raise ValueError("SMTP_HOST must be set when EMAIL_PROVIDER=smtp in production.")
         return value
 

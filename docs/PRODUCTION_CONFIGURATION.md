@@ -23,8 +23,10 @@ Configuration is loaded in the following order (highest precedence first):
 |----------|-------------|---------|
 | `ENVIRONMENT` | Must be `production` | `production` |
 | `DEBUG` | Must be `false` in production | `false` |
+| `HOST` | Host to bind ASGI server to (Render requires `0.0.0.0`) | `0.0.0.0` |
+| `PORT` | Port for ASGI server (Render provides this automatically) | `8000` |
 | `JWT_SECRET_KEY` | Secure random key (min 32 chars) | `openssl rand -hex 32` output |
-| `CORS_ORIGINS` | JSON array of allowed origins | `["https://app.example.com"]` |
+| `CORS_ORIGINS` | JSON array of allowed origins | `["https://ai-news-digest-doo.pages.dev"]` |
 
 ### Database
 
@@ -39,10 +41,11 @@ Configuration is loaded in the following order (highest precedence first):
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `REDIS_PASSWORD` | Redis authentication password | `<secure-password>` |
-| `REDIS_URL` | Redis connection URL | `redis://:redis@redis:6379/0` |
-| `CELERY_BROKER_URL` | Celery broker URL | `redis://:redis@redis:6379/1` |
-| `CELERY_RESULT_BACKEND` | Celery result backend | `redis://:redis@redis:6379/2` |
+| `REDIS_URL` | Redis connection URL (use `rediss://` for TLS/Upstash) | `rediss://default:token@upstash-host:6379` |
+| `CELERY_BROKER_URL` | Celery broker URL (use `rediss://` for TLS/Upstash) | `rediss://default:token@upstash-host:6379/1` |
+| `CELERY_RESULT_BACKEND` | Celery result backend (use `rediss://` for TLS/Upstash) | `rediss://default:token@upstash-host:6379/2` |
+
+Authentication is embedded in the Redis URL (username:password@host). No separate `REDIS_PASSWORD` variable is required.
 
 ---
 
@@ -68,14 +71,26 @@ Configuration is loaded in the following order (highest precedence first):
 
 ### Email / SMTP
 
+Email is optional. Set `EMAIL_ENABLED=true` and provide the SMTP settings below to enable email delivery.
+
 | Variable | Description | Default |
 |----------|-------------|---------|
+| `EMAIL_ENABLED` | Enable email notification delivery | `false` |
+| `EMAIL_PROVIDER` | Provider: `smtp`, `console`, `test` | `console` |
+| `EMAIL_DEVELOPMENT_MODE` | Force console email sender even in non-development environments | `true` |
+| `EMAIL_BASE_URL` | Base URL used in email links | (empty) |
+| `EMAIL_FROM_ADDRESS` | Sender email address | `noreply@ai-news-digest.com` |
+| `EMAIL_FROM_NAME` | Sender display name | `AI News Digest` |
+| `EMAIL_REPLY_TO` | Reply-to address | (empty) |
+| `EMAIL_MAX_RETRIES` | Max retry attempts for transient failures | `3` |
+| `EMAIL_RETRY_DELAY` | Base retry delay in seconds | `60` |
+| `EMAIL_BATCH_SIZE` | Max emails per batch | `50` |
+| `EMAIL_RATE_LIMIT` | Max emails per rate limit window | `100` |
+| `EMAIL_TIMEOUT` | Timeout per delivery operation | `30` |
 | `SMTP_HOST` | SMTP server hostname | `localhost` |
 | `SMTP_PORT` | SMTP server port | `587` |
 | `SMTP_USER` | SMTP username | (empty) |
 | `SMTP_PASSWORD` | SMTP password | (empty) |
-| `EMAIL_FROM` | Sender email address | `noreply@ai-news-digest.com` |
-| `EMAIL_RECIPIENTS` | JSON array of recipient emails | `[]` |
 
 ### Application Tuning
 
@@ -189,26 +204,25 @@ The validator checks:
 - `JWT_SECRET_KEY` is set and secure (min 32 chars, not a placeholder)
 - `DATABASE_URL` is set and points to PostgreSQL
 - `REDIS_URL` is set and points to Redis
-- `REDIS_PASSWORD` is set (required in production)
 - `CELERY_BROKER_URL` is set
 - `CELERY_RESULT_BACKEND` is set
 - `CORS_ORIGINS` is set to real production origins (not empty)
 - `EMAIL_DEVELOPMENT_MODE=false`
 - `EMAIL_PROVIDER=smtp` when email is enabled
-- `EMAIL_BASE_URL` is set to the public application URL
+- `EMAIL_BASE_URL` is set to the public application URL when email is enabled
 - `OPENAI_API_KEY` is set when `OPENAI_ENABLED=true`
 - `ANTHROPIC_API_KEY` is set when `ANTHROPIC_ENABLED=true`
-- `SMTP_HOST` is set when `EMAIL_PROVIDER=smtp`
+- `SMTP_HOST` is set when `EMAIL_PROVIDER=smtp` and email is enabled
 
 ### Application-Level Production Validators
 
 In addition to the startup script, the application validates the following at Settings load time:
 - `EMAIL_DEVELOPMENT_MODE` must be `false` in production
 - `EMAIL_PROVIDER` must be `smtp` in production when email is enabled
-- `EMAIL_BASE_URL` must be set in production
+- `EMAIL_BASE_URL` must be set in production when email is enabled
 - `OPENAI_API_KEY` must be set when `OPENAI_ENABLED=true` in production
 - `ANTHROPIC_API_KEY` must be set when `ANTHROPIC_ENABLED=true` in production
-- `SMTP_HOST` must be set when `EMAIL_PROVIDER=smtp` in production
+- `SMTP_HOST` must be set when `EMAIL_PROVIDER=smtp` in production and email is enabled
 
 If any validator fails, the application will refuse to start.
 

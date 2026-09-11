@@ -54,6 +54,8 @@ def test_settings_default_values() -> None:
     assert test_settings.environment == "development"
     assert test_settings.debug is False
     assert test_settings.api_prefix == "/api/v1"
+    assert test_settings.host == "127.0.0.1"
+    assert test_settings.port == 8000
 
 
 def test_settings_custom_values() -> None:
@@ -72,12 +74,16 @@ def test_settings_custom_values() -> None:
         email_development_mode=False,
         email_base_url="https://example.com",
         smtp_host="smtp.example.com",
+        host="0.0.0.0",
+        port=9000,
     )
 
     assert test_settings.app_name == "Custom App"
     assert test_settings.app_version == "1.0.0"
     assert test_settings.environment == "production"
     assert test_settings.debug is True
+    assert test_settings.host == "0.0.0.0"
+    assert test_settings.port == 9000
 
 
 def test_settings_environment_validation() -> None:
@@ -368,6 +374,20 @@ def test_cors_origins_production_default_is_empty() -> None:
         jwt_secret_key="a" * 64,
     )
     assert test_settings.cors_origins == []
+
+
+def test_cors_origins_production_accepts_cloudflare_pages_origin() -> None:
+    """Production CORS accepts the configured Cloudflare Pages origin."""
+    test_settings = TestSettings(
+        database_url="postgresql://test",
+        redis_url="redis://test",
+        celery_broker_url="redis://broker",
+        celery_result_backend="redis://backend",
+        environment="production",
+        jwt_secret_key="a" * 64,
+        cors_origins=["https://ai-news-digest-doo.pages.dev"],
+    )
+    assert test_settings.cors_origins == ["https://ai-news-digest-doo.pages.dev"]
 
 
 def test_cors_origins_development_defaults_to_localhost() -> None:
@@ -767,3 +787,112 @@ class TestProductionConfigurationValidation:
         assert test_settings.jwt_secret_key != "changeme"  # noqa: S105
         assert test_settings.jwt_secret_key != "secret"  # noqa: S105
         assert "example" not in (test_settings.smtp_password or "")
+
+
+class TestProductionEmailConfigurationValidation:
+    """Tests verifying production email configuration validation."""
+
+    def test_production_email_disabled_accepts_console_and_empty_base_url(self) -> None:
+        """Production + email disabled + console provider + empty base_url is valid."""
+        test_settings = Settings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            environment="production",
+            jwt_secret_key="a" * 64,
+            email_enabled=False,
+            email_provider="console",
+            email_development_mode=False,
+            email_base_url="",
+            smtp_host="",
+        )
+        assert test_settings.email_enabled is False
+        assert test_settings.email_provider == "console"
+        assert test_settings.email_base_url == ""
+
+    def test_production_email_enabled_rejects_console_provider(self) -> None:
+        """Production + email enabled + console provider raises ValidationError."""
+        with pytest.raises(ValidationError, match="EMAIL_PROVIDER must be 'smtp'"):
+            Settings(
+                database_url="postgresql://test",
+                redis_url="redis://test",
+                celery_broker_url="redis://broker",
+                celery_result_backend="redis://backend",
+                environment="production",
+                jwt_secret_key="a" * 64,
+                email_enabled=True,
+                email_provider="console",
+                email_development_mode=False,
+            )
+
+    def test_production_email_enabled_requires_base_url(self) -> None:
+        """Production + email enabled + empty EMAIL_BASE_URL raises ValidationError."""
+        with pytest.raises(ValidationError, match="EMAIL_BASE_URL must be set"):
+            Settings(
+                database_url="postgresql://test",
+                redis_url="redis://test",
+                celery_broker_url="redis://broker",
+                celery_result_backend="redis://backend",
+                environment="production",
+                jwt_secret_key="a" * 64,
+                email_enabled=True,
+                email_provider="smtp",
+                email_development_mode=False,
+                email_base_url="",
+                smtp_host="smtp.example.com",
+            )
+
+    def test_production_email_enabled_smtp_with_valid_config_is_valid(self) -> None:
+        """Production + email enabled + smtp + valid settings is valid."""
+        test_settings = Settings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            environment="production",
+            jwt_secret_key="a" * 64,
+            email_enabled=True,
+            email_provider="smtp",
+            email_development_mode=False,
+            email_base_url="https://ai-news-digest-doo.pages.dev",
+            smtp_host="smtp.example.com",
+            smtp_port=587,
+            smtp_user="user",
+            smtp_password="pass",  # noqa: S106 - intentional test data
+        )
+        assert test_settings.email_provider == "smtp"
+        assert test_settings.email_base_url == "https://ai-news-digest-doo.pages.dev"
+
+    def test_production_email_enabled_requires_smtp_host(self) -> None:
+        """Production + email enabled + smtp + empty SMTP_HOST raises ValidationError."""
+        with pytest.raises(ValidationError, match="SMTP_HOST must be set"):
+            Settings(
+                database_url="postgresql://test",
+                redis_url="redis://test",
+                celery_broker_url="redis://broker",
+                celery_result_backend="redis://backend",
+                environment="production",
+                jwt_secret_key="a" * 64,
+                email_enabled=True,
+                email_provider="smtp",
+                email_development_mode=False,
+                email_base_url="https://example.com",
+                smtp_host="",
+            )
+
+    def test_development_console_email_remains_valid(self) -> None:
+        """Development + console email + empty base_url remains valid."""
+        test_settings = Settings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            environment="development",
+            email_enabled=True,
+            email_provider="console",
+            email_development_mode=True,
+            email_base_url="",
+        )
+        assert test_settings.email_provider == "console"
+        assert test_settings.email_base_url == ""
