@@ -12,6 +12,7 @@ from sqlalchemy.pool import AsyncAdaptedQueuePool
 
 from ai_news_digest.infrastructure.database.session import (
     SessionLocal,
+    connect_args,
     engine,
     get_db_session,
     get_pool_metrics,
@@ -86,3 +87,23 @@ def test_get_pool_metrics_returns_expected_keys() -> None:
     assert metrics["checkedin"] == 3
     assert metrics["checkedout"] == 2
     assert metrics["overflow"] == 0
+
+
+class TestEngineSslHandling:
+    """Tests that database URL SSL handling is wired correctly.
+
+    The heavy lifting is tested in ``test_url.py`` via
+    ``get_asyncpg_engine_kwargs``. Here we verify that the session module
+    exposes the expected ``connect_args`` structure for a real local
+    development URL (no sslmode → no forced SSL).
+    """
+
+    def test_session_connect_args_has_server_settings_for_asyncpg(self) -> None:
+        """connect_args contains server_settings when using asyncpg driver."""
+        assert "server_settings" in connect_args
+        assert "statement_timeout" in connect_args["server_settings"]
+
+    def test_session_connect_args_does_not_force_ssl_for_local_url(self) -> None:
+        """Local development URL without sslmode must not have ssl forced."""
+        assert "ssl" not in connect_args
+

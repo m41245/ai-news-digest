@@ -39,7 +39,9 @@ Configuration is loaded in the following order (highest precedence first):
 
 ### PostgreSQL Driver
 
-The application and Alembic migrations use `asyncpg` as the PostgreSQL driver. If `DATABASE_URL` is provided in the standard `postgresql://` format (e.g., from Neon or Render), it is automatically normalized to `postgresql+asyncpg://`. SSL parameters such as `sslmode=require` are preserved during normalization.
+The application and Alembic migrations use `asyncpg` as the PostgreSQL driver.
+
+If `DATABASE_URL` is provided in the standard `postgresql://` format (e.g., from Neon or Render), the application normalizes it to `postgresql+asyncpg://`. As part of this normalization, any `sslmode=require` (or other TLS-enforcing `sslmode`) query parameter is **consumed** — it is not passed to asyncpg as a connection keyword argument. Instead, the application enables TLS by passing `ssl=True` via asyncpg `connect_args`. All other query parameters (e.g., `application_name`, `options`) are preserved unchanged.
 
 Do not install or configure `psycopg2` — it is not a dependency and will conflict with the async architecture.
 

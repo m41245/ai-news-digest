@@ -151,9 +151,13 @@ def test_migrations_use_async_engine() -> None:
 
 
 def test_migrations_env_normalizes_database_url() -> None:
-    """migrations/env.py must normalize postgresql:// to postgresql+asyncpg://."""
+    """migrations/env.py must normalize postgresql:// to postgresql+asyncpg://.
+
+    The normalization is delegated to the shared
+    ``ai_news_digest.infrastructure.database.url.normalize_database_url``
+    helper so that the application and Alembic migrations behave identically.
+    """
     env_py = Path(__file__).resolve().parent.parent.parent / "migrations" / "env.py"
     content = env_py.read_text()
-    assert "postgresql+asyncpg://" in content
-    assert 'database_url.startswith("postgresql://")' in content
-    assert ".replace(" in content
+    assert "normalize_database_url" in content
+    assert "ai_news_digest.infrastructure.database.url" in content

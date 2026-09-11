@@ -10,19 +10,27 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from ai_news_digest.core.config import settings
+from ai_news_digest.infrastructure.database.url import (
+    get_asyncpg_engine_kwargs,
+)
 
 # ---------------------------------------------------------------------
 # SQLAlchemy Engine
 # ---------------------------------------------------------------------
 
-connect_args: dict[str, dict[str, str]] = {}
-if settings.database_url.startswith("postgresql+asyncpg"):
+_normalized_url, _base_connect_args = get_asyncpg_engine_kwargs(settings.database_url)
+
+connect_args: dict[str, dict[str, str] | bool] = {
+    **_base_connect_args,
+}
+if _normalized_url.startswith("postgresql+asyncpg"):
+    connect_args.setdefault("server_settings", {})
     connect_args["server_settings"] = {
         "statement_timeout": str(settings.database_statement_timeout)
     }
 
 engine: AsyncEngine = create_async_engine(
-    settings.database_url,
+    _normalized_url,
     echo=settings.debug,
     future=True,
     pool_pre_ping=True,

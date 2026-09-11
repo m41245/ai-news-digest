@@ -441,53 +441,81 @@ def test_cors_origins_explicit_value_overrides_default() -> None:
 
 
 class TestDatabaseUrlNormalization:
-    """Regression tests for PostgreSQL driver URL normalization."""
+    """Regression tests for PostgreSQL driver URL normalization.
+
+    The ``database_url`` field on the production ``Settings`` class has
+    ``validation_alias="DATABASE_URL"``.  In Pydantic v2 Settings that
+    means the value is always sourced from the ``DATABASE_URL`` environment
+    variable: the ``mode='before'`` field validator is invoked with the
+    raw env-var value before the model is constructed.
+
+    These tests therefore set ``DATABASE_URL`` in ``os.environ`` and
+    instantiate a ``Settings`` subclass that does **not** read a ``.env``
+    file.  The env var is removed in ``finally`` to avoid leaking into
+    subsequent tests.
+    """
+
+    class _NoEnvSettings(Settings):
+        model_config = SettingsConfigDict(
+            env_file=None,
+            env_file_encoding="utf-8",
+            case_sensitive=False,
+            extra="ignore",
+            frozen=True,
+        )
 
     def test_postgresql_url_normalized_to_asyncpg(self) -> None:
         """postgresql:// URLs are normalized to postgresql+asyncpg://."""
-        test_settings = Settings(
-            database_url="postgresql://user:pass@host:5432/dbname",
-            redis_url="redis://test",
-            celery_broker_url="redis://broker",
-            celery_result_backend="redis://backend",
-            jwt_secret_key="a" * 64,
-        )
+        import os
+
+        os.environ["DATABASE_URL"] = "postgresql://user:pass@host:5432/dbname"
+        try:
+            test_settings = self._NoEnvSettings()
+        finally:
+            del os.environ["DATABASE_URL"]
         assert test_settings.database_url == "postgresql+asyncpg://user:pass@host:5432/dbname"
 
     def test_postgresql_asyncpg_url_preserved(self) -> None:
         """postgresql+asyncpg:// URLs are preserved unchanged."""
-        test_settings = Settings(
-            database_url="postgresql+asyncpg://user:pass@host:5432/dbname",
-            redis_url="redis://test",
-            celery_broker_url="redis://broker",
-            celery_result_backend="redis://backend",
-            jwt_secret_key="a" * 64,
-        )
+        import os
+
+        os.environ["DATABASE_URL"] = "postgresql+asyncpg://user:pass@host:5432/dbname"
+        try:
+            test_settings = self._NoEnvSettings()
+        finally:
+            del os.environ["DATABASE_URL"]
         assert test_settings.database_url == "postgresql+asyncpg://user:pass@host:5432/dbname"
 
     def test_postgresql_url_with_ssl_params_normalized(self) -> None:
-        """postgresql:// URLs with sslmode=require are normalized correctly."""
-        test_settings = Settings(
-            database_url="postgresql://user:pass@host:5432/dbname?sslmode=require",
-            redis_url="redis://test",
-            celery_broker_url="redis://broker",
-            celery_result_backend="redis://backend",
-            jwt_secret_key="a" * 64,
+        """postgresql:// URLs with sslmode=require are normalized correctly.
+
+        sslmode=require is consumed by the asyncpg normalize helper and does
+        NOT leak through to asyncpg as an unknown keyword argument.
+        """
+        import os
+
+        os.environ["DATABASE_URL"] = (
+            "postgresql://user:pass@host:5432/dbname?sslmode=require"
         )
+        try:
+            test_settings = self._NoEnvSettings()
+        finally:
+            del os.environ["DATABASE_URL"]
         assert (
             test_settings.database_url
-            == "postgresql+asyncpg://user:pass@host:5432/dbname?sslmode=require"
+            == "postgresql+asyncpg://user:pass@host:5432/dbname"
         )
+        assert "sslmode" not in test_settings.database_url
 
     def test_non_postgresql_url_preserved(self) -> None:
         """Non-PostgreSQL URLs like SQLite are preserved unchanged."""
-        test_settings = Settings(
-            database_url="sqlite:///test.db",
-            redis_url="redis://test",
-            celery_broker_url="redis://broker",
-            celery_result_backend="redis://backend",
-            jwt_secret_key="a" * 64,
-        )
+        import os
+
+        os.environ["DATABASE_URL"] = "sqlite:///test.db"
+        try:
+            test_settings = self._NoEnvSettings()
+        finally:
+            del os.environ["DATABASE_URL"]
         assert test_settings.database_url == "sqlite:///test.db"
 
 
