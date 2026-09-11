@@ -71,6 +71,57 @@ rediss://default:password@upstash-host:6379/0
 - Do **not** downgrade to `redis://` for TLS-requiring providers. Plaintext connections will be rejected by the server with `Connection closed by server`.
 - Do **not** disable certificate verification in application code to make the connection work. If TLS handshake issues occur, verify that the URL hostname matches the server certificate and that outbound port 6379 (or the provider's TLS port) is reachable from Render.
 
+##### Startup Diagnostics
+
+When the application starts, it logs a safe, credential-free summary of the Redis configuration:
+
+```text
+Redis configuration: scheme=rediss host=upstash-host.example port=6379 db=0 tls=true credentials_present=true
+```
+
+This log line confirms:
+- The URL scheme (`rediss` vs `redis`)
+- The target hostname and port
+- The database index
+- Whether TLS is expected
+- Whether credentials are present
+
+If `scheme=redis` appears in production logs instead of `scheme=rediss`, the `REDIS_URL` environment variable is using plaintext and must be corrected.
+
+##### Troubleshooting "Connection closed by server"
+
+If `/health/ready` reports `"cache": "unavailable"` with `Connection closed by server`:
+
+1. **Check the startup log** for the `Redis configuration` line. Confirm `scheme=rediss` and `tls=true`.
+2. **Verify the Render environment variable** `REDIS_URL` starts with `rediss://`, not `redis://`.
+3. **Verify the Upstash hostname** in `REDIS_URL` matches the endpoint shown in the Upstash Console.
+4. **Verify the password/token** is correct. An incorrect password causes an authentication error, not `Connection closed by server`, but double-check if the token was regenerated.
+5. **Verify outbound connectivity** from Render to the Upstash hostname on port 6379. Render free-tier outbound networking should reach Upstash, but corporate firewalls or VPC configurations can interfere.
+6. **Verify Celery** is also using `rediss://` for `CELERY_BROKER_URL` and `CELERY_RESULT_BACKEND`. Kombu's Redis transport automatically enables SSL when the scheme is `rediss://`.
+
+If the diagnostics show the correct `rediss://` scheme and the error persists, the failure is most likely network/DNS connectivity (D) or an Upstash server-side restriction (F). Contact Upstash support with the exact timestamp and hostname to investigate server-side connection logs.
+
+##### redis-py version and TLS behavior
+
+The application uses `redis-py` 5.3.1. In this version:
+
+- `ConnectionPool.from_url('rediss://...')` automatically selects `SSLConnection`
+- `SSLConnection` creates an `ssl.SSLContext` with `ssl.create_default_context()`, which:
+  - Verifies the server certificate against system CA certificates (`cert_reqs=CERT_REQUIRED`)
+  - Does **not** verify the hostname by default (`check_hostname=False`)
+- No explicit `ssl=True` parameter is needed in application code when using `from_url()`
+- Query parameters in the URL (e.g. `?socket_timeout=10`) are parsed and passed to the connection
+
+##### Celery Redis Transport
+
+Celery uses Kombu's Redis transport. When the broker URL uses the `rediss://` scheme:
+
+- Kombu sets `ssl={'ssl_cert_reqs': ssl.CERT_NONE}` by default for backward compatibility
+- The connection class is set to `redis.SSLConnection`
+- **Certificate verification is disabled** (`CERT_NONE`) in the Kombu transport path
+
+This is a known limitation of Kombu's Redis transport. The application's direct Redis usage (via `redis-py`) maintains proper certificate verification. If certificate verification is required for Celery connections, set `ssl_cert_reqs=required` via Kombu transport options.
+
 ---
 
 ## Optional Variables

@@ -100,7 +100,7 @@ ignore = [
 known-first-party = ["ai_news_digest"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101"]
+"tests/**/*.py" = ["S101", "S104"]
 "migrations/versions/*.py" = ["E501", "W291"]
 "src/ai_news_digest/application/services/rss/exceptions.py" = ["N818"]
 "src/ai_news_digest/api/v1/routes/auth.py" = ["S105"]
@@ -219,11 +219,12 @@ module = [
     "tests.unit.application.services.notifications.test_delivery_service",
     "tests.unit.application.use_cases.story_cluster.test_story_intelligence",
     "tests.unit.application.use_cases.story_cluster.test_get_story_cluster",
+    "tests.unit.infrastructure.test_redis_regression",
     "tests.conftest",
     "tests.integration.conftest",
     "tests.integration.test_migrations",
 ]
-disable_error_code = ["import-untyped"]
+disable_error_code = ["import-untyped", "no-untyped-def"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

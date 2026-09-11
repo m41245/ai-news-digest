@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 import redis.asyncio as aioredis
 from redis.backoff import NoBackoff
@@ -17,6 +18,30 @@ from ai_news_digest.domain.ports.cache_store import CacheStore
 logger = logging.getLogger(__name__)
 
 
+def _safe_redis_url_diagnostics(redis_url: str) -> dict[str, object]:
+    """Return a safe representation of a Redis URL for diagnostics.
+
+    Never exposes the password or the full connection string.
+    """
+    parsed = urlparse(redis_url)
+    path = parsed.path or ""
+    database = 0
+    if path and path != "/":
+        try:
+            database = int(path.lstrip("/"))
+        except ValueError:
+            database = 0
+    return {
+        "scheme": parsed.scheme,
+        "hostname": parsed.hostname,
+        "port": parsed.port,
+        "database": database,
+        "username_present": bool(parsed.username),
+        "password_present": bool(parsed.password),
+        "query_keys": sorted(parse_qs(parsed.query).keys()),
+    }
+
+
 class RedisStore(CacheStore):
     """
     Redis implementation of the Cache port.
@@ -27,10 +52,28 @@ class RedisStore(CacheStore):
     and other cache-dependent features.
     """
 
+    _diagnostics_logged: bool = False
+
     def __init__(self, redis_url: str | None = None) -> None:
         self._redis_url = redis_url or settings.redis_url
         self._client: aioredis.Redis | None = None
         self._pool: aioredis.ConnectionPool | None = None
+
+        if not RedisStore._diagnostics_logged:
+            RedisStore._diagnostics_logged = True
+            diagnostics = _safe_redis_url_diagnostics(self._redis_url)
+            logger.info(
+                "Redis configuration: scheme=%(scheme)s host=%(hostname)s "
+                "port=%(port)s db=%(database)s tls=%(tls)s credentials_present=%(creds)s",
+                {
+                    "scheme": diagnostics["scheme"],
+                    "hostname": diagnostics["hostname"],
+                    "port": diagnostics["port"],
+                    "database": diagnostics["database"],
+                    "tls": diagnostics["scheme"] == "rediss",
+                    "creds": diagnostics["password_present"],
+                },
+            )
 
     def _build_client(self) -> aioredis.Redis:
         """Build a Redis client with connection pooling and retry configuration."""
@@ -54,6 +97,11 @@ class RedisStore(CacheStore):
             decode_responses=True,
         )
         self._pool = pool
+        logger.debug(
+            "Redis connection pool created: connection_class=%s max_connections=%s",
+            pool.connection_class.__name__,
+            pool.max_connections,
+        )
         return aioredis.Redis(connection_pool=pool)
 
     async def _ensure_connected(self) -> aioredis.Redis:

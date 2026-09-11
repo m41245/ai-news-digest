@@ -62,6 +62,7 @@ def test_redis_store_uses_connection_pool_from_url(mock_settings: Settings) -> N
         assert store._client is None
 
         mock_pool = MagicMock()
+        mock_pool.connection_class = aioredis.Connection
         mock_from_url.return_value = mock_pool
         mock_client = MagicMock()
         mock_redis_cls.return_value = mock_client
@@ -98,6 +99,7 @@ def test_redis_store_retry_configuration(mock_settings: Settings) -> None:
     ):
         store = RedisStore()
         mock_pool = MagicMock()
+        mock_pool.connection_class = aioredis.Connection
         mock_from_url.return_value = mock_pool
         mock_redis_cls.return_value = MagicMock()
 
