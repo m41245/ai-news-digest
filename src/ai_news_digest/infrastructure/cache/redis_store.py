@@ -77,6 +77,13 @@ class RedisStore(CacheStore):
 
     def _build_client(self) -> aioredis.Redis:
         """Build a Redis client with connection pooling and retry configuration."""
+        parsed = urlparse(self._redis_url)
+        if parsed.scheme == "redis" and settings.environment == "production":
+            raise ValueError(
+                "REDIS_URL uses plaintext scheme 'redis://' in production. "
+                "Upstash requires TLS. Use 'rediss://default:<token>@<host>:6379/0'."
+            )
+
         supported_errors: list[type[Exception]] = []
         if settings.redis_retry_on_connection_error:
             supported_errors.append(RedisConnectionError)

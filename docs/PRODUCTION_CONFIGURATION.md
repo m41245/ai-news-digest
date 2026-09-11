@@ -99,6 +99,8 @@ If `/health/ready` reports `"cache": "unavailable"` with `Connection closed by s
 5. **Verify outbound connectivity** from Render to the Upstash hostname on port 6379. Render free-tier outbound networking should reach Upstash, but corporate firewalls or VPC configurations can interfere.
 6. **Verify Celery** is also using `rediss://` for `CELERY_BROKER_URL` and `CELERY_RESULT_BACKEND`. Kombu's Redis transport automatically enables SSL when the scheme is `rediss://`.
 
+If the diagnostics show `scheme=redis` in production logs, the application now raises a clear `ValueError` at connection build time explaining that `rediss://` is required for TLS providers. Correct the `REDIS_URL` environment variable in Render to use the `rediss://` scheme.
+
 If the diagnostics show the correct `rediss://` scheme and the error persists, the failure is most likely network/DNS connectivity (D) or an Upstash server-side restriction (F). Contact Upstash support with the exact timestamp and hostname to investigate server-side connection logs.
 
 ##### redis-py version and TLS behavior

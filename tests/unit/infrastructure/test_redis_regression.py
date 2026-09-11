@@ -301,7 +301,87 @@ class TestRedisStoreOperations:
 
 
 # ======================================================================
-# 8. Celery rediss:// configuration
+# 9. Production URL scheme validation
+# ======================================================================
+
+class TestProductionURLSchemeValidation:
+    """Verify RedisStore rejects plaintext redis:// in production."""
+
+    def test_redis_scheme_raises_in_production(self):
+        mock_settings = MagicMock(spec=Settings)
+        mock_settings.redis_url = "redis://default:token@upstash-host:6379/0"
+        mock_settings.environment = "production"
+        mock_settings.redis_max_connections = 50
+        mock_settings.redis_retry_on_timeout = False
+        mock_settings.redis_retry_on_connection_error = False
+        mock_settings.redis_socket_connect_timeout = 5
+        mock_settings.redis_socket_timeout = 5
+
+        with patch(
+            "ai_news_digest.infrastructure.cache.redis_store.settings",
+            mock_settings,
+        ):
+            store = RedisStore()
+            with pytest.raises(ValueError, match="rediss://"):
+                store._build_client()
+
+    def test_rediss_scheme_accepted_in_production(self):
+        mock_settings = MagicMock(spec=Settings)
+        mock_settings.redis_url = "rediss://default:token@upstash-host:6379/0"
+        mock_settings.environment = "production"
+        mock_settings.redis_max_connections = 50
+        mock_settings.redis_retry_on_timeout = False
+        mock_settings.redis_retry_on_connection_error = False
+        mock_settings.redis_socket_connect_timeout = 5
+        mock_settings.redis_socket_timeout = 5
+
+        with (
+            patch(
+                "ai_news_digest.infrastructure.cache.redis_store.settings",
+                mock_settings,
+            ),
+            patch.object(aioredis.ConnectionPool, "from_url") as mock_from_url,
+        ):
+            mock_pool = MagicMock()
+            mock_pool.connection_class = aioredis.SSLConnection
+            mock_from_url.return_value = mock_pool
+
+            store = RedisStore()
+            store._build_client()
+
+            mock_from_url.assert_called_once()
+            assert mock_from_url.call_args[1].get("max_connections") == 50
+
+    def test_redis_scheme_allowed_in_development(self):
+        mock_settings = MagicMock(spec=Settings)
+        mock_settings.redis_url = "redis://localhost:6379/0"
+        mock_settings.environment = "development"
+        mock_settings.redis_max_connections = 50
+        mock_settings.redis_retry_on_timeout = False
+        mock_settings.redis_retry_on_connection_error = False
+        mock_settings.redis_socket_connect_timeout = 5
+        mock_settings.redis_socket_timeout = 5
+
+        with (
+            patch(
+                "ai_news_digest.infrastructure.cache.redis_store.settings",
+                mock_settings,
+            ),
+            patch.object(aioredis.ConnectionPool, "from_url") as mock_from_url,
+        ):
+            mock_pool = MagicMock()
+            mock_pool.connection_class = aioredis.Connection
+            mock_from_url.return_value = mock_pool
+
+            store = RedisStore()
+            store._build_client()
+
+            mock_from_url.assert_called_once()
+            assert mock_from_url.call_args[0][0] == "redis://localhost:6379/0"
+
+
+# ======================================================================
+# 10. Celery rediss:// configuration
 # ======================================================================
 
 class TestCeleryRedisConfiguration:

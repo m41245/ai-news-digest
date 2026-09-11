@@ -25,6 +25,7 @@ def mock_settings() -> Settings:
     settings.redis_max_connections = 50
     settings.redis_retry_on_timeout = True
     settings.redis_retry_on_connection_error = True
+    settings.environment = "development"
     return settings
 
 
@@ -38,6 +39,7 @@ def mock_settings_rediss() -> Settings:
     settings.redis_max_connections = 50
     settings.redis_retry_on_timeout = True
     settings.redis_retry_on_connection_error = True
+    settings.environment = "development"
     return settings
 
 
