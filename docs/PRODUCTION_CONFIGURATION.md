@@ -55,6 +55,22 @@ Do not install or configure `psycopg2` — it is not a dependency and will confl
 
 Authentication is embedded in the Redis URL (username:password@host). No separate `REDIS_PASSWORD` variable is required.
 
+#### Redis TLS and URL Format
+
+For Upstash and other TLS-requiring Redis providers, use the `rediss://` scheme:
+
+```text
+rediss://default:password@upstash-host:6379/0
+```
+
+**Important distinctions:**
+
+- `REDIS_URL` must be a **Redis connection URL** (e.g. `rediss://default:password@host:6379/0`), not a shell command.
+- A `redis-cli --tls -u rediss://...` string is a CLI invocation and is **not** a valid Redis URL. Passing such a string as `REDIS_URL` causes URL parsing to fail.
+- The application uses `redis-py` (`redis.asyncio.ConnectionPool.from_url`) to create the connection pool. When the URL scheme is `rediss://`, the library automatically configures an SSL/TLS-wrapped connection (`SSLConnection`). No manual `ssl=True` flag is needed in application code.
+- Do **not** downgrade to `redis://` for TLS-requiring providers. Plaintext connections will be rejected by the server with `Connection closed by server`.
+- Do **not** disable certificate verification in application code to make the connection work. If TLS handshake issues occur, verify that the URL hostname matches the server certificate and that outbound port 6379 (or the provider's TLS port) is reachable from Render.
+
 ---
 
 ## Optional Variables

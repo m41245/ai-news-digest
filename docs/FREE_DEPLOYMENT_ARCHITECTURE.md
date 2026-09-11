@@ -95,6 +95,8 @@ VITE_API_BASE_URL=https://your-backend.onrender.com
 3. Copy the connection string
 4. Add `/1` for broker and `/2` for result backend
 
+**Important:** The connection string from Upstash is a Redis URL (e.g. `rediss://default:password@upstash-host:6379`). Paste it directly into the Render environment variable `REDIS_URL`. Do **not** prefix it with `redis-cli --tls -u` or any other shell command — Render expects a URL, not a CLI invocation. The application code handles TLS automatically when the URL scheme is `rediss://`.
+
 ### 3. Backend Deployment (Render)
 1. Push code to GitHub
 2. Sign up at https://render.com (no credit card)

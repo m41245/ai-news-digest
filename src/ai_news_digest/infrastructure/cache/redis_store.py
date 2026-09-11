@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 from typing import Any
-from urllib.parse import urlparse
 
 import redis.asyncio as aioredis
 from redis.backoff import NoBackoff
@@ -46,13 +45,8 @@ class RedisStore(CacheStore):
             retries=3 if supported_errors else 0,
             supported_errors=tuple(supported_errors) if supported_errors else (),
         )
-        parsed = urlparse(self._redis_url)
-        pool = aioredis.ConnectionPool(
-            host=parsed.hostname or "localhost",
-            port=parsed.port or 6379,
-            db=int(parsed.path.lstrip("/") or 0),
-            username=parsed.username or None,
-            password=parsed.password or None,
+        pool = aioredis.ConnectionPool.from_url(
+            self._redis_url,
             max_connections=settings.redis_max_connections,
             retry=retry,
             socket_connect_timeout=settings.redis_socket_connect_timeout,
