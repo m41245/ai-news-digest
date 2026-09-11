@@ -440,14 +440,14 @@ def test_cors_origins_explicit_value_overrides_default() -> None:
     assert test_settings.cors_origins == ["https://example.com"]
 
 
-class TestDatabaseUrlNormalization:
-    """Regression tests for PostgreSQL driver URL normalization.
+class TestDatabaseUrlConfiguration:
+    """Regression tests for preserving raw URLs until connection setup.
 
     The ``database_url`` field on the production ``Settings`` class has
     ``validation_alias="DATABASE_URL"``.  In Pydantic v2 Settings that
     means the value is always sourced from the ``DATABASE_URL`` environment
-    variable: the ``mode='before'`` field validator is invoked with the
-    raw env-var value before the model is constructed.
+    variable. URL translation happens later in the shared SQLAlchemy/Alembic
+    connection helper so security parameters remain available for translation.
 
     These tests therefore set ``DATABASE_URL`` in ``os.environ`` and
     instantiate a ``Settings`` subclass that does **not** read a ``.env``
@@ -464,8 +464,8 @@ class TestDatabaseUrlNormalization:
             frozen=True,
         )
 
-    def test_postgresql_url_normalized_to_asyncpg(self) -> None:
-        """postgresql:// URLs are normalized to postgresql+asyncpg://."""
+    def test_postgresql_url_is_preserved_until_connection_boundary(self) -> None:
+        """The raw URL is retained until the shared engine boundary."""
         import os
 
         os.environ["DATABASE_URL"] = "postgresql://user:pass@host:5432/dbname"
@@ -473,7 +473,7 @@ class TestDatabaseUrlNormalization:
             test_settings = self._NoEnvSettings()
         finally:
             del os.environ["DATABASE_URL"]
-        assert test_settings.database_url == "postgresql+asyncpg://user:pass@host:5432/dbname"
+        assert test_settings.database_url == "postgresql://user:pass@host:5432/dbname"
 
     def test_postgresql_asyncpg_url_preserved(self) -> None:
         """postgresql+asyncpg:// URLs are preserved unchanged."""
@@ -486,26 +486,18 @@ class TestDatabaseUrlNormalization:
             del os.environ["DATABASE_URL"]
         assert test_settings.database_url == "postgresql+asyncpg://user:pass@host:5432/dbname"
 
-    def test_postgresql_url_with_ssl_params_normalized(self) -> None:
-        """postgresql:// URLs with sslmode=require are normalized correctly.
-
-        sslmode=require is consumed by the asyncpg normalize helper and does
-        NOT leak through to asyncpg as an unknown keyword argument.
-        """
+    def test_postgresql_url_with_ssl_params_is_preserved_for_translation(self) -> None:
+        """The connection boundary must see sslmode before translating it."""
         import os
 
-        os.environ["DATABASE_URL"] = (
-            "postgresql://user:pass@host:5432/dbname?sslmode=require"
-        )
+        os.environ["DATABASE_URL"] = "postgresql://user:pass@host:5432/dbname?sslmode=require"
         try:
             test_settings = self._NoEnvSettings()
         finally:
             del os.environ["DATABASE_URL"]
-        assert (
-            test_settings.database_url
-            == "postgresql+asyncpg://user:pass@host:5432/dbname"
+        assert test_settings.database_url == (
+            "postgresql://user:pass@host:5432/dbname?sslmode=require"
         )
-        assert "sslmode" not in test_settings.database_url
 
     def test_non_postgresql_url_preserved(self) -> None:
         """Non-PostgreSQL URLs like SQLite are preserved unchanged."""

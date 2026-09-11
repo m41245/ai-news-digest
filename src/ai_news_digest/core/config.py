@@ -71,19 +71,13 @@ class Settings(BaseSettings):
     # Database
     # ======================================================================
 
-    @field_validator("database_url", mode="before")
-    @classmethod
-    def normalize_database_url(cls, value: str | None) -> str | None:
-        from ai_news_digest.infrastructure.database.url import normalize_database_url
-
-        if isinstance(value, str):
-            return normalize_database_url(value)
-        return value
-
     database_url: str = Field(
         default="postgresql+asyncpg://postgres:postgres@localhost:5432/ai_news_digest",
         validation_alias="DATABASE_URL",
-        description="PostgreSQL connection URL.",
+        description=(
+            "PostgreSQL connection URL. It is translated at the SQLAlchemy/Alembic "
+            "connection boundary for asyncpg compatibility."
+        ),
     )
 
     database_pool_size: int = Field(

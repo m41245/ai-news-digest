@@ -165,7 +165,7 @@ In the Render dashboard, set these environment variables for both the web and wo
 
 | Variable | Value | Notes |
 |----------|-------|-------|
-| `DATABASE_URL` | Neon PostgreSQL connection string. Use the standard `postgresql://` format from Neon; `sslmode=require` is automatically translated into asyncpg-native TLS settings. | `postgresql://user:pass@host/ai_news_digest` (with `sslmode=require` from Neon) |
+| `DATABASE_URL` | Neon PostgreSQL connection string. Use the standard `postgresql://` format from Neon. The shared connection helper translates libpq options for asyncpg. | `postgresql://user:pass@host/ai_news_digest?sslmode=require&channel_binding=require` |
 | `REDIS_URL` | Upstash Redis URL (rediss://) | Database 0 |
 | `CELERY_BROKER_URL` | Upstash Redis URL (rediss://) | Database 1 |
 | `CELERY_RESULT_BACKEND` | Upstash Redis URL (rediss://) | Database 2 |
@@ -196,7 +196,7 @@ Render uses `/health/live` for health checks. This endpoint:
 
 ### Migrations
 
-Database migrations run automatically during Docker image startup via the entrypoint script. Migrations use the same `asyncpg` driver as the application. The `DATABASE_URL` is automatically normalized from `postgresql://` to `postgresql+asyncpg://` if needed (e.g., when provided by Neon or Render). Any `sslmode=require` parameter in the Neon connection string is consumed and translated into asyncpg-native TLS settings; it is not passed as a query parameter to asyncpg.
+Database migrations run automatically during Docker image startup via the entrypoint script. Migrations use the same shared URL helper and `asyncpg` driver as the application. A standard `postgresql://` URL is normalized to `postgresql+asyncpg://` at the connection boundary. `sslmode=require`, `verify-ca`, and `verify-full` are consumed and translated to asyncpg's secure `ssl=True` setting; `sslmode=disable` is translated to explicit `ssl=False`, and `allow`/`prefer` are passed through asyncpg's native `ssl` negotiation. Neon URLs commonly also contain `channel_binding=require`; asyncpg 0.31 has no channel-binding keyword, so this libpq-only option is consumed and TLS is forced, but asyncpg cannot enforce the additional SCRAM channel-binding requirement. Supported asyncpg and SQLAlchemy dialect query parameters remain intact, while `application_name` becomes an asyncpg `server_settings` entry. Unsupported TLS certificate-file parameters fail closed rather than silently weakening verification. No `psycopg2` driver is used.
 
 For manual migrations:
 

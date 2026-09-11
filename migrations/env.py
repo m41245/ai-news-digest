@@ -10,11 +10,11 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 import ai_news_digest.infrastructure.database.models  # noqa: F401
 from ai_news_digest.core.config import settings
 from ai_news_digest.infrastructure.database.base import Base
-from ai_news_digest.infrastructure.database.url import normalize_database_url
+from ai_news_digest.infrastructure.database.url import get_asyncpg_engine_kwargs
 
 config = context.config
 
-database_url = normalize_database_url(settings.database_url)
+database_url, connect_args = get_asyncpg_engine_kwargs(settings.database_url)
 
 config.set_main_option(
     "sqlalchemy.url",
@@ -55,6 +55,7 @@ async def run_migrations_online() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=connect_args,
     )
 
     async with connectable.connect() as connection:

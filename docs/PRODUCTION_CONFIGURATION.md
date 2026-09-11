@@ -35,13 +35,13 @@ Configuration is loaded in the following order (highest precedence first):
 | `POSTGRES_DB` | Database name | `ai_news_digest` |
 | `POSTGRES_USER` | Database user | `postgres` |
 | `POSTGRES_PASSWORD` | Database password | `<secure-password>` |
-| `DATABASE_URL` | Async PostgreSQL URL. Use `postgresql+asyncpg://` or `postgresql://` — the application automatically normalizes to asyncpg. | `postgresql+asyncpg://postgres:postgres@postgres:5432/ai_news_digest` |
+| `DATABASE_URL` | Async PostgreSQL URL. Use `postgresql+asyncpg://` or the standard `postgresql://` format from Neon/Render; the shared application/Alembic helper translates it at connection time. | `postgresql+asyncpg://postgres:postgres@postgres:5432/ai_news_digest` |
 
 ### PostgreSQL Driver
 
 The application and Alembic migrations use `asyncpg` as the PostgreSQL driver.
 
-If `DATABASE_URL` is provided in the standard `postgresql://` format (e.g., from Neon or Render), the application normalizes it to `postgresql+asyncpg://`. As part of this normalization, any `sslmode=require` (or other TLS-enforcing `sslmode`) query parameter is **consumed** — it is not passed to asyncpg as a connection keyword argument. Instead, the application enables TLS by passing `ssl=True` via asyncpg `connect_args`. All other query parameters (e.g., `application_name`, `options`) are preserved unchanged.
+If `DATABASE_URL` is provided in the standard `postgresql://` format (e.g., from Neon or Render), the application and Alembic migrations normalize it to `postgresql+asyncpg://` through the same shared helper. `sslmode=require`, `verify-ca`, and `verify-full` are consumed and translated to asyncpg's secure `ssl=True` connect argument; `sslmode=disable` becomes `ssl=False`, while `allow` and `prefer` use asyncpg's native SSL negotiation. Neon URLs may also include `channel_binding=require`. asyncpg 0.31 does not expose that libpq option, so it is consumed and TLS is forced, but the driver cannot enforce the additional SCRAM channel-binding requirement. `application_name` is translated to asyncpg `server_settings`; query parameters accepted by asyncpg or SQLAlchemy's asyncpg dialect are preserved. Unsupported TLS certificate-file parameters fail closed so certificate verification is not silently weakened. The URL and matching `connect_args` are applied consistently to both the application engine and migrations.
 
 Do not install or configure `psycopg2` — it is not a dependency and will conflict with the async architecture.
 

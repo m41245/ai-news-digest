@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from ai_news_digest.bootstrap.container import Container
 from ai_news_digest.core.config import settings
+from ai_news_digest.infrastructure.database.url import get_asyncpg_engine_kwargs
 
 
 async def get_container() -> AsyncGenerator[Container, None]:
@@ -17,14 +18,14 @@ async def get_container() -> AsyncGenerator[Container, None]:
     "Future attached to a different loop" failure when the global
     ``SessionLocal`` was imported in a different loop context.
     """
-    connect_args: dict[str, dict[str, str]] = {}
-    if settings.database_url.startswith("postgresql+asyncpg"):
-        connect_args["server_settings"] = {
-            "statement_timeout": str(settings.database_statement_timeout)
-        }
+    normalized_url, connect_args = get_asyncpg_engine_kwargs(settings.database_url)
+    if normalized_url.startswith("postgresql+asyncpg"):
+        server_settings = connect_args.setdefault("server_settings", {})
+        if isinstance(server_settings, dict):
+            server_settings["statement_timeout"] = str(settings.database_statement_timeout)
 
     engine = create_async_engine(
-        settings.database_url,
+        normalized_url,
         echo=settings.debug,
         future=True,
         pool_pre_ping=True,

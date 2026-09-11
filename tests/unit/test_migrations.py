@@ -150,14 +150,14 @@ def test_migrations_use_async_engine() -> None:
     assert "create_engine" not in content
 
 
-def test_migrations_env_normalizes_database_url() -> None:
-    """migrations/env.py must normalize postgresql:// to postgresql+asyncpg://.
+def test_migrations_env_uses_shared_database_connection_helper() -> None:
+    """Alembic must use the same URL and connect-args helper as the app.
 
-    The normalization is delegated to the shared
-    ``ai_news_digest.infrastructure.database.url.normalize_database_url``
-    helper so that the application and Alembic migrations behave identically.
+    This prevents libpq-only parameters such as ``channel_binding`` from
+    leaking into asyncpg during the Docker startup migration.
     """
     env_py = Path(__file__).resolve().parent.parent.parent / "migrations" / "env.py"
     content = env_py.read_text()
-    assert "normalize_database_url" in content
+    assert "get_asyncpg_engine_kwargs" in content
+    assert "connect_args=connect_args" in content
     assert "ai_news_digest.infrastructure.database.url" in content
