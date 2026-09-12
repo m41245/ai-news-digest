@@ -18,3 +18,4 @@ class UpdateSourceRequest:
     website_url: str | None = None
     description: str | None = None
     is_active: bool | None = None
+    status: str | None = None

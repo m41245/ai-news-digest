@@ -17,3 +17,4 @@ class SourceResponse:
     website_url: str | None
     description: str | None
     is_active: bool
+    status: str

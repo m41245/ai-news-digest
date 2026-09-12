@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from urllib.parse import urlparse
 from uuid import UUID, uuid4
 
+from ai_news_digest.domain.enums.source_status import SourceStatus
 from ai_news_digest.domain.enums.source_type import SourceType
 
 
@@ -25,6 +26,7 @@ class Source:
     description: str | None
     is_active: bool
     source_type: SourceType
+    status: SourceStatus
     created_at: datetime
 
     @classmethod
@@ -37,6 +39,7 @@ class Source:
         description: str | None = None,
         is_active: bool = True,
         source_type: SourceType = SourceType.OTHER,
+        status: SourceStatus = SourceStatus.PENDING_REVIEW,
     ) -> Source:
         """
         Factory method for creating a new news source.
@@ -51,6 +54,7 @@ class Source:
             description=description,
             is_active=is_active,
             source_type=source_type,
+            status=status,
             created_at=datetime.now(UTC),
         )
 
@@ -63,6 +67,7 @@ class Source:
         description: str | None = None,
         is_active: bool | None = None,
         source_type: SourceType | None = None,
+        status: SourceStatus | None = None,
     ) -> None:
         """
         Update the source using partial values.
@@ -89,6 +94,9 @@ class Source:
 
         if source_type is not None:
             self.source_type = source_type
+
+        if status is not None:
+            self.status = status
 
     def activate(self) -> None:
         """

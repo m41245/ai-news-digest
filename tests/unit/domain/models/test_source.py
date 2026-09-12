@@ -9,6 +9,7 @@ from uuid import uuid4
 
 import pytest
 
+from ai_news_digest.domain.enums.source_status import SourceStatus
 from ai_news_digest.domain.enums.source_type import SourceType
 from ai_news_digest.domain.models.source import Source
 
@@ -23,6 +24,7 @@ def _make_source(feed_url: str) -> Source:
         description=None,
         is_active=True,
         source_type=SourceType.OTHER,
+        status=SourceStatus.PENDING_REVIEW,
         created_at=datetime.now(UTC),
     )
 

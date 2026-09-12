@@ -9,8 +9,8 @@ M57 additions:
 - Authoritative quality gate verified: 1,452 backend unit tests passing, 25 frontend tests passing, ruff clean, mypy clean, pip-audit clean, Docker builds passing
 - Migration head: 017 (linear chain 001→017, single head)
 - Comprehensive free-tier research completed for all components (PostgreSQL, Redis, backend hosting, frontend hosting, workers, email, AI, monitoring)
-- Best $0 architecture selected: Render (backend) + Neon PostgreSQL + Upstash Redis + Cloudflare Pages (frontend) + GitHub Actions (scheduled tasks)
-- Repository updated with free deployment support: `render.yaml`, `.github/workflows/scheduled-tasks.yml`, `scripts/scheduled/run_task.py`
+- Best $0 architecture selected: Render (backend) + Neon PostgreSQL + Upstash Redis + Cloudflare Pages (frontend) + Celery Beat (automated scheduled tasks on Render) + GitHub Actions (manual/on-demand task runner)
+- Repository updated with free deployment support: `render.yaml`, `.github/workflows/scheduled-tasks.yml` (manual/on-demand only), `scripts/scheduled/run_task.py`
 - Documentation created: `docs/FREE_DEPLOYMENT_ARCHITECTURE.md`, `docs/MILESTONE_57_ZERO_BUDGET_DEPLOYMENT_REPORT.md`
 - First unavoidable paid blocker identified: AI API costs (OpenAI/Anthropic require payment)
 - All infrastructure can run for $0; AI features require paid API credits

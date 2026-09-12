@@ -49,11 +49,12 @@ GitHub Actions Scheduled Workflows (Replaces Celery Beat)
 - Redis-compatible API
 - TLS supported
 
-### Scheduler: GitHub Actions
-- 2,000 minutes/month free for public repos
-- Replaces Celery Beat entirely
-- Cron triggers at any frequency
-- No additional infrastructure
+### Scheduler: Celery Beat (Render Worker)
+- Celery Beat is the sole automated scheduler
+- It runs inside the `ai-news-digest-beat` Render worker service
+- It dispatches all 13 periodic tasks to the Celery worker via the message broker
+- Schedule is defined in `src/ai_news_digest/workers/celery_app.py`
+- No additional infrastructure cost (uses existing Render free worker)
 
 ## Environment Variables
 
@@ -111,7 +112,7 @@ VITE_API_BASE_URL=https://your-backend.onrender.com
 6. Set health check path to `/health/live`
 7. Deploy
 
-### 3a. Celery Worker Deployment (Render)
+### 3a. Celery Worker & Beat Deployment (Render)
 1. In Render, create a new Worker service from the same GitHub repo
 2. Select Docker environment
 3. Use the same environment variables as the web service
@@ -120,6 +121,18 @@ VITE_API_BASE_URL=https://your-backend.onrender.com
    celery -A ai_news_digest.workers.celery_app worker --loglevel=info --pool=solo
    ```
 5. Deploy
+
+### 3b. Celery Beat Deployment (Render)
+1. In Render, create a second Worker service from the same GitHub repo
+2. Select Docker environment
+3. Use the same environment variables as the web service
+4. Set the start command to:
+   ```
+   celery -A ai_news_digest.workers.celery_app beat --loglevel=info --schedule /tmp/celerybeat-schedule
+   ```
+5. Deploy
+
+The Beat service manages the scheduled task pipeline (ingestion, summarization, categorization, digest generation, delivery) using the schedule defined in `celery_app.py`.
 
 ### 4. Frontend Deployment (Cloudflare Pages)
 1. Sign up at https://pages.cloudflare.com (no credit card)
@@ -137,10 +150,12 @@ Setting the root directory to `frontend` ensures Cloudflare installs
 `package.json` dependencies, which do not include `typescript` or `vite`,
 causing `tsc: not found` during the build.
 
-### 5. Scheduled Tasks (GitHub Actions)
+### 5. Manual / On-Demand Task Execution (GitHub Actions)
 1. Go to repo Settings → Secrets and variables → Actions
 2. Add all required secrets (same as backend)
-3. The workflow in `.github/workflows/scheduled-tasks.yml` will run automatically
+3. The workflow in `.github/workflows/scheduled-tasks.yml` can be triggered manually via the GitHub Actions UI for ad-hoc task execution (e.g., re-running ingestion outside the normal Celery Beat schedule).
+
+**Automated scheduling is handled entirely by Celery Beat on Render.**
 
 ## Render Configuration
 
@@ -157,7 +172,13 @@ The repository includes `render.yaml` which defines:
    - Plan: Free
    - Start command: `celery -A ai_news_digest.workers.celery_app worker --loglevel=info --pool=solo`
 
-3. **External Services** (not managed by Render)
+3. **Beat Service** (`ai-news-digest-beat`)
+   - Runtime: Docker
+   - Plan: Free
+   - Start command: `celery -A ai_news_digest.workers.celery_app beat --loglevel=info --schedule /tmp/celerybeat-schedule`
+   - **This is the scheduler of record.** It manages all automated periodic task execution.
+
+4. **External Services** (not managed by Render)
    - Database: Neon PostgreSQL (set `DATABASE_URL`)
    - Redis: Upstash Redis (set `REDIS_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`)
 
@@ -260,7 +281,7 @@ When traffic grows:
 1. Upgrade Neon to paid tier (~$19/month for 4 GB)
 2. Upgrade Upstash to fixed plan (~$10/month for 250 MB)
 3. Upgrade Render to Starter web service (~$7/month)
-4. Move scheduled tasks back to Celery Beat on Render worker (~$7/month)
+4. Celery Beat is already deployed as a separate Render worker service on the free tier
 
 ## First Paid Blocker
 

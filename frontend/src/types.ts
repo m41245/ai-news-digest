@@ -22,6 +22,7 @@ export interface Source {
   website_url?: string | null;
   description?: string | null;
   is_active: boolean;
+  status: string;
 }
 
 export interface Article {
@@ -113,6 +114,7 @@ export interface SourceUpdateRequest {
   website_url?: string | null;
   description?: string | null;
   is_active?: boolean;
+  status?: string | null;
 }
 
 export interface DigestCreateRequest {

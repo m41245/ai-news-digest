@@ -11,6 +11,41 @@ This runbook provides step-by-step procedures for common operational tasks and i
 
 ---
 
+## 0. First-Time Admin Bootstrap
+
+Use this procedure when the production database is fresh and no admin user exists yet.
+
+**Prerequisites:**
+- Production `DATABASE_URL` is configured and reachable
+- The application container is running (or can be started)
+
+**Procedure:**
+
+1. Run the bootstrap script:
+   ```bash
+   poetry run python scripts/ops/bootstrap_admin.py
+   ```
+
+2. The script is idempotent:
+   - If no user exists, it creates an admin user with a known secure password.
+   - If a user already exists, it promotes the first user to admin.
+
+3. Verify admin access:
+   ```bash
+   curl -X POST http://localhost:8000/api/v1/auth/login \
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     -d "username=admin@example.com&password=<bootstrap_password>"
+   ```
+
+4. Immediately change the admin password through the API or admin UI.
+
+**Notes:**
+- The bootstrap script reads the database connection from the standard `DATABASE_URL` environment variable.
+- Do not run this script in an environment where real user data already exists unless you intend to promote the first user to admin.
+- The script output includes the generated admin credentials; store them securely.
+
+---
+
 ## 1. Deployment
 
 ### Standard Deployment

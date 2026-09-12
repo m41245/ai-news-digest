@@ -126,12 +126,16 @@ export function AdminSourcesPage() {
                       <td className="px-4 py-3">
                         <span
                           className={
-                            s.is_active
+                            s.status === "verified"
                               ? "rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700"
-                              : "rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"
+                              : s.status === "pending_review"
+                                ? "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700"
+                                : s.status === "rejected"
+                                  ? "rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
+                                  : "rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"
                           }
                         >
-                          {s.is_active ? "Active" : "Inactive"}
+                          {s.status}
                         </span>
                       </td>
                       <td className="px-4 py-3">

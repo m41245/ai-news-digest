@@ -9,6 +9,7 @@ from dataclasses import FrozenInstanceError
 import pytest
 
 from ai_news_digest.application.dto.source.response import SourceResponse
+from ai_news_digest.domain.enums.source_status import SourceStatus
 
 
 def test_source_response_with_all_fields() -> None:
@@ -20,6 +21,7 @@ def test_source_response_with_all_fields() -> None:
         website_url="https://example.com",
         description="Test description",
         is_active=True,
+        status=SourceStatus.VERIFIED.value,
     )
 
     assert response.id == "source-123"
@@ -28,6 +30,7 @@ def test_source_response_with_all_fields() -> None:
     assert response.website_url == "https://example.com"
     assert response.description == "Test description"
     assert response.is_active is True
+    assert response.status == SourceStatus.VERIFIED.value
 
 
 def test_source_response_without_website_url() -> None:
@@ -39,6 +42,7 @@ def test_source_response_without_website_url() -> None:
         website_url=None,
         description="Test description",
         is_active=True,
+        status=SourceStatus.VERIFIED.value,
     )
 
     assert response.website_url is None
@@ -53,6 +57,7 @@ def test_source_response_without_description() -> None:
         website_url="https://example.com",
         description=None,
         is_active=True,
+        status=SourceStatus.VERIFIED.value,
     )
 
     assert response.description is None
@@ -67,6 +72,7 @@ def test_source_response_inactive() -> None:
         website_url=None,
         description=None,
         is_active=False,
+        status=SourceStatus.VERIFIED.value,
     )
 
     assert response.is_active is False
@@ -81,6 +87,7 @@ def test_source_response_frozen() -> None:
         website_url=None,
         description=None,
         is_active=True,
+        status=SourceStatus.VERIFIED.value,
     )
 
     with pytest.raises(FrozenInstanceError):

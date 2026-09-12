@@ -67,3 +67,36 @@ services:
       - key: EMAIL_PROVIDER
         value: console
     command: celery -A ai_news_digest.workers.celery_app worker --loglevel=info --pool=solo
+
+  - type: worker
+    name: ai-news-digest-beat
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: DATABASE_URL
+      - key: REDIS_URL
+      - key: CELERY_BROKER_URL
+      - key: CELERY_RESULT_BACKEND
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: OPENAI_ENABLED
+        value: "false"
+      - key: ANTHROPIC_ENABLED
+        value: "false"
+      - key: EMAIL_DEVELOPMENT_MODE
+        value: "false"
+      - key: EMAIL_ENABLED
+        value: "false"
+      - key: EMAIL_PROVIDER
+        value: console
+    command: celery -A ai_news_digest.workers.celery_app beat --loglevel=info --schedule /tmp/celerybeat-schedule

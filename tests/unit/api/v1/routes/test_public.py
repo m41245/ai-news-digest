@@ -15,6 +15,7 @@ from ai_news_digest.api.middleware.exception_handler import setup_exception_hand
 from ai_news_digest.api.v1.dependencies.dependencies import get_container
 from ai_news_digest.api.v1.routes.public import router
 from ai_news_digest.domain.enums.article_status import ArticleStatus
+from ai_news_digest.domain.enums.source_status import SourceStatus
 from ai_news_digest.domain.enums.source_type import SourceType
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.models.category import Category
@@ -31,6 +32,7 @@ def sample_source() -> Source:
         description="A source",
         is_active=True,
         source_type=SourceType.OTHER,
+        status=SourceStatus.VERIFIED,
         created_at=datetime.now(UTC),
     )
 

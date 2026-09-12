@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 
 from ai_news_digest.bootstrap.container import Container
+from ai_news_digest.domain.enums.source_status import SourceStatus
 from ai_news_digest.domain.models.source import Source
 from ai_news_digest.infrastructure.database.session import get_db_session
 
@@ -71,6 +72,7 @@ async def main() -> None:
                 feed_url=item["feed_url"],
                 website_url=item["website_url"],
                 description=item["description"],
+                status=SourceStatus.VERIFIED,
             )
 
             await repository.create(source)

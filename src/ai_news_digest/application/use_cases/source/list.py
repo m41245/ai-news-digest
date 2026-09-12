@@ -36,6 +36,7 @@ class ListSourcesUseCase:
                 website_url=source.website_url,
                 description=source.description,
                 is_active=source.is_active,
+                status=source.status.value,
             )
             for source in sources
         ]

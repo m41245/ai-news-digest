@@ -17,6 +17,7 @@ from ai_news_digest.api.v1.dependencies.auth import get_current_active_user
 from ai_news_digest.api.v1.dependencies.dependencies import get_container
 from ai_news_digest.api.v1.routes.sources import router
 from ai_news_digest.api.v1.schemas.source import SourceCreate
+from ai_news_digest.domain.enums.source_status import SourceStatus
 from ai_news_digest.domain.enums.source_type import SourceType
 from ai_news_digest.domain.models.source import Source
 from ai_news_digest.domain.models.user import User
@@ -68,6 +69,7 @@ def test_list_sources(client: TestClient, mock_container: MagicMock) -> None:
         description=None,
         is_active=True,
         source_type=SourceType.OTHER,
+        status=SourceStatus.VERIFIED,
         created_at=datetime.now(UTC),
     )
     mock_container.source_repository.list_all.return_value = [mock_source]
@@ -92,6 +94,7 @@ def test_create_source_not_implemented(client: TestClient, mock_container: Magic
         description=None,
         is_active=True,
         source_type=SourceType.OTHER,
+        status=SourceStatus.VERIFIED,
         created_at=datetime.now(UTC),
     )
     mock_container.source_repository.create.return_value = mock_source

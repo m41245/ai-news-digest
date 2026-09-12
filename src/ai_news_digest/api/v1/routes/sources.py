@@ -60,6 +60,7 @@ async def list_sources(
                 website_url=source.website_url,
                 description=source.description,
                 is_active=source.is_active,
+                status=source.status.value,
             )
             for source in sources
         ],
@@ -99,6 +100,7 @@ async def create_source(
         website_url=created.website_url,
         description=created.description,
         is_active=created.is_active,
+        status=created.status.value,
     )
 
 
@@ -152,6 +154,7 @@ async def update_source(
         website_url=updated.website_url,
         description=updated.description,
         is_active=updated.is_active,
+        status=updated.status,
     )
 
 

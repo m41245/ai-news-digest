@@ -60,4 +60,5 @@ class CreateSourceUseCase:
             website_url=created.website_url,
             description=created.description,
             is_active=created.is_active,
+            status=created.status.value,
         )

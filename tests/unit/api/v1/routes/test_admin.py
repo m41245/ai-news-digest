@@ -305,3 +305,78 @@ def test_pipeline_status_degraded(client: TestClient) -> None:
     assert "failed_deliveries" in data["warnings"]
     assert data["counts"]["new_articles"] == 5
     assert data["counts"]["failed_deliveries"] == 2
+
+
+def test_unauthenticated_admin_access_returns_401() -> None:
+    """Unauthenticated requests to admin endpoints must return 401."""
+    from fastapi import FastAPI
+
+    from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
+    app = FastAPI()
+    app.include_router(router)
+    setup_exception_handlers(app)
+
+    mock_container = MagicMock()
+    app.dependency_overrides[get_container] = lambda: mock_container
+
+    with TestClient(app) as test_client:
+        response = test_client.get("/admin/stats")
+
+    assert response.status_code == 401
+
+
+def test_non_admin_user_access_returns_403() -> None:
+    """Authenticated non-admin users must be rejected from admin endpoints."""
+    from fastapi import FastAPI
+
+    from ai_news_digest.api.v1.dependencies.auth import get_current_active_user
+    from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
+    app = FastAPI()
+    app.include_router(router)
+    setup_exception_handlers(app)
+
+    non_admin = User.create(
+        email="user@example.com",
+        hashed_password="hashed",
+        is_active=True,
+        is_admin=False,
+    )
+
+    mock_container = MagicMock()
+    app.dependency_overrides[get_container] = lambda: mock_container
+    app.dependency_overrides[get_current_active_user] = lambda: non_admin
+
+    with TestClient(app) as test_client:
+        response = test_client.get("/admin/stats")
+
+    assert response.status_code == 403
+
+
+def test_admin_ingestion_trigger_requires_admin() -> None:
+    """Only admins can trigger ingestion."""
+    from fastapi import FastAPI
+
+    from ai_news_digest.api.v1.dependencies.auth import get_current_active_user
+    from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
+    app = FastAPI()
+    app.include_router(router)
+    setup_exception_handlers(app)
+
+    non_admin = User.create(
+        email="user@example.com",
+        hashed_password="hashed",
+        is_active=True,
+        is_admin=False,
+    )
+
+    mock_container = MagicMock()
+    app.dependency_overrides[get_container] = lambda: mock_container
+    app.dependency_overrides[get_current_active_user] = lambda: non_admin
+
+    with TestClient(app) as test_client:
+        response = test_client.post("/admin/ingestion/run")
+
+    assert response.status_code == 403

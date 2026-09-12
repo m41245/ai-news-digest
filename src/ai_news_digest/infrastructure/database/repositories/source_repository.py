@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_news_digest.core.exceptions import ResourceNotFoundError
+from ai_news_digest.domain.enums.source_status import SourceStatus
 from ai_news_digest.domain.models.source import Source
 from ai_news_digest.domain.ports.source_repository import (
     SourceRepository as SourceRepositoryPort,
@@ -109,11 +110,14 @@ class SourceRepository(
 
     async def list_enabled(self) -> list[Source]:
         """
-        Return all enabled news sources.
+        Return all enabled and verified news sources.
         """
         statement = (
             select(SourceModel)
-            .where(SourceModel.is_active.is_(True))
+            .where(
+                SourceModel.is_active.is_(True),
+                SourceModel.status == SourceStatus.VERIFIED.value,
+            )
             .order_by(SourceModel.name.asc())
         )
 

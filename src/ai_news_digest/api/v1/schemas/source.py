@@ -27,6 +27,7 @@ class SourceUpdate(BaseModel):
     website_url: Annotated[str | None, Field(default=None, max_length=2048)] = None
     description: Annotated[str | None, Field(default=None, max_length=500)] = None
     is_active: bool | None = None
+    status: str | None = None
 
 
 class SourceResponse(BaseModel):
@@ -38,6 +39,7 @@ class SourceResponse(BaseModel):
     website_url: str | None
     description: str | None
     is_active: bool
+    status: str
 
 
 __all__ = ["SourceCreate", "SourceResponse", "SourceUpdate"]

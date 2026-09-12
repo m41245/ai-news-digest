@@ -11,6 +11,7 @@ import pytest
 
 from ai_news_digest.application.exceptions.source import SourceNotFoundError
 from ai_news_digest.application.use_cases.source.get import GetSourceUseCase
+from ai_news_digest.domain.enums.source_status import SourceStatus
 from ai_news_digest.domain.models.source import Source
 
 
@@ -24,6 +25,7 @@ async def test_get_source_success(mock_source_repository: AsyncMock) -> None:
         website_url="https://example.com",
         description="Test description",
         is_active=True,
+        status=SourceStatus.VERIFIED,
     )
     mock_source_repository.get_by_id.return_value = source
 
@@ -38,6 +40,7 @@ async def test_get_source_success(mock_source_repository: AsyncMock) -> None:
     assert response.website_url == "https://example.com"
     assert response.description == "Test description"
     assert response.is_active is True
+    assert response.status == SourceStatus.VERIFIED.value
     mock_source_repository.get_by_id.assert_called_once_with(source_id)
 
 

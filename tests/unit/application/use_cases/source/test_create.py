@@ -11,6 +11,7 @@ import pytest
 from ai_news_digest.application.dto.source import CreateSourceRequest
 from ai_news_digest.application.exceptions.source import SourceAlreadyExistsError
 from ai_news_digest.application.use_cases.source.create import CreateSourceUseCase
+from ai_news_digest.domain.enums.source_status import SourceStatus
 from ai_news_digest.domain.models.source import Source
 
 
@@ -32,6 +33,7 @@ async def test_create_source_success(mock_source_repository: AsyncMock) -> None:
         website_url=request.website_url,
         description=request.description,
         is_active=request.is_active,
+        status=SourceStatus.VERIFIED,
     )
     mock_source_repository.create.return_value = created_source
 
@@ -46,6 +48,7 @@ async def test_create_source_success(mock_source_repository: AsyncMock) -> None:
     assert response.website_url == "https://example.com"
     assert response.description == "Test description"
     assert response.is_active is True
+    assert response.status == SourceStatus.VERIFIED.value
     mock_source_repository.get_by_feed_url.assert_called_once_with(request.feed_url)
     mock_source_repository.create.assert_called_once()
 
@@ -65,6 +68,7 @@ async def test_create_source_duplicate_feed_url(mock_source_repository: AsyncMoc
         name="Existing Source",
         feed_url="https://example.com/feed.xml",
         is_active=True,
+        status=SourceStatus.VERIFIED,
     )
     mock_source_repository.get_by_feed_url.return_value = existing_source
 
@@ -90,6 +94,7 @@ async def test_create_source_minimal(mock_source_repository: AsyncMock) -> None:
         name=request.name,
         feed_url=request.feed_url,
         is_active=True,
+        status=SourceStatus.VERIFIED,
     )
     mock_source_repository.create.return_value = created_source
 
@@ -104,3 +109,4 @@ async def test_create_source_minimal(mock_source_repository: AsyncMock) -> None:
     assert response.website_url is None
     assert response.description is None
     assert response.is_active is True
+    assert response.status == SourceStatus.VERIFIED.value

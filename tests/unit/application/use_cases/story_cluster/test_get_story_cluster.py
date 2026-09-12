@@ -18,6 +18,7 @@ from ai_news_digest.application.use_cases.story_cluster.get_story_cluster import
     GetStoryClusterUseCase,
 )
 from ai_news_digest.domain.enums.article_status import ArticleStatus
+from ai_news_digest.domain.enums.source_status import SourceStatus
 from ai_news_digest.domain.enums.source_type import SourceType
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.models.source import Source
@@ -75,6 +76,7 @@ def _make_source(
         website_url="https://example.com",
         description="A test source",
         is_active=True,
+        status=SourceStatus.VERIFIED,
         created_at=datetime(2026, 9, 1, 8, 0, tzinfo=UTC),
         source_type=SourceType(source_type),
     )

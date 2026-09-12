@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock
 from ai_news_digest.application.use_cases.source.list_enabled import (
     ListEnabledSourcesUseCase,
 )
+from ai_news_digest.domain.enums.source_status import SourceStatus
 from ai_news_digest.domain.models.source import Source
 
 
@@ -20,11 +21,13 @@ async def test_list_enabled_sources_success(mock_source_repository: AsyncMock) -
             name="Active Source 1",
             feed_url="https://active1.com/feed.xml",
             is_active=True,
+            status=SourceStatus.VERIFIED,
         ),
         Source.create(
             name="Active Source 2",
             feed_url="https://active2.com/feed.xml",
             is_active=True,
+            status=SourceStatus.VERIFIED,
         ),
     ]
     mock_source_repository.list_enabled.return_value = sources
@@ -65,6 +68,7 @@ async def test_list_enabled_sources_filters_inactive(mock_source_repository: Asy
             name="Active Source",
             feed_url="https://active.com/feed.xml",
             is_active=True,
+            status=SourceStatus.VERIFIED,
         ),
     ]
     mock_source_repository.list_enabled.return_value = sources

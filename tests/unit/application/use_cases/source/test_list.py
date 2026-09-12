@@ -7,6 +7,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock
 
 from ai_news_digest.application.use_cases.source.list import ListSourcesUseCase
+from ai_news_digest.domain.enums.source_status import SourceStatus
 from ai_news_digest.domain.models.source import Source
 
 
@@ -18,16 +19,19 @@ async def test_list_sources_success(mock_source_repository: AsyncMock) -> None:
             name="Source A",
             feed_url="https://a.com/feed.xml",
             is_active=True,
+            status=SourceStatus.VERIFIED,
         ),
         Source.create(
             name="Source B",
             feed_url="https://b.com/feed.xml",
             is_active=False,
+            status=SourceStatus.VERIFIED,
         ),
         Source.create(
             name="Source C",
             feed_url="https://c.com/feed.xml",
             is_active=True,
+            status=SourceStatus.VERIFIED,
         ),
     ]
     mock_source_repository.list_all.return_value = sources
