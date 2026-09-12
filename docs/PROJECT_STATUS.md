@@ -1431,6 +1431,59 @@ The personalized feed now uses a scalable, story-level candidate query that pref
 - [x] Documentation updated: PROJECT_STATUS.md, MILESTONE_45_FINAL_COMPLETION_REPORT.md, DEPLOYMENT.md, RUNBOOK.md, CHANGELOG_DEV.md
 - [ ] Tracked debt: 52 backend test failures (pre-existing, non-blocking), frontend `npm run build` fails due to pre-existing TypeScript errors (workaround: `vite build`), 33 MyPy errors (pre-existing), 13 Ruff errors (pre-existing)
 
+### Milestone 63 — Production Pipeline Activation & Safe End-to-End Validation
+**Status:** PRODUCTION VALIDATED WITH BLOCKED STEPS
+
+- [x] Complete repository inspection: HEAD = b7a85d4, clean working tree, no secrets
+- [x] Deployment configuration verified: render.yaml valid, Dockerfile correct, Celery Beat sole scheduler, GitHub Actions manual-only
+- [x] Production API verified: https://ai-news-digest-api.onrender.com returns HTTP 200
+- [x] Production health verified: /health/live = alive, /health/ready = ready (database=ok, cache=ok)
+- [x] Production frontend verified: https://ai-news-digest-doo.pages.dev returns HTTP 200, build passes, 25 tests pass
+- [x] CORS verified: restricted to https://ai-news-digest-doo.pages.dev, bad origins rejected
+- [x] SSRF protections verified: url_safety.py enforces http/https only, blocks private/loopback/reserved IPs
+- [x] Security headers verified: CSP, X-Frame-Options, X-Content-Type-Options, HSTS present
+- [x] No secrets in repository: .env.example files contain placeholders only
+- [x] OpenAPI/Swagger disabled in production
+- [x] JWT secret validation rejects weak defaults in production
+- [x] Source trust enforcement verified in code: list_enabled() requires is_active=True AND status=VERIFIED
+- [x] Duplicate handling verified in code: canonical URL + get_by_url + seen_urls
+- [x] Celery Beat schedule verified: 13 periodic tasks registered, no cron in GitHub Actions
+- [x] AI provider status verified: OPENAI_ENABLED=false, ANTHROPIC_ENABLED=false
+- [x] Quality gates pass: Ruff clean, MyPy clean, frontend typecheck/build/tests pass, YAML validation pass
+- [ ] Admin state unknown: requires DB access or admin credentials
+- [ ] Ingestion smoke test blocked: requires admin JWT
+- [ ] Worker/Beat health unverified: requires admin auth
+- [ ] No articles/digests in production: public API returns empty arrays
+- [ ] AI processing unvalidated: no AI provider enabled
+
+### Milestone 64.1 — Production Admin Bootstrap & First Ingestion Smoke Test
+**Status:** BLOCKED — EXTERNAL OPERATOR ACCESS REQUIRED
+
+- [x] Repository inspection: HEAD = b7a85d4, clean working tree
+- [x] Production API verified: https://ai-news-digest-api.onrender.com returns HTTP 200
+- [x] Production health verified: /health/live = alive, /health/ready = ready (database=ok, cache=ok)
+- [x] Production frontend verified: https://ai-news-digest-doo.pages.dev returns HTTP 200
+- [x] Public API verified: 0 articles, 0 digests, 0 categories
+- [x] Security headers verified: CSP, X-Frame-Options, X-Content-Type-Options, HSTS present
+- [x] CORS verified: restricted to https://ai-news-digest-doo.pages.dev
+- [x] OpenAPI/Swagger disabled in production
+- [x] JWT secret validation rejects weak defaults in production
+- [x] Source trust enforcement verified in code: list_enabled() requires is_active=True AND status=VERIFIED
+- [x] Duplicate handling verified in code: canonical URL + get_by_url + seen_urls
+- [x] Celery Beat schedule verified: 13 periodic tasks registered, GitHub Actions manual-only
+- [x] AI provider status verified: OPENAI_ENABLED=false, ANTHROPIC_ENABLED=false
+- [x] Email status verified: EMAIL_ENABLED=false, EMAIL_DEVELOPMENT_MODE=false
+- [x] Admin endpoint auth verified: unauthenticated requests return 401
+- [x] Login endpoint verified: invalid credentials return 401
+- [x] SSRF protections verified: url_safety.py enforces http/https only, blocks private/loopback/reserved IPs
+- [x] Quality gates pass: 310 backend tests passed, 25 frontend tests passed, Ruff clean, MyPy clean, frontend typecheck/build pass
+- [ ] Production DATABASE_URL unavailable: execution environment lacks Render production DB credentials
+- [ ] Admin bootstrap blocked: cannot run scripts/ops/bootstrap_admin.py without production DATABASE_URL
+- [ ] Admin login unverified: no admin credentials available
+- [ ] Ingestion smoke test blocked: requires admin JWT
+- [ ] Worker/Beat health unverified: requires admin auth or Render log access
+- [ ] Article persistence unverified: no production ingestion executed
+
 ### Milestone 51 — Production Infrastructure Activation, Live Deployment, and Launch Verification
 **Status:** PRODUCTION DEPLOYMENT READY — EXTERNAL ACTIVATION BLOCKED
 
