@@ -24,6 +24,16 @@ class ArticleResponse(BaseModel):
     fetched_at: datetime | None = None
     source_id: UUID | None = None
     category_id: UUID | None = None
+    importance_score: float | None = None
+    confidence: float | None = None
+    key_takeaways: list[str] | None = None
+    why_it_matters: str | None = None
+    companies: list[str] | None = None
+    topics: list[str] | None = None
+    categories: list[str] | None = None
+    ai_provider: str | None = None
+    ai_model: str | None = None
+    ai_processed_at: datetime | None = None
 
 
 class ArticleUpdate(BaseModel):

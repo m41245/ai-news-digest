@@ -39,6 +39,9 @@ class Article:
     ai_provider: str | None = None
     ai_model: str | None = None
     ai_processed_at: datetime | None = None
+    ai_input_tokens: int | None = None
+    ai_output_tokens: int | None = None
+    ai_prompt_version: str | None = None
     key_takeaways: tuple[str, ...] = ()
     why_it_matters: str | None = None
     topics: tuple[str, ...] = ()

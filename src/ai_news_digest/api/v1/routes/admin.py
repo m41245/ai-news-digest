@@ -239,6 +239,43 @@ async def admin_health(
     }
 
 
+@router.post(
+    "/articles/{article_id}/analyze",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def trigger_article_analysis(
+    article_id: UUID,
+    _: Annotated[User, Depends(get_current_admin_user)],
+) -> dict[str, str]:
+    """Trigger structured AI analysis on a single article."""
+    from ai_news_digest.workers.tasks.process import analyze_article
+
+    task = analyze_article.delay(article_id)
+
+    return {
+        "message": "Article analysis triggered.",
+        "task_id": task.id,
+    }
+
+
+@router.post(
+    "/articles/analyze-pending",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def trigger_pending_article_analysis(
+    _: Annotated[User, Depends(get_current_admin_user)],
+) -> dict[str, str]:
+    """Trigger structured AI analysis on all pending analyzed articles."""
+    from ai_news_digest.workers.tasks.process import analyze_pending_articles
+
+    task = analyze_pending_articles.delay()
+
+    return {
+        "message": "Pending article analysis triggered.",
+        "task_id": task.id,
+    }
+
+
 @router.get("/workers/health")
 async def worker_health(
     _: Annotated[User, Depends(get_current_admin_user)],

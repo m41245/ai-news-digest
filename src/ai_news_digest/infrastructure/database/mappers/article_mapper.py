@@ -40,6 +40,9 @@ class ArticleMapper:
             ai_provider=article.ai_provider,
             ai_model=article.ai_model,
             ai_processed_at=article.ai_processed_at,
+            ai_input_tokens=article.ai_input_tokens,
+            ai_output_tokens=article.ai_output_tokens,
+            ai_prompt_version=article.ai_prompt_version,
             key_takeaways_json=_dump_list(article.key_takeaways),
             why_it_matters=article.why_it_matters,
             topics_json=_dump_list(article.topics),
@@ -70,6 +73,9 @@ class ArticleMapper:
         model.ai_provider = article.ai_provider
         model.ai_model = article.ai_model
         model.ai_processed_at = article.ai_processed_at
+        model.ai_input_tokens = article.ai_input_tokens
+        model.ai_output_tokens = article.ai_output_tokens
+        model.ai_prompt_version = article.ai_prompt_version
         model.key_takeaways_json = _dump_list(article.key_takeaways)
         model.why_it_matters = article.why_it_matters
         model.topics_json = _dump_list(article.topics)
@@ -117,6 +123,9 @@ class ArticleMapper:
             ai_provider=model.ai_provider,
             ai_model=model.ai_model,
             ai_processed_at=model.ai_processed_at,
+            ai_input_tokens=model.ai_input_tokens,
+            ai_output_tokens=model.ai_output_tokens,
+            ai_prompt_version=model.ai_prompt_version,
             key_takeaways=_load_list(model.key_takeaways_json),
             why_it_matters=model.why_it_matters,
             topics=_load_list(model.topics_json),

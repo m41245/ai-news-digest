@@ -38,6 +38,16 @@ export interface Article {
   category_id?: string | null;
   source_name?: string | null;
   category_name?: string | null;
+  importance_score?: number | null;
+  confidence?: number | null;
+  key_takeaways?: string[] | null;
+  why_it_matters?: string | null;
+  companies?: string[] | null;
+  topics?: string[] | null;
+  categories?: string[] | null;
+  ai_provider?: string | null;
+  ai_model?: string | null;
+  ai_processed_at?: string | null;
 }
 
 export interface Digest {

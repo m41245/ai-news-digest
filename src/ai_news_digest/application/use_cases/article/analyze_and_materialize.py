@@ -3,6 +3,9 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
+from ai_news_digest.application.ai.category_vocabulary import ArticleCategory
+from ai_news_digest.application.ai.company_normalizer import normalize_company
+from ai_news_digest.application.ai.topic_normalizer import dedupe_topics
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.models.category import Category
 from ai_news_digest.domain.models.company import Company
@@ -56,15 +59,19 @@ class AnalyzeAndMaterializeUseCase:
 
         company_ids: list[UUID] = []
         for name in article.companies:
-            existing = await self._company_repository.get_by_slug(name)
+            canonical = normalize_company(name)
+            if canonical is None:
+                continue
+            existing = await self._company_repository.get_by_slug(canonical)
             if existing is not None:
-                company_ids.append(existing.id)
+                company_ids.append(UUID(str(existing.id)))
             else:
-                company = Company.create(name=name)
+                company = Company.create(name=canonical)
                 created = await self._company_repository.create(company)
-                company_ids.append(created.id)
+                company_ids.append(UUID(str(created.id)))
 
-        await self._article_repository.replace_companies(article.id, company_ids)
+        if company_ids:
+            await self._article_repository.replace_companies(article.id, company_ids)
         return tuple(company_ids)
 
     async def _materialize_topics(self, article: Article) -> tuple[UUID, ...]:
@@ -72,17 +79,19 @@ class AnalyzeAndMaterializeUseCase:
         if not article.topics:
             return ()
 
+        normalized_topics = dedupe_topics(article.topics)
         topic_ids: list[UUID] = []
-        for name in article.topics:
+        for name in normalized_topics:
             existing = await self._topic_repository.get_by_slug(name)
             if existing is not None:
-                topic_ids.append(existing.id)
+                topic_ids.append(UUID(str(existing.id)))
             else:
                 topic = Topic.create(name=name)
                 created = await self._topic_repository.create(topic)
-                topic_ids.append(created.id)
+                topic_ids.append(UUID(str(created.id)))
 
-        await self._article_repository.replace_topics(article.id, topic_ids)
+        if topic_ids:
+            await self._article_repository.replace_topics(article.id, topic_ids)
         return tuple(topic_ids)
 
     async def _materialize_categories(self, article: Article) -> tuple[UUID, ...]:
@@ -90,17 +99,29 @@ class AnalyzeAndMaterializeUseCase:
         if not article.categories:
             return ()
 
+        seen_categories: set[str] = set()
         category_ids: list[UUID] = []
-        for name in article.categories:
-            existing = await self._category_repository.get_by_name(name)
+        for raw in article.categories:
+            try:
+                category_enum = ArticleCategory(raw)
+            except ValueError:
+                continue
+            if category_enum.value in seen_categories:
+                continue
+            seen_categories.add(category_enum.value)
+            existing = await self._category_repository.get_by_name(category_enum.value)
             if existing is not None:
-                category_ids.append(existing.id)
+                category_ids.append(UUID(str(existing.id)))
             else:
-                category = Category.create(name=name)
+                category = Category.create(
+                    name=category_enum.value,
+                    description=category_enum.display_name,
+                )
                 created = await self._category_repository.create(category)
-                category_ids.append(created.id)
+                category_ids.append(UUID(str(created.id)))
 
-        await self._article_repository.replace_categories(article.id, category_ids)
+        if category_ids:
+            await self._article_repository.replace_categories(article.id, category_ids)
         return tuple(category_ids)
 
 

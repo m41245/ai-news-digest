@@ -138,6 +138,18 @@ class ArticleModel(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    ai_input_tokens: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+    ai_output_tokens: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+    ai_prompt_version: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+    )
     key_takeaways_json: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,

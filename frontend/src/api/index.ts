@@ -162,6 +162,10 @@ export const adminApi = {
     api.post("/api/v1/admin/digest/run").then((r) => r.data),
   triggerCleanup: (): Promise<IngestionResponse> =>
     api.post("/api/v1/admin/cleanup").then((r) => r.data),
+  triggerArticleAnalysis: (articleId: string): Promise<{ message: string; task_id: string }> =>
+    api.post(`/api/v1/admin/articles/${articleId}/analyze`).then((r) => r.data),
+  triggerPendingAnalysis: (): Promise<{ message: string; task_id: string }> =>
+    api.post("/api/v1/admin/articles/analyze-pending").then((r) => r.data),
 };
 
 export function bootstrapAuthFromStorage(): string | null {

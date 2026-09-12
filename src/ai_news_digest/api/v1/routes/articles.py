@@ -72,6 +72,16 @@ async def create_article(
         fetched_at=created.fetched_at,
         source_id=created.source_id,
         category_id=created.category_id,
+        importance_score=created.importance_score,
+        confidence=created.confidence,
+        key_takeaways=list(created.key_takeaways) if created.key_takeaways else None,
+        why_it_matters=created.why_it_matters,
+        companies=list(created.companies) if created.companies else None,
+        topics=list(created.topics) if created.topics else None,
+        categories=list(created.categories) if created.categories else None,
+        ai_provider=created.ai_provider,
+        ai_model=created.ai_model,
+        ai_processed_at=created.ai_processed_at,
     )
 
 
@@ -120,6 +130,16 @@ async def list_articles(
                 fetched_at=article.fetched_at,
                 source_id=article.source_id,
                 category_id=article.category_id,
+                importance_score=article.importance_score,
+                confidence=article.confidence,
+                key_takeaways=list(article.key_takeaways) if article.key_takeaways else None,
+                why_it_matters=article.why_it_matters,
+                companies=list(article.companies) if article.companies else None,
+                topics=list(article.topics) if article.topics else None,
+                categories=list(article.categories) if article.categories else None,
+                ai_provider=article.ai_provider,
+                ai_model=article.ai_model,
+                ai_processed_at=article.ai_processed_at,
             )
             for article in articles
         ],
@@ -152,6 +172,16 @@ async def get_article(
         fetched_at=article.fetched_at,
         source_id=article.source_id,
         category_id=article.category_id,
+        importance_score=article.importance_score,
+        confidence=article.confidence,
+        key_takeaways=list(article.key_takeaways) if article.key_takeaways else None,
+        why_it_matters=article.why_it_matters,
+        companies=list(article.companies) if article.companies else None,
+        topics=list(article.topics) if article.topics else None,
+        categories=list(article.categories) if article.categories else None,
+        ai_provider=article.ai_provider,
+        ai_model=article.ai_model,
+        ai_processed_at=article.ai_processed_at,
     )
 
 
@@ -188,6 +218,16 @@ async def update_article(
         fetched_at=updated.fetched_at,
         source_id=updated.source_id,
         category_id=updated.category_id,
+        importance_score=updated.importance_score,
+        confidence=updated.confidence,
+        key_takeaways=list(updated.key_takeaways) if updated.key_takeaways else None,
+        why_it_matters=updated.why_it_matters,
+        companies=list(updated.companies) if updated.companies else None,
+        topics=list(updated.topics) if updated.topics else None,
+        categories=list(updated.categories) if updated.categories else None,
+        ai_provider=updated.ai_provider,
+        ai_model=updated.ai_model,
+        ai_processed_at=updated.ai_processed_at,
     )
 
 

@@ -128,21 +128,19 @@ def test_get_article_not_found(client: TestClient, mock_container: MagicMock) ->
 
 def test_create_article(client: TestClient, mock_container: MagicMock) -> None:
     """Test create article endpoint returns 201 with valid data."""
-    from ai_news_digest.application.dto.article import ArticleResponse
-
-    mock_response = ArticleResponse(
-        id=str(uuid4()),
+    mock_article = Article(
+        id=uuid4(),
         title="New Article",
         url="https://example.com/new",
         summary="New summary",
         content="New content",
-        source_id=str(uuid4()),
+        source_id=uuid4(),
         category_id=None,
-        published_at="2024-01-01T00:00:00+00:00",
-        fetched_at="2024-01-01T00:00:01+00:00",
-        status="new",
+        published_at=datetime.now(UTC),
+        fetched_at=datetime.now(UTC),
+        status=ArticleStatus.NEW,
     )
-    mock_container.create_article.execute.return_value = mock_response
+    mock_container.create_article.execute.return_value = mock_article
 
     article_data = {
         "title": "New Article",

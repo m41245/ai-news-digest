@@ -25,6 +25,8 @@ def mock_provider() -> MagicMock:
     provider.generate = AsyncMock()
     provider.id = "test-provider"
     provider.priority = MagicMock(return_value=1)
+    provider.provider_name = "test-provider"
+    provider.model_name = "test-model"
     return provider
 
 
@@ -61,7 +63,8 @@ async def test_analyze_article_success(
         provider="test-provider",
         model="test-model",
         content=(
-            '{"importance_score": 0.9, "confidence": 0.8, '
+            '{"summary": "A summary of the article.", "importance_score": 0.9, '
+            '"confidence": 0.8, '
             '"key_takeaways": ["Takeaway 1"], "why_it_matters": "Important", '
             '"companies": ["Acme"], "topics": ["AI"]}'
         ),
@@ -84,6 +87,10 @@ async def test_analyze_article_success(
     assert result.why_it_matters == "Important"
     assert result.companies == ("Acme",)
     assert result.topics == ("AI",)
+    assert result.summary == "A summary of the article."
+    assert result.ai_provider == "test-provider"
+    assert result.ai_model == "test-model"
+    assert result.ai_processed_at is not None
     mock_provider.generate.assert_called_once()
 
 
@@ -99,8 +106,8 @@ async def test_analyze_article_with_markdown_fences(
         model="test-model",
         content=(
             "```json\n"
-            '{"importance_score": 0.5, "confidence": 0.5, '
-            '"key_takeaways": [], "why_it_matters": "", '
+            '{"summary": "A summary.", "importance_score": 0.5, "confidence": 0.5, '
+            '"key_takeaways": [], "why_it_matters": "Context", '
             '"companies": [], "topics": []}\n'
             "```"
         ),
