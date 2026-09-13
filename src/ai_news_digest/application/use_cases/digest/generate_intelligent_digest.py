@@ -133,11 +133,9 @@ class GenerateIntelligentDigestUseCase:
             await self._digest_repository.commit()
 
         cutoff = now - self._ranking_lookback_timedelta()
-        eligible_clusters = (
-            await self._story_cluster_repository.find_recent_active_clusters(
-                cutoff=cutoff,
-                limit=settings.ranking_max_candidates,
-            )
+        eligible_clusters = await self._story_cluster_repository.find_recent_active_clusters(
+            cutoff=cutoff,
+            limit=settings.ranking_max_candidates,
         )
 
         if not eligible_clusters:
@@ -325,9 +323,7 @@ class GenerateIntelligentDigestUseCase:
         self, clusters: list[StoryCluster]
     ) -> list[tuple[StoryCluster, float | None]]:
         """Sort clusters by ranking_score descending, deterministically."""
-        ranked = [
-            (c, c.ranking_score) for c in clusters if c.ranking_score is not None
-        ]
+        ranked = [(c, c.ranking_score) for c in clusters if c.ranking_score is not None]
         ranked.sort(key=lambda x: (-(x[1] or 0.0), str(x[0].id)))
         return ranked
 
@@ -445,12 +441,14 @@ class GenerateIntelligentDigestUseCase:
                 )
                 if cluster:
                     articles = [
-                        a for c, arts in candidate_stories
-                        if c.id == cluster.id for a in arts
+                        a for c, arts in candidate_stories if c.id == cluster.id for a in arts
                     ]
                     rep = next(
-                        (a for a in articles
-                         if str(a.id) == str(cluster.representative_article_id)),
+                        (
+                            a
+                            for a in articles
+                            if str(a.id) == str(cluster.representative_article_id)
+                        ),
                         articles[0] if articles else None,
                     )
                     if rep:

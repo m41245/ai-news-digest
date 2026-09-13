@@ -416,12 +416,10 @@ def build_fallback_digest(
 
     if top_story_cluster is not None:
         articles = [
-            a for c, arts in candidate_stories
-            if c.id == top_story_cluster.id for a in arts
+            a for c, arts in candidate_stories if c.id == top_story_cluster.id for a in arts
         ]
         representative = next(
-            (a for a in articles
-             if a.id == top_story_cluster.representative_article_id),
+            (a for a in articles if a.id == top_story_cluster.representative_article_id),
             articles[0] if articles else None,
         )
         if representative:
