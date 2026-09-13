@@ -2,31 +2,36 @@
 
 ## Current Phase
 
-Milestone 65.1 — Article Intelligence Contract & Pipeline Integrity Hardening: **COMPLETE**.
+Milestone 68 — Intelligent Story Ranking + Top Story Selection: **COMPLETE**.
 
-M65.1 additions:
-- Converted `StructuredIntelligence` from dataclass to Pydantic v2 `BaseModel` with explicit field validators
-- Fixed container wiring: `analysis` capability now registered for all configured AI providers
-- Updated application DTO `ArticleResponse` to include all AI intelligence fields
-- Fixed semantic bug: `dedupe_topics` was incorrectly reused for company deduplication
-- Added round-trip persistence tests for structured intelligence fields
-- Added container tests verifying analysis capability registration
-- Resolved 20 MyPy false-positive errors on `routes/articles.py`
-- All quality gates pass: ruff clean, mypy clean (0 errors in 328 source files), 526 unit tests passing
-- Frontend: 25 tests passing, TypeScript typecheck clean, production build passing
-- Migration 018 verified: additive, downgrade implemented, schema matches ORM
+M68 additions:
+- Added deterministic StoryCluster ranking engine with 8 normalized signals
+- Ranking signals: recency, source trust, source diversity, corroboration,
+  company relevance, category/topic relevance, article quality, official announcement
+- All weights are configurable via environment variables
+- Final score bounded to 0–100, fully explainable with per-signal breakdown
+- Top Story selection with timezone-aware daily window
+- Ranking persisted on StoryCluster via migration 019 (additive)
+- Digest generation now uses ranking when enabled
+- New `/api/v1/story-ranking/top-story` and `/clusters` endpoints
+- New Celery Beat task `daily-story-ranking` scheduled at 08:05
+- 16 new unit tests covering ranking mathematics, recency, source trust,
+  source diversity, companies, categories/topics, article quality, determinism,
+  tie-breaking, and Top Story selection
+- All quality gates pass: ruff clean, mypy clean, 615 application/core tests passing
+- Existing M67 functionality remains intact
 
 ### Next Milestone
 
-Milestone 66 — (To be defined)
+Milestone 69 — Intelligent Daily Digest Generation (LLM editorial layer)
 
 ---
 
 ## Current Focus
 
-Milestone 65.1 — Article Intelligence Contract & Pipeline Integrity Hardening: **Complete**.
+Milestone 68 — Intelligent Story Ranking + Top Story Selection: **Complete**.
 
-M65.1 completed. The M65 structured analysis pipeline is now fully functional: providers advertise the `analysis` capability, the container wires it correctly, Pydantic v2 validates all structured output, and the application DTO matches the API schema. All quality gates pass.
+M68 completed. The ranking engine is deterministic, explainable, and reusable by future digest generation, homepage, personalized feeds, and notifications. No vector database, no per-story LLM calls, no unnecessary infrastructure.
 
 ---
 

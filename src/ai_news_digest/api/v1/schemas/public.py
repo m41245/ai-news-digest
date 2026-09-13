@@ -34,6 +34,8 @@ class PublicDigestResponse(BaseModel):
     format: str
     generated_at: str
     article_count: int
+    top_story_cluster_id: str | None = None
+    generation_method: str | None = None
 
 
 class PublicCategoryResponse(BaseModel):

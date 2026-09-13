@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
-from ai_news_digest.application.use_cases.digest.generate_digest import (
-    DigestGenerationResult,
+from ai_news_digest.application.use_cases.digest.generate_intelligent_digest import (
+    IntelligentDigestResult,
 )
 from ai_news_digest.core.config import get_settings
 from ai_news_digest.core.exceptions import ValidationError
@@ -31,14 +31,13 @@ async def _generate_daily_digest_impl() -> dict[str, str]:
     logger.info("Starting daily digest generation")
 
     async for container in get_container():
-        use_case = container.generate_digest
-        digest_repository = container.digest_repository
-
         settings = get_settings()
         tz = ZoneInfo(settings.digest_timezone)
-        today = datetime.now(tz)
-        title = f"AI News Digest - {today.strftime('%Y-%m-%d')}"
+        now = datetime.now(UTC)
+        today = now.astimezone(tz).date()
+        title = f"AI News Digest - {today.isoformat()}"
 
+        digest_repository = container.digest_repository
         existing = await digest_repository.get_by_title(title)
         if existing is not None:
             logger.info("Today's digest already exists, skipping generation", title=title)
@@ -47,7 +46,39 @@ async def _generate_daily_digest_impl() -> dict[str, str]:
                 "reason": "already_generated",
             }
 
-        result: DigestGenerationResult = await use_case.execute(
+        intelligent_use_case = None
+        if hasattr(container, "generate_intelligent_digest"):
+            intelligent_use_case = container.generate_intelligent_digest
+        if (
+            intelligent_use_case is not None
+            and settings.story_ranking_enabled
+            and settings.digest_editorial_enabled
+        ):
+            result: IntelligentDigestResult = await intelligent_use_case.execute(
+                title=title,
+                limit=settings.digest_max_editorial_stories,
+            )
+            logger.info(
+                "Intelligent daily digest generation completed",
+                digest_id=result.digest_id,
+                candidate_count=result.candidate_count,
+                story_count=result.story_count,
+                generation_method=result.generation_method,
+                fallback_used=result.fallback_used,
+                error=result.error,
+            )
+            return {
+                "status": "completed",
+                "digest_id": result.digest_id,
+                "candidate_count": str(result.candidate_count),
+                "story_count": str(result.story_count),
+                "generation_method": result.generation_method,
+                "fallback_used": str(result.fallback_used),
+                "generated_at": result.generated_at.isoformat(),
+            }
+
+        use_case = container.generate_digest
+        result = await use_case.execute(
             title=title,
             limit=settings.digest_max_articles,
         )
@@ -66,7 +97,7 @@ async def _generate_daily_digest_impl() -> dict[str, str]:
             "generated_at": result.generated_at.isoformat(),
         }
 
-    return {"status": "skipped", "reason": "no_eligible_articles"}
+    return {"status": "skipped", "reason": "no_container"}
 
 
 @celery_app.task(

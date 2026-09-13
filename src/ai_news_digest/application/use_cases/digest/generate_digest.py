@@ -85,7 +85,8 @@ class GenerateDigestUseCase:
             and self._company_repository is not None
             and self._topic_repository is not None
         ):
-            assert self._story_cluster_repository is not None
+            if self._story_cluster_repository is None:
+                raise ValidationError("Story cluster repository is required for ranking.")
             selected_articles = await self._apply_ranking(
                 eligible_articles, settings, effective_limit
             )
@@ -144,9 +145,12 @@ class GenerateDigestUseCase:
         effective_limit: int,
     ) -> list[Article]:
         """Apply story cluster ranking to select articles."""
-        assert self._story_cluster_repository is not None
-        assert self._company_repository is not None
-        assert self._topic_repository is not None
+        if self._story_cluster_repository is None:
+            raise ValidationError("Story cluster repository is required for ranking.")
+        if self._company_repository is None:
+            raise ValidationError("Company repository is required for ranking.")
+        if self._topic_repository is None:
+            raise ValidationError("Topic repository is required for ranking.")
 
         cluster_map: dict[UUID, list[Article]] = {}
         for article in eligible_articles:
@@ -227,9 +231,12 @@ class GenerateDigestUseCase:
         now = datetime.now(UTC)
         cutoff = now - timedelta(hours=settings.ranking_lookback_hours)
 
-        assert self._story_cluster_repository is not None
-        assert self._company_repository is not None
-        assert self._topic_repository is not None
+        if self._story_cluster_repository is None:
+            raise ValidationError("Story cluster repository is required for top story.")
+        if self._company_repository is None:
+            raise ValidationError("Company repository is required for top story.")
+        if self._topic_repository is None:
+            raise ValidationError("Topic repository is required for top story.")
 
         clusters = await self._story_cluster_repository.find_recent_active_clusters(
             cutoff=cutoff,

@@ -11,12 +11,12 @@ from ai_news_digest.application.services.ranking.top_story_selector import (
 )
 from ai_news_digest.core.config import get_settings
 from ai_news_digest.core.logging import get_logger
-from ai_news_digest.domain.models.article import Article
 from ai_news_digest.core.metrics import (
     record_celery_task_duration,
     record_celery_task_failure,
     record_celery_task_success,
 )
+from ai_news_digest.domain.models.article import Article
 from ai_news_digest.workers._container import get_container
 from ai_news_digest.workers.celery_app import celery_app
 

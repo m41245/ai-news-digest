@@ -10,11 +10,7 @@ from uuid import uuid4
 import pytest
 
 from ai_news_digest.application.services.ranking.constants import (
-    ExtractionQualityScoreDefaults,
     RankingDefaults,
-    SourceTrustDefaults,
-    SourceTypeScoreDefaults,
-    StoryRankingResult,
     StoryRankingWeights,
 )
 from ai_news_digest.application.services.ranking.story_ranking_service import (
@@ -63,6 +59,9 @@ def _make_article(
     topic_ids=(),
     category_ids=(),
 ):
+    from ai_news_digest.domain.enums.article_status import ArticleStatus
+    from ai_news_digest.domain.enums.extraction_method import ExtractionMethod
+
     return Article(
         id=article_id,
         title=f"Article {article_id}",
@@ -73,8 +72,8 @@ def _make_article(
         category_id=None,
         published_at=published_at or datetime(2026, 9, 13, 12, 0, 0, tzinfo=UTC),
         fetched_at=datetime.now(UTC),
-        status=__import__("ai_news_digest.domain.enums.article_status", fromlist=["ArticleStatus"]).ArticleStatus.READY,
-        extraction_method=__import__("ai_news_digest.domain.enums.extraction_method", fromlist=["ExtractionMethod"]).ExtractionMethod.HTML,
+        status=ArticleStatus.READY,
+        extraction_method=ExtractionMethod.HTML,
         extraction_quality=extraction_quality,
         company_ids=company_ids,
         topic_ids=topic_ids,
@@ -125,10 +124,26 @@ def test_ranking_is_deterministic():
 def test_recency_signal_decays():
     engine = StoryRankingEngine()
     now = datetime(2026, 9, 13, 12, 0, 0, tzinfo=UTC)
-    cluster_new = _make_cluster(uuid4(), first_published_at=datetime(2026, 9, 13, 11, 0, 0, tzinfo=UTC))
-    cluster_old = _make_cluster(uuid4(), first_published_at=datetime(2026, 9, 12, 12, 0, 0, tzinfo=UTC))
-    article_new = _make_article(uuid4(), uuid4(), cluster_id=cluster_new.id, published_at=datetime(2026, 9, 13, 11, 0, 0, tzinfo=UTC))
-    article_old = _make_article(uuid4(), uuid4(), cluster_id=cluster_old.id, published_at=datetime(2026, 9, 12, 12, 0, 0, tzinfo=UTC))
+    cluster_new = _make_cluster(
+        uuid4(),
+        first_published_at=datetime(2026, 9, 13, 11, 0, 0, tzinfo=UTC),
+    )
+    cluster_old = _make_cluster(
+        uuid4(),
+        first_published_at=datetime(2026, 9, 12, 12, 0, 0, tzinfo=UTC),
+    )
+    article_new = _make_article(
+        uuid4(),
+        uuid4(),
+        cluster_id=cluster_new.id,
+        published_at=datetime(2026, 9, 13, 11, 0, 0, tzinfo=UTC),
+    )
+    article_old = _make_article(
+        uuid4(),
+        uuid4(),
+        cluster_id=cluster_old.id,
+        published_at=datetime(2026, 9, 12, 12, 0, 0, tzinfo=UTC),
+    )
     source = _make_source(uuid4())
     ctx_new = ClusterRankingContext(
         cluster=cluster_new,
@@ -286,15 +301,15 @@ def test_zero_total_weight_rejected():
 
 
 __all__ = [
-    "test_ranking_score_is_bounded",
+    "test_corroboration_signal",
+    "test_custom_weights_are_normalized",
+    "test_empty_articles_returns_zero_score",
+    "test_negative_weights_rejected",
+    "test_official_announcement_signal",
     "test_ranking_is_deterministic",
+    "test_ranking_score_is_bounded",
     "test_recency_signal_decays",
     "test_source_trust_signal",
-    "test_official_announcement_signal",
-    "test_corroboration_signal",
-    "test_empty_articles_returns_zero_score",
     "test_weights_normalize_to_one",
-    "test_custom_weights_are_normalized",
-    "test_negative_weights_rejected",
     "test_zero_total_weight_rejected",
 ]

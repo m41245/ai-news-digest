@@ -49,8 +49,8 @@ class RankedStoriesResponse(BaseModel):
 
 
 __all__ = [
-    "StoryRankingSignalResponse",
-    "StoryRankingResponse",
-    "TopStoryResponse",
     "RankedStoriesResponse",
+    "StoryRankingResponse",
+    "StoryRankingSignalResponse",
+    "TopStoryResponse",
 ]

@@ -6,9 +6,13 @@ from ai_news_digest.application.ai.capability import Capability
 from ai_news_digest.application.ai.capability_registry import CapabilityRegistry
 from ai_news_digest.application.ai.config import ProviderConfig
 from ai_news_digest.application.ai.decision_engine import DecisionEngine
+from ai_news_digest.application.ai.provider_manager import ProviderManager
 from ai_news_digest.application.ai.provider_registry import ProviderRegistry
 from ai_news_digest.application.rendering.renderer_factory import (
     DigestRendererFactory,
+)
+from ai_news_digest.application.services.digest_editorial_generator import (
+    DigestEditorialGenerator,
 )
 from ai_news_digest.application.services.semantic_candidate_finder import (
     SemanticCandidateFinder,
@@ -64,6 +68,9 @@ from ai_news_digest.application.use_cases.delivery.deliver_digest import (
 )
 from ai_news_digest.application.use_cases.digest.generate_digest import (
     GenerateDigestUseCase,
+)
+from ai_news_digest.application.use_cases.digest.generate_intelligent_digest import (
+    GenerateIntelligentDigestUseCase,
 )
 from ai_news_digest.application.use_cases.digest.update import (
     UpdateDigestUseCase,
@@ -382,6 +389,10 @@ class Container:
         return self._decision_engine
 
     @property
+    def provider_manager(self) -> ProviderManager:
+        return ProviderManager(self._provider_registry)
+
+    @property
     def rendering_factory(self) -> DigestRendererFactory:
         return DigestRendererFactory()
 
@@ -500,6 +511,18 @@ class Container:
             story_cluster_repository=self.story_cluster_repository,
             company_repository=self.company_repository,
             topic_repository=self.topic_repository,
+        )
+
+    @property
+    def generate_intelligent_digest(self) -> GenerateIntelligentDigestUseCase:
+        return GenerateIntelligentDigestUseCase(
+            story_cluster_repository=self.story_cluster_repository,
+            digest_repository=self.digest_repository,
+            source_repository=self.source_repository,
+            article_repository=self.article_repository,
+            editorial_generator=DigestEditorialGenerator(
+                provider_manager=self.provider_manager,
+            ),
         )
 
     @property

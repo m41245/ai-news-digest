@@ -22,6 +22,7 @@ from ai_news_digest.api.v1.schemas.digest import (
     DigestCreate,
     DigestReplace,
     DigestResponse,
+    DigestStoryResponse,
     DigestUpdate,
 )
 from ai_news_digest.application.use_cases.digest.update import (
@@ -60,6 +61,20 @@ async def list_digests(
                 format=digest.format,
                 generated_at=digest.generated_at.isoformat(),
                 article_ids=digest.article_ids,
+                top_story_cluster_id=digest.top_story_cluster_id,
+                stories=[
+                    DigestStoryResponse(
+                        cluster_id=s.get("cluster_id"),
+                        headline=s.get("headline"),
+                        summary=s.get("summary"),
+                        key_takeaways=s.get("key_takeaways", []),
+                        why_it_matters=s.get("why_it_matters"),
+                    )
+                    for s in getattr(digest, "stories", [])
+                ],
+                generation_method=getattr(digest, "generation_method", None),
+                provider=getattr(digest, "provider", None),
+                model=getattr(digest, "model", None),
             )
             for digest in digests
         ],
@@ -88,6 +103,20 @@ async def get_digest(
         format=digest.format,
         generated_at=digest.generated_at.isoformat(),
         article_ids=digest.article_ids,
+        top_story_cluster_id=digest.top_story_cluster_id,
+        stories=[
+            DigestStoryResponse(
+                cluster_id=s.get("cluster_id"),
+                headline=s.get("headline"),
+                summary=s.get("summary"),
+                key_takeaways=s.get("key_takeaways", []),
+                why_it_matters=s.get("why_it_matters"),
+            )
+            for s in getattr(digest, "stories", [])
+        ],
+        generation_method=getattr(digest, "generation_method", None),
+        provider=getattr(digest, "provider", None),
+        model=getattr(digest, "model", None),
     )
 
 

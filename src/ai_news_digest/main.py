@@ -190,7 +190,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     )
 
     application.include_router(
-        user_preferences_router,
+        notifications_router,
         prefix=app_settings.api_prefix,
     )
 

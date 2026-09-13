@@ -21,6 +21,9 @@ from uuid import uuid4
 
 import pytest
 
+from ai_news_digest.application.use_cases.digest.generate_intelligent_digest import (
+    IntelligentDigestResult,
+)
 from ai_news_digest.domain.enums.article_status import ArticleStatus
 from ai_news_digest.domain.enums.digest_format import DigestFormat
 from ai_news_digest.domain.models.article import Article
@@ -64,10 +67,23 @@ def mock_container() -> MagicMock:
         "categorize_article",
         "process_article",
         "generate_digest",
+        "generate_intelligent_digest",
         "deliver_digest",
         "cluster_articles",
     ):
         setattr(container, name, AsyncMock())
+
+    container.generate_intelligent_digest.execute.return_value = IntelligentDigestResult(
+        digest_id=uuid4(),
+        generated_at=datetime.now(UTC),
+        candidate_count=5,
+        story_count=3,
+        top_story_cluster_id=None,
+        generation_method="ai",
+        provider="openai",
+        model="gpt-4o-mini",
+        fallback_used=False,
+    )
 
     return container
 

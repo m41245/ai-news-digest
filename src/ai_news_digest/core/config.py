@@ -471,6 +471,53 @@ class Settings(BaseSettings):
     )
 
     # ======================================================================
+    # Intelligent Digest Editorial (M69)
+    # ======================================================================
+
+    digest_editorial_enabled: bool = Field(
+        default=True,
+        description="Enable intelligent editorial generation for daily digests.",
+    )
+
+    digest_max_editorial_stories: int = Field(
+        default=10,
+        ge=1,
+        le=50,
+        description="Maximum number of stories in the intelligent editorial digest.",
+    )
+
+    digest_editorial_prompt_version: str = Field(
+        default="v1",
+        description="Prompt version for digest editorial generation.",
+    )
+
+    digest_editorial_timeout: int = Field(
+        default=60,
+        ge=10,
+        le=300,
+        description="Timeout in seconds for editorial LLM generation.",
+    )
+
+    digest_editorial_max_tokens: int = Field(
+        default=2048,
+        ge=256,
+        le=8192,
+        description="Maximum output tokens for editorial generation.",
+    )
+
+    digest_editorial_temperature: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=2.0,
+        description="Generation temperature for editorial content.",
+    )
+
+    digest_fallback_enabled: bool = Field(
+        default=True,
+        description="Enable deterministic fallback when AI editorial generation fails.",
+    )
+
+    # ======================================================================
     # Story Ranking (M68)
     # ======================================================================
 

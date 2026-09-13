@@ -7,15 +7,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
-import pytest
-
 from ai_news_digest.application.services.ranking.story_ranking_service import (
     ClusterRankingContext,
     StoryRankingEngine,
 )
 from ai_news_digest.application.services.ranking.top_story_selector import (
     TopStorySelector,
-    TopStoryResult,
 )
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.models.source import Source
@@ -162,7 +159,7 @@ def test_inactive_cluster_excluded():
         known_category_ids=set(),
         now=now,
     )
-    result = engine.rank_cluster(ctx)
+    engine.rank_cluster(ctx)
     ranked, top = selector.rank_and_select(
         clusters=[cluster],
         cluster_articles={str(cluster.id): [article]},
@@ -177,7 +174,6 @@ def test_inactive_cluster_excluded():
 def test_cluster_without_articles_excluded():
     engine = StoryRankingEngine()
     selector = TopStorySelector(ranking_engine=engine)
-    now = datetime(2026, 9, 13, 12, 0, 0, tzinfo=UTC)
     cluster = _make_cluster(uuid4())
     source = _make_source(uuid4())
     ranked, top = selector.rank_and_select(
@@ -192,9 +188,9 @@ def test_cluster_without_articles_excluded():
 
 
 __all__ = [
-    "test_empty_candidates_returns_none_top_story",
-    "test_single_candidate_is_top_story",
-    "test_deterministic_tie_breaking",
-    "test_inactive_cluster_excluded",
     "test_cluster_without_articles_excluded",
+    "test_deterministic_tie_breaking",
+    "test_empty_candidates_returns_none_top_story",
+    "test_inactive_cluster_excluded",
+    "test_single_candidate_is_top_story",
 ]

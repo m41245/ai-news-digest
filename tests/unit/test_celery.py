@@ -85,7 +85,7 @@ class TestBeatSchedule:
 
     def test_beat_schedule_is_configured(self) -> None:
         assert celery_app.conf.beat_schedule is not None
-        assert len(celery_app.conf.beat_schedule) == 14
+        assert len(celery_app.conf.beat_schedule) == 15
 
     def test_schedule_names_are_unique(self) -> None:
         names = list(celery_app.conf.beat_schedule.keys())
@@ -110,6 +110,7 @@ class TestBeatSchedule:
             "workers.tasks.process.categorize_pending_articles",
             "workers.tasks.process.analyze_pending_articles",
             "workers.tasks.cluster.cluster_pending_articles",
+            "workers.tasks.ranking.rank_stories",
             "workers.tasks.digest.generate_daily_digest",
             "workers.tasks.deliver.send_latest_digest",
             "workers.tasks.notifications.schedule_notifications",

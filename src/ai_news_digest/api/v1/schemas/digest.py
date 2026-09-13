@@ -10,6 +10,16 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
+class DigestStoryResponse(BaseModel):
+    """Response model for a single editorial story within a digest."""
+
+    cluster_id: str | None = None
+    headline: str | None = None
+    summary: str | None = None
+    key_takeaways: list[str] = Field(default_factory=list)
+    why_it_matters: str | None = None
+
+
 class DigestCreate(BaseModel):
     """Request model for creating a digest."""
 
@@ -43,6 +53,17 @@ class DigestResponse(BaseModel):
     format: str
     generated_at: str
     article_ids: list[UUID]
+    top_story_cluster_id: str | None = None
+    stories: list[DigestStoryResponse] = Field(default_factory=list)
+    generation_method: str | None = None
+    provider: str | None = None
+    model: str | None = None
 
 
-__all__ = ["DigestCreate", "DigestReplace", "DigestResponse", "DigestUpdate"]
+__all__ = [
+    "DigestCreate",
+    "DigestReplace",
+    "DigestResponse",
+    "DigestStoryResponse",
+    "DigestUpdate",
+]

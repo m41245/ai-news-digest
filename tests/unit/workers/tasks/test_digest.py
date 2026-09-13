@@ -10,8 +10,8 @@ from uuid import uuid4
 
 import pytest
 
-from ai_news_digest.application.use_cases.digest.generate_digest import (
-    DigestGenerationResult,
+from ai_news_digest.application.use_cases.digest.generate_intelligent_digest import (
+    IntelligentDigestResult,
 )
 from ai_news_digest.core.exceptions import ValidationError
 from ai_news_digest.workers.celery_app import celery_app
@@ -21,45 +21,40 @@ from tests.unit.workers.tasks.conftest import container_generator
 
 async def test_generate_daily_digest_success(mock_container: MagicMock) -> None:
     """A successful run returns the digest metadata dict."""
-    # Arrange
     now = datetime.now(UTC)
     digest_id = uuid4()
-    mock_container.generate_digest.execute.return_value = DigestGenerationResult(
-        digest_id=digest_id,
-        included_articles=12,
+    mock_container.generate_intelligent_digest.execute.return_value = IntelligentDigestResult(
+        digest_id=str(digest_id),
         generated_at=now,
+        candidate_count=5,
+        story_count=3,
+        top_story_cluster_id=None,
+        generation_method="ai",
+        provider="openai",
+        model="gpt-4o-mini",
+        fallback_used=False,
     )
     mock_container.digest_repository.get_by_title.return_value = None
 
-    # Act
     with patch.object(digest, "get_container", container_generator(mock_container)):
         result = await digest.generate_daily_digest()
 
-    # Assert
     assert result["status"] == "completed"
     assert result["digest_id"] == str(digest_id)
-    assert result["included_articles"] == "12"
-    assert result["generated_at"] == now.isoformat()
-
-    _, kwargs = mock_container.generate_digest.execute.call_args
-    assert kwargs["limit"] == 50
-    assert kwargs["title"] == f"AI News Digest - {now.strftime('%Y-%m-%d')}"
-    assert "content" not in kwargs
+    assert result["generation_method"] == "ai"
+    assert result["fallback_used"] == "False"
 
 
 async def test_generate_daily_digest_value_error_skipped(
     mock_container: MagicMock,
 ) -> None:
     """A ``ValidationError`` from the use case is converted into a ``skipped`` status."""
-    # Arrange
-    mock_container.generate_digest.execute.side_effect = ValidationError("no articles")
+    mock_container.generate_intelligent_digest.execute.side_effect = ValidationError("no articles")
     mock_container.digest_repository.get_by_title.return_value = None
 
-    # Act
     with patch.object(digest, "get_container", container_generator(mock_container)):
         result = await digest.generate_daily_digest()
 
-    # Assert
     assert result == {
         "status": "skipped",
         "reason": "no_eligible_articles",
@@ -76,13 +71,11 @@ async def test_generate_daily_digest_validation_error_propagates(
     re-raised (triggering a retry) rather than returning ``skipped``. This test
     pins that actual behaviour.
     """
-    # Arrange
-    mock_container.generate_digest.execute.side_effect = ValueError(
+    mock_container.generate_intelligent_digest.execute.side_effect = ValueError(
         "No digest-eligible articles were found."
     )
     mock_container.digest_repository.get_by_title.return_value = None
 
-    # Act / Assert
     with (
         patch.object(digest, "get_container", container_generator(mock_container)),
         pytest.raises(ValueError),
@@ -94,11 +87,9 @@ async def test_generate_daily_digest_generic_error_propagates(
     mock_container: MagicMock,
 ) -> None:
     """An unexpected error is logged and re-raised by the task wrapper."""
-    # Arrange
-    mock_container.generate_digest.execute.side_effect = RuntimeError("boom")
+    mock_container.generate_intelligent_digest.execute.side_effect = RuntimeError("boom")
     mock_container.digest_repository.get_by_title.return_value = None
 
-    # Act / Assert
     with (
         patch.object(digest, "get_container", container_generator(mock_container)),
         pytest.raises(RuntimeError, match="boom"),

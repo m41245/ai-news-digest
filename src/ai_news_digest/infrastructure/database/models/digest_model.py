@@ -52,6 +52,37 @@ class DigestModel(Base):
         index=True,
     )
 
+    top_story_cluster_id: Mapped[str | None] = mapped_column(
+        String(36),
+        nullable=True,
+        index=True,
+    )
+
+    stories: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    generation_metadata: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    generation_method: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+    )
+
+    provider: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+
+    model: Mapped[str | None] = mapped_column(
+        String(128),
+        nullable=True,
+    )
+
     digest_articles: Mapped[list[DigestArticleModel]] = relationship(
         back_populates="digest",
         cascade="all, delete-orphan",

@@ -57,6 +57,17 @@ export interface Digest {
   format: string;
   generated_at: string;
   article_ids: string[];
+  top_story_cluster_id: string | null;
+  stories: Array<{
+    cluster_id: string | null;
+    headline: string | null;
+    summary: string | null;
+    key_takeaways: string[];
+    why_it_matters: string | null;
+  }>;
+  generation_method: string | null;
+  provider: string | null;
+  model: string | null;
 }
 
 export interface PublicDigest {
@@ -66,6 +77,8 @@ export interface PublicDigest {
   format: string;
   generated_at: string;
   article_count: number;
+  top_story_cluster_id: string | null;
+  generation_method: string | null;
 }
 
 export interface User {

@@ -148,6 +148,8 @@ async def list_public_digests(
                 format=digest.format.value,
                 generated_at=digest.generated_at.isoformat(),
                 article_count=len(digest.article_ids),
+                top_story_cluster_id=digest.top_story_cluster_id,
+                generation_method=digest.generation_method,
             )
             for digest in digests
         ],
@@ -179,6 +181,8 @@ async def get_public_digest(
         format=digest.format.value,
         generated_at=digest.generated_at.isoformat(),
         article_count=len(digest.article_ids),
+        top_story_cluster_id=digest.top_story_cluster_id,
+        generation_method=digest.generation_method,
     )
 
 
