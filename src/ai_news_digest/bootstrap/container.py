@@ -336,7 +336,9 @@ class Container:
     @property
     def article_fetcher(self) -> SsrfHttpArticleFetcher:
         return SsrfHttpArticleFetcher(
-            max_response_bytes=self._settings.rss_max_response_bytes,
+            timeout=self._settings.article_fetch_timeout,
+            max_response_bytes=self._settings.article_max_response_bytes,
+            max_redirects=self._settings.article_max_redirects,
         )
 
     @property
@@ -399,11 +401,18 @@ class Container:
 
     @property
     def extract_article(self) -> ExtractArticleUseCase:
+        from ai_news_digest.application.use_cases.article.extract_article import (
+            ContentQualityValidator,
+        )
+
         return ExtractArticleUseCase(
             article_fetcher=self.article_fetcher,
             html_extractor=self.html_extractor,
             content_cleaner=self.content_cleaner,
             article_repository=self.article_repository,
+            quality_validator=ContentQualityValidator(
+                min_char_count=self._settings.extraction_min_content_length,
+            ),
         )
 
     @property
@@ -412,6 +421,8 @@ class Container:
             rss_fetcher=self.rss_fetcher,
             article_repository=self.article_repository,
             canonical_url=self.canonical_url,
+            extract_article=self.extract_article if self._settings.extraction_enabled else None,
+            extraction_timeout=float(self._settings.article_fetch_timeout),
         )
 
     @property

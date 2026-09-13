@@ -5,6 +5,7 @@ import time
 from ai_news_digest.application.use_cases.article.ingest_all_sources import (
     IngestionSummary,
 )
+from ai_news_digest.core.config import get_settings
 from ai_news_digest.core.logging import get_logger
 from ai_news_digest.core.metrics import (
     record_article_collected,
@@ -41,6 +42,7 @@ async def _fetch_all_sources_impl() -> dict[str, int]:
             fetched=result.fetched,
             imported=result.imported,
             skipped=result.skipped,
+            extraction_enabled=get_settings().extraction_enabled,
         )
 
         return {

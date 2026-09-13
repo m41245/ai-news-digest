@@ -122,6 +122,78 @@ def test_settings_rss_timeout_max_validation() -> None:
         )
 
 
+def test_settings_extraction_defaults() -> None:
+    """Test extraction settings have correct defaults."""
+    test_settings = TestSettings(
+        database_url="postgresql://test",
+        redis_url="redis://test",
+        celery_broker_url="redis://broker",
+        celery_result_backend="redis://backend",
+        jwt_secret_key="a" * 64,
+    )
+    assert test_settings.article_fetch_timeout == 20
+    assert test_settings.article_max_response_bytes == 5_000_000
+    assert test_settings.article_max_redirects == 5
+    assert test_settings.extraction_min_content_length == 200
+    assert test_settings.extraction_enabled is True
+
+
+def test_settings_extraction_env_override() -> None:
+    """Test extraction settings can be overridden via environment variables."""
+    import os
+
+    os.environ["ARTICLE_FETCH_TIMEOUT"] = "45"
+    os.environ["ARTICLE_MAX_RESPONSE_BYTES"] = "10000000"
+    os.environ["ARTICLE_MAX_REDIRECTS"] = "10"
+    os.environ["EXTRACTION_MIN_CONTENT_LENGTH"] = "500"
+    os.environ["EXTRACTION_ENABLED"] = "false"
+    try:
+        test_settings = Settings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+        )
+        assert test_settings.article_fetch_timeout == 45
+        assert test_settings.article_max_response_bytes == 10_000_000
+        assert test_settings.article_max_redirects == 10
+        assert test_settings.extraction_min_content_length == 500
+        assert test_settings.extraction_enabled is False
+    finally:
+        for key in [
+            "ARTICLE_FETCH_TIMEOUT",
+            "ARTICLE_MAX_RESPONSE_BYTES",
+            "ARTICLE_MAX_REDIRECTS",
+            "EXTRACTION_MIN_CONTENT_LENGTH",
+            "EXTRACTION_ENABLED",
+        ]:
+            os.environ.pop(key, None)
+
+
+def test_settings_article_fetch_timeout_validation() -> None:
+    """Test article fetch timeout validation."""
+    with pytest.raises(ValidationError):
+        Settings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            article_fetch_timeout=0,  # Must be >= 1
+        )
+
+
+def test_settings_article_max_redirects_validation() -> None:
+    """Test article max redirects validation."""
+    with pytest.raises(ValidationError):
+        Settings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            article_max_redirects=21,  # Must be <= 20
+        )
+
+
 def test_settings_digest_schedule_hour_validation() -> None:
     """Test digest schedule hour validation."""
     with pytest.raises(ValidationError):

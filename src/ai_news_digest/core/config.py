@@ -334,6 +334,43 @@ class Settings(BaseSettings):
     )
 
     # ======================================================================
+    # Article Extraction
+    # ======================================================================
+
+    article_fetch_timeout: int = Field(
+        default=20,
+        ge=1,
+        le=120,
+        description="Timeout for article HTTP fetches in seconds.",
+    )
+
+    article_max_response_bytes: int = Field(
+        default=5_000_000,
+        ge=1_000,
+        le=100_000_000,
+        description="Maximum article HTTP response body size in bytes.",
+    )
+
+    article_max_redirects: int = Field(
+        default=5,
+        ge=0,
+        le=20,
+        description="Maximum redirect hops for article fetches.",
+    )
+
+    extraction_min_content_length: int = Field(
+        default=200,
+        ge=0,
+        le=5000,
+        description="Minimum extracted content length to consider extraction successful.",
+    )
+
+    extraction_enabled: bool = Field(
+        default=True,
+        description="Enable article content extraction during ingestion.",
+    )
+
+    # ======================================================================
     # Digest
     # ======================================================================
 

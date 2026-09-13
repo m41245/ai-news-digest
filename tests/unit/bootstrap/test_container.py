@@ -152,6 +152,16 @@ def test_container_rss_fetcher(container: Container) -> None:
     assert fetcher is not None
 
 
+def test_container_article_fetcher(container: Container) -> None:
+    """Test article_fetcher property is wired with extraction settings."""
+    from ai_news_digest.infrastructure.extraction.ssrf_http_client import (
+        SsrfHttpArticleFetcher,
+    )
+
+    fetcher = container.article_fetcher
+    assert isinstance(fetcher, SsrfHttpArticleFetcher)
+
+
 def test_container_provider_registry(container: Container) -> None:
     """Test provider_registry property."""
     registry = container.provider_registry
