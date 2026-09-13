@@ -881,6 +881,85 @@ class ArticleRepository(
         await self._session.execute(statement)
         await self._commit()
 
+    async def find_recent_candidate_articles(
+        self,
+        *,
+        cutoff: datetime,
+        exclude_article_id: UUID,
+        category_id: UUID | None = None,
+        company_ids: list[UUID] | None = None,
+        topic_ids: list[UUID] | None = None,
+        title_tokens: list[str] | None = None,
+        limit: int = 50,
+    ) -> list[Article]:
+        from sqlalchemy import or_
+
+        from ai_news_digest.domain.enums.article_status import ArticleStatus
+        from ai_news_digest.infrastructure.database.models.article_company_model import (
+            ArticleCompanyModel,
+        )
+        from ai_news_digest.infrastructure.database.models.article_topic_model import (
+            ArticleTopicModel,
+        )
+
+        statement = (
+            select(ArticleModel)
+            .options(
+                selectinload(ArticleModel.source),
+                selectinload(ArticleModel.category),
+                selectinload(ArticleModel.company_links),
+                selectinload(ArticleModel.topic_links),
+                selectinload(ArticleModel.category_links),
+            )
+            .where(ArticleModel.published_at >= cutoff)
+            .where(ArticleModel.status.in_(
+                [
+                    ArticleStatus.SUMMARIZED,
+                    ArticleStatus.CATEGORIZED,
+                    ArticleStatus.ANALYZED,
+                    ArticleStatus.READY,
+                ]
+            ))
+            .where(ArticleModel.id != str(exclude_article_id))
+            .order_by(ArticleModel.published_at.desc())
+            .limit(limit)
+        )
+
+        if category_id is not None:
+            statement = statement.where(
+                ArticleModel.category_id == str(category_id)
+            )
+
+        if company_ids:
+            company_strs = [str(cid) for cid in company_ids]
+            statement = statement.where(
+                ArticleModel.id.in_(
+                    select(ArticleCompanyModel.article_id).where(
+                        ArticleCompanyModel.company_id.in_(company_strs),
+                    ),
+                ),
+            )
+
+        if topic_ids:
+            topic_strs = [str(tid) for tid in topic_ids]
+            statement = statement.where(
+                ArticleModel.id.in_(
+                    select(ArticleTopicModel.article_id).where(
+                        ArticleTopicModel.topic_id.in_(topic_strs),
+                    ),
+                ),
+            )
+
+        if title_tokens:
+            conditions = []
+            for token in title_tokens[:10]:
+                conditions.append(ArticleModel.title.ilike(f"%{token}%"))
+            if conditions:
+                statement = statement.where(or_(*conditions))
+
+        result = await self._session.execute(statement)
+        return [ArticleMapper.to_domain(model) for model in result.scalars().all()]
+
     async def _replace_links(
         self,
         model_cls: type,

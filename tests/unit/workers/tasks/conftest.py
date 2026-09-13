@@ -65,6 +65,7 @@ def mock_container() -> MagicMock:
         "process_article",
         "generate_digest",
         "deliver_digest",
+        "cluster_articles",
     ):
         setattr(container, name, AsyncMock())
 

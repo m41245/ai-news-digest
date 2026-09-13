@@ -371,6 +371,72 @@ class Settings(BaseSettings):
     )
 
     # ======================================================================
+    # Story Clustering
+    # ======================================================================
+
+    story_clustering_enabled: bool = Field(
+        default=True,
+        description="Enable semantic story clustering after AI analysis.",
+    )
+
+    story_semantic_duplicate_threshold: float = Field(
+        default=0.65,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Minimum similarity score for an article to be considered a "
+            "semantic duplicate of an existing story cluster. Values above "
+            "this threshold merge articles into the same cluster. Conservative "
+            "defaults are used to avoid false-positive merges."
+        ),
+    )
+
+    story_related_story_threshold: float = Field(
+        default=0.4,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Similarity score above which articles are classified as related "
+            "but distinct stories. Scores below this are new stories. Must be "
+            "lower than story_semantic_duplicate_threshold."
+        ),
+    )
+
+    story_time_window_hours: int = Field(
+        default=72,
+        ge=1,
+        le=720,
+        description=(
+            "Maximum age of existing clusters/articles (in hours) to consider "
+            "as clustering candidates. Older stories are not automatically "
+            "merged."
+        ),
+    )
+
+    story_candidate_limit: int = Field(
+        default=50,
+        ge=1,
+        le=500,
+        description=(
+            "Maximum number of candidate clusters/articles to evaluate for "
+            "each new article. Bounding this avoids O(n²) behavior."
+        ),
+    )
+
+    @field_validator("story_related_story_threshold")
+    @classmethod
+    def validate_related_threshold(
+        cls, value: float, info: ValidationInfo
+    ) -> float:
+        semantic = info.data.get("story_semantic_duplicate_threshold")
+        if semantic is not None and value >= semantic:
+            raise ValueError(
+                "story_related_story_threshold must be lower than "
+                "story_semantic_duplicate_threshold."
+            )
+        return value
+
+    # ======================================================================
     # Digest
     # ======================================================================
 

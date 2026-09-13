@@ -1,11 +1,24 @@
+"""Cluster articles into story clusters using semantic duplicate detection.
+
+This use case coordinates bounded candidate selection, similarity scoring,
+and cluster assignment. It preserves the existing representative-article
+selection policy while delegating similarity classification to
+``SemanticDuplicateDetector``.
+"""
+
 from __future__ import annotations
 
-import re
-import string
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
-from urllib.parse import urlparse
 
+from ai_news_digest.application.services.semantic_candidate_finder import (
+    SemanticCandidateFinder,
+)
+from ai_news_digest.application.services.semantic_duplicate_detector import (
+    SemanticDuplicateDetector,
+)
+from ai_news_digest.core.logging import get_logger
+from ai_news_digest.core.metrics import record_cluster_assigned, record_cluster_created
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.models.story_cluster import StoryCluster
 
@@ -15,54 +28,29 @@ if TYPE_CHECKING:
         StoryClusterRepository,
     )
 
-
-def _normalize_text(text: str) -> tuple[str, ...]:
-    text = text.lower().strip()
-    text = text.translate(str.maketrans("", "", string.punctuation))
-    words = text.split()
-    return tuple(sorted(set(words)))
-
-
-def _jaccard(a: frozenset[str], b: frozenset[str]) -> float:
-    intersection = len(a & b)
-    union = len(a | b)
-    return intersection / union if union > 0 else 0.0
-
-
-def _generate_slug(title: str) -> str:
-    slug = title.lower()
-    slug = re.sub(r"[^a-z0-9]+", "-", slug)
-    slug = slug.strip("-")
-    return slug[:128]
-
-
-def _canonical_domain(url: str) -> str:
-    return urlparse(url).netloc.lower()
-
-
-def _path_segments_overlap(url1: str, url2: str) -> bool:
-    path1 = urlparse(url1).path
-    path2 = urlparse(url2).path
-    segments1 = {s for s in path1.split("/") if s}
-    segments2 = {s for s in path2.split("/") if s}
-    if not segments1 or not segments2:
-        return False
-    return bool(segments1 & segments2)
+logger = get_logger(__name__)
 
 
 class ClusterArticlesUseCase:
     """
     Application use case responsible for clustering articles using
-    deterministic signals.
+    deterministic semantic duplicate detection.
     """
 
     def __init__(
         self,
         article_repository: ArticleRepository,
         cluster_repository: StoryClusterRepository,
+        detector: SemanticDuplicateDetector | None = None,
+        candidate_finder: SemanticCandidateFinder | None = None,
     ) -> None:
         self._article_repository = article_repository
         self._cluster_repository = cluster_repository
+        self._detector = detector or SemanticDuplicateDetector()
+        self._candidate_finder = candidate_finder or SemanticCandidateFinder(
+            article_repository=article_repository,
+            cluster_repository=cluster_repository,
+        )
 
     async def execute(
         self,
@@ -75,23 +63,58 @@ class ClusterArticlesUseCase:
 
         if article.cluster_id is not None:
             existing = await self._cluster_repository.get_by_id(article.cluster_id)
-            return existing
+            if existing is not None:
+                return existing
 
-        clusters = await self._cluster_repository.list_all()
+        candidate_clusters, candidate_articles = (
+            await self._candidate_finder.find_candidates(article)
+        )
 
         best_cluster = None
-        best_score = 0.0
+        best_result = None
 
-        for cluster in clusters:
-            score = await self._compute_score(article, cluster)
-            if score > best_score:
-                best_score = score
+        for cluster in candidate_clusters:
+            result = await self._detector.compare_with_cluster(
+                article, cluster, article_repository=self._article_repository
+            )
+            if result.should_cluster() and (
+                best_result is None or result.score > best_result.score
+            ):
+                best_result = result
                 best_cluster = cluster
 
-        if best_cluster is not None and best_score >= 0.85:
+        if best_cluster is None:
+            for candidate_article in candidate_articles:
+                if candidate_article.cluster_id is None:
+                    continue
+                existing_cluster = await self._cluster_repository.get_by_id(
+                    candidate_article.cluster_id
+                )
+                if existing_cluster is None:
+                    continue
+                result = await self._detector.compare_with_cluster(
+                    article, existing_cluster, article_repository=self._article_repository
+                )
+                if result.should_cluster() and (
+                    best_result is None or result.score > best_result.score
+                ):
+                    best_result = result
+                    best_cluster = existing_cluster
+
+        if best_cluster is not None:
             await self._article_repository.set_cluster(article.id, best_cluster.id)
-            await self._cluster_repository.attach_article(best_cluster.id, article.id)
+            await self._cluster_repository.attach_article(
+                best_cluster.id, article.id
+            )
             updated_cluster = await self._update_cluster_metadata(best_cluster, article)
+            record_cluster_assigned()
+            logger.info(
+                "Article assigned to existing cluster",
+                article_id=str(article.id),
+                cluster_id=str(best_cluster.id),
+                score=best_result.score if best_result else None,
+                signals=best_result.signals if best_result else (),
+            )
             return updated_cluster
 
         title = article.title[:500]
@@ -108,66 +131,13 @@ class ClusterArticlesUseCase:
         created_cluster = await self._cluster_repository.create(new_cluster)
         await self._article_repository.set_cluster(article.id, created_cluster.id)
         await self._cluster_repository.attach_article(created_cluster.id, article.id)
+        record_cluster_created()
+        logger.info(
+            "New story cluster created",
+            article_id=str(article.id),
+            cluster_id=str(created_cluster.id),
+        )
         return None
-
-    async def _compute_score(
-        self,
-        article: Article,
-        cluster: StoryCluster,
-    ) -> float:
-        score = 0.0
-
-        article_words = frozenset(_normalize_text(article.title))
-        cluster_words = frozenset(_normalize_text(cluster.title))
-        jaccard = _jaccard(article_words, cluster_words)
-
-        if jaccard >= 0.8:
-            score += 0.5
-        elif jaccard >= 0.6:
-            score += 0.25
-
-        article_companies = {c.lower().strip() for c in article.companies}
-        article_topics = {t.lower().strip() for t in article.topics}
-        article_categories = {c.lower().strip() for c in article.categories}
-
-        cluster_companies: set[str] = set()
-        cluster_topics: set[str] = set()
-        cluster_categories: set[str] = set()
-        representative_url = ""
-
-        if cluster.representative_article_id is not None:
-            representative = await self._article_repository.get_by_id(
-                cluster.representative_article_id
-            )
-            if representative is not None:
-                cluster_companies = {c.lower().strip() for c in representative.companies}
-                cluster_topics = {t.lower().strip() for t in representative.topics}
-                cluster_categories = {c.lower().strip() for c in representative.categories}
-                representative_url = representative.url
-
-        if cluster_companies & article_companies:
-            score += 0.2
-
-        if cluster_topics & article_topics:
-            score += 0.15
-
-        if cluster_categories & article_categories:
-            score += 0.1
-
-        time_diff = abs((article.published_at - cluster.first_published_at).total_seconds())
-        if time_diff <= 24 * 60 * 60:
-            score += 0.2
-        elif time_diff <= 7 * 24 * 60 * 60:
-            score += 0.1
-
-        if (
-            representative_url
-            and _canonical_domain(article.url) == _canonical_domain(representative_url)
-            and _path_segments_overlap(article.url, representative_url)
-        ):
-            score += 0.05
-
-        return score
 
     async def _update_cluster_metadata(
         self,
@@ -218,3 +188,15 @@ class ClusterArticlesUseCase:
         cluster.confidence = confidence
 
         return await self._cluster_repository.update(cluster)
+
+
+def _generate_slug(title: str) -> str:
+    import re
+
+    slug = title.lower()
+    slug = re.sub(r"[^a-z0-9]+", "-", slug)
+    slug = slug.strip("-")
+    return slug[:128]
+
+
+__all__ = ["ClusterArticlesUseCase"]

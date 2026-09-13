@@ -36,6 +36,8 @@ class ApplicationMetrics(TypedDict):
     cleanup_operations_total: int
     auth_failures_total: int
     rate_limit_events_total: int
+    clusters_created_total: int
+    clusters_assigned_total: int
 
 
 # ---------------------------------------------------------------------------
@@ -71,6 +73,8 @@ _digest_batches_created_total = 0
 _cleanup_operations_total = 0
 _auth_failures_total = 0
 _rate_limit_events_total = 0
+_clusters_created_total = 0
+_clusters_assigned_total = 0
 
 _lock = Lock()
 
@@ -275,6 +279,24 @@ def record_rate_limit_event(count: int = 1) -> None:
         _rate_limit_events_total += count
 
 
+def record_cluster_created(count: int = 1) -> None:
+    """Record the number of new story clusters created."""
+    global _clusters_created_total
+    if count <= 0:
+        return
+    with _lock:
+        _clusters_created_total += count
+
+
+def record_cluster_assigned(count: int = 1) -> None:
+    """Record the number of articles assigned to an existing cluster."""
+    global _clusters_assigned_total
+    if count <= 0:
+        return
+    with _lock:
+        _clusters_assigned_total += count
+
+
 def snapshot_application_metrics() -> ApplicationMetrics:
     """Return a copy of the current application-level metric values."""
     with _lock:
@@ -303,6 +325,8 @@ def snapshot_application_metrics() -> ApplicationMetrics:
             "cleanup_operations_total": _cleanup_operations_total,
             "auth_failures_total": _auth_failures_total,
             "rate_limit_events_total": _rate_limit_events_total,
+            "clusters_created_total": _clusters_created_total,
+            "clusters_assigned_total": _clusters_assigned_total,
         }
 
 
@@ -457,6 +481,8 @@ __all__ = [
     "record_celery_task_retry",
     "record_celery_task_success",
     "record_cleanup_operation",
+    "record_cluster_assigned",
+    "record_cluster_created",
     "record_delivery_attempted",
     "record_delivery_deferred",
     "record_delivery_failed_permanently",

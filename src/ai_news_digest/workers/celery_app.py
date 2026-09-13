@@ -108,6 +108,7 @@ celery_app = Celery(
     include=[
         "ai_news_digest.workers.tasks.ingest",
         "ai_news_digest.workers.tasks.process",
+        "ai_news_digest.workers.tasks.cluster",
         "ai_news_digest.workers.tasks.digest",
         "ai_news_digest.workers.tasks.deliver",
         "ai_news_digest.workers.tasks.cleanup",
@@ -170,6 +171,14 @@ celery_app.conf.update(
             "schedule": crontab(hour=7, minute=30),
             "options": {
                 "expires": 7200,
+                "send_events": True,
+            },
+        },
+        "daily-story-clustering": {
+            "task": "workers.tasks.cluster.cluster_pending_articles",
+            "schedule": crontab(hour=8, minute=0),
+            "options": {
+                "expires": 3600,
                 "send_events": True,
             },
         },

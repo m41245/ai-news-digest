@@ -68,6 +68,89 @@ class StoryClusterRepository(
         result = await self._session.execute(statement)
         return [StoryClusterMapper.to_domain(model) for model in result.scalars().all()]
 
+    async def find_recent_active_clusters(
+        self,
+        *,
+        cutoff: datetime,
+        category_id: UUID | None = None,
+        company_ids: list[UUID] | None = None,
+        topic_ids: list[UUID] | None = None,
+        title_tokens: list[str] | None = None,
+        limit: int = 50,
+    ) -> list[StoryCluster]:
+        from sqlalchemy import and_, exists, or_
+
+        from ai_news_digest.infrastructure.database.models.article_company_model import (
+            ArticleCompanyModel,
+        )
+        from ai_news_digest.infrastructure.database.models.article_model import (
+            ArticleModel,
+        )
+        from ai_news_digest.infrastructure.database.models.article_topic_model import (
+            ArticleTopicModel,
+        )
+
+        statement = (
+            select(StoryClusterModel)
+            .where(StoryClusterModel.first_published_at >= cutoff)
+            .where(StoryClusterModel.status == "active")
+            .order_by(StoryClusterModel.first_published_at.desc())
+            .limit(limit)
+        )
+
+        if category_id is not None:
+            statement = statement.where(
+                exists(
+                    select(1)
+                    .where(
+                        and_(
+                            ArticleModel.cluster_id == StoryClusterModel.id,
+                            ArticleModel.category_id == str(category_id),
+                        )
+                    )
+                )
+            )
+
+        if company_ids:
+            company_strs = [str(cid) for cid in company_ids]
+            statement = statement.where(
+                exists(
+                    select(1)
+                    .where(
+                        and_(
+                            ArticleModel.cluster_id == StoryClusterModel.id,
+                            ArticleCompanyModel.article_id == ArticleModel.id,
+                            ArticleCompanyModel.company_id.in_(company_strs),
+                        )
+                    )
+                )
+            )
+
+        if topic_ids:
+            topic_strs = [str(tid) for tid in topic_ids]
+            statement = statement.where(
+                exists(
+                    select(1)
+                    .where(
+                        and_(
+                            ArticleModel.cluster_id == StoryClusterModel.id,
+                            ArticleTopicModel.article_id == ArticleModel.id,
+                            ArticleTopicModel.topic_id.in_(topic_strs),
+                        )
+                    )
+                )
+            )
+
+        if title_tokens:
+            conditions = []
+            for token in title_tokens[:10]:
+                conditions.append(StoryClusterModel.title.ilike(f"%{token}%"))
+            if conditions:
+                statement = statement.where(or_(*conditions))
+
+        result = await self._session.execute(statement)
+        return [StoryClusterMapper.to_domain(model) for model in result.scalars().all()]
+
     async def count(self) -> int:
         statement = select(func.count()).select_from(StoryClusterModel)
         result = await self._session.execute(statement)

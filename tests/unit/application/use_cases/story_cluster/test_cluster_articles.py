@@ -78,17 +78,19 @@ def _make_cluster(
 @pytest.fixture
 def mock_article_repository() -> MagicMock:
     repo = MagicMock(spec=ArticleRepository)
-    repo.list_all = AsyncMock(return_value=[])
+    repo.find_recent_active_clusters = AsyncMock(return_value=[])
+    repo.find_recent_candidate_articles = AsyncMock(return_value=[])
     repo.list_by_cluster_id = AsyncMock(return_value=[])
     repo.get_by_id = AsyncMock(return_value=None)
     repo.set_cluster = AsyncMock()
+    repo.list_by_status = AsyncMock(return_value=[])
     return repo
 
 
 @pytest.fixture
 def mock_cluster_repository() -> MagicMock:
     repo = MagicMock(spec=StoryClusterRepository)
-    repo.list_all = AsyncMock(return_value=[])
+    repo.find_recent_active_clusters = AsyncMock(return_value=[])
     repo.get_by_id = AsyncMock(return_value=None)
     repo.create = AsyncMock(side_effect=lambda c: c)
     repo.attach_article = AsyncMock()
@@ -107,7 +109,7 @@ async def test_new_article_creates_new_cluster(
     )
 
     article = _make_article(title="OpenAI releases new model")
-    mock_cluster_repository.list_all.return_value = []
+    mock_cluster_repository.find_recent_active_clusters.return_value = []
 
     await use_case.execute(article)
 
@@ -129,7 +131,6 @@ async def test_idempotent_clustering_when_already_clustered(
 
     existing_cluster = _make_cluster()
     article = _make_article(cluster_id=existing_cluster.id)
-    mock_cluster_repository.list_all.return_value = [existing_cluster]
     mock_cluster_repository.get_by_id.return_value = existing_cluster
 
     result = await use_case.execute(article)
@@ -173,7 +174,7 @@ async def test_high_confidence_title_and_company_match(
         published_at=datetime(2026, 9, 4, 12, 0, tzinfo=UTC),
     )
 
-    mock_cluster_repository.list_all.return_value = [cluster]
+    mock_cluster_repository.find_recent_active_clusters.return_value = [cluster]
 
     result = await use_case.execute(new_article)
 
@@ -196,7 +197,7 @@ async def test_low_confidence_does_not_cluster(
         title="Unrelated event about quantum computing",
         first_published_at=datetime(2026, 9, 1, 12, 0, tzinfo=UTC),
     )
-    mock_cluster_repository.list_all.return_value = [cluster]
+    mock_cluster_repository.find_recent_active_clusters.return_value = [cluster]
 
     article = _make_article(
         title="Apple releases new iPhone",
@@ -243,7 +244,7 @@ async def test_time_window_behavior(
         companies=("OpenAI",),
     )
 
-    mock_cluster_repository.list_all.return_value = [cluster]
+    mock_cluster_repository.find_recent_active_clusters.return_value = [cluster]
     result = await use_case.execute(article_within_7d)
     assert result is not None
 
@@ -255,6 +256,7 @@ async def test_time_window_behavior(
     )
     mock_cluster_repository.reset_mock()
     mock_article_repository.reset_mock()
+    mock_cluster_repository.find_recent_active_clusters.return_value = []
     result = await use_case.execute(article_outside_7d)
     assert result is None
 
@@ -270,7 +272,7 @@ async def test_duplicate_prevention(
     )
 
     cluster = _make_cluster()
-    mock_cluster_repository.list_all.return_value = [cluster]
+    mock_cluster_repository.find_recent_active_clusters.return_value = [cluster]
 
     article = _make_article()
     mock_article_repository.get_by_id.return_value = None
@@ -338,7 +340,7 @@ async def test_representative_article_selection(
         topics=("ai",),
     )
 
-    mock_cluster_repository.list_all.return_value = [cluster]
+    mock_cluster_repository.find_recent_active_clusters.return_value = [cluster]
     mock_cluster_repository.update.side_effect = lambda c: c
 
     result = await use_case.execute(new_article)

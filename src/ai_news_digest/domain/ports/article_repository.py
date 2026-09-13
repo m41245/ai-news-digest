@@ -230,6 +230,28 @@ class ArticleRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_recent_candidate_articles(
+        self,
+        *,
+        cutoff: datetime,
+        exclude_article_id: UUID,
+        category_id: UUID | None = None,
+        company_ids: list[UUID] | None = None,
+        topic_ids: list[UUID] | None = None,
+        title_tokens: list[str] | None = None,
+        limit: int = 50,
+    ) -> list[Article]:
+        """
+        Return recent digest-eligible articles published after ``cutoff`` that
+        could be semantically related to a new article.
+
+        The method applies lightweight DB-level filters for category, company,
+        topic, and title token overlap. Results are ordered by ``published_at``
+        descending and limited to ``limit`` entries.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     async def list_public_articles_for_feed(
         self,
         limit: int = 100,

@@ -10,6 +10,12 @@ from ai_news_digest.application.ai.provider_registry import ProviderRegistry
 from ai_news_digest.application.rendering.renderer_factory import (
     DigestRendererFactory,
 )
+from ai_news_digest.application.services.semantic_candidate_finder import (
+    SemanticCandidateFinder,
+)
+from ai_news_digest.application.services.semantic_duplicate_detector import (
+    SemanticDuplicateDetector,
+)
 from ai_news_digest.application.use_cases.article.analyze_and_materialize import (
     AnalyzeAndMaterializeUseCase,
 )
@@ -544,6 +550,19 @@ class Container:
     @property
     def cluster_articles(self) -> ClusterArticlesUseCase:
         return ClusterArticlesUseCase(
+            article_repository=self.article_repository,
+            cluster_repository=self.story_cluster_repository,
+            detector=self.semantic_duplicate_detector,
+            candidate_finder=self.semantic_candidate_finder,
+        )
+
+    @property
+    def semantic_duplicate_detector(self) -> SemanticDuplicateDetector:
+        return SemanticDuplicateDetector()
+
+    @property
+    def semantic_candidate_finder(self) -> SemanticCandidateFinder:
+        return SemanticCandidateFinder(
             article_repository=self.article_repository,
             cluster_repository=self.story_cluster_repository,
         )
