@@ -15,7 +15,6 @@ from zoneinfo import ZoneInfo
 
 from ai_news_digest.application.ai.editorial_schemas import (
     EditorialDigestOutput,
-    EditorialStory,
 )
 from ai_news_digest.application.services.digest_editorial_generator import (
     DigestEditorialGenerator,
@@ -114,20 +113,24 @@ class GenerateIntelligentDigestUseCase:
             title = f"AI News Digest - {digest_date}"
 
         existing = await self._digest_repository.get_by_title(title)
-        if existing is not None and not force:
-            logger.info("Today's digest already exists, reusing", title=title)
-            return IntelligentDigestResult(
-                digest_id=str(existing.id),
-                generated_at=existing.generated_at,
-                candidate_count=0,
-                story_count=len(existing.article_ids),
-                top_story_cluster_id=existing.top_story_cluster_id,
-                generation_method=existing.generation_method or "unknown",
-                provider=existing.provider,
-                model=existing.model,
-                fallback_used=(existing.generation_method == "fallback"),
-                error=None,
-            )
+        if existing is not None:
+            if not force:
+                logger.info("Today's digest already exists, reusing", title=title)
+                return IntelligentDigestResult(
+                    digest_id=str(existing.id),
+                    generated_at=existing.generated_at,
+                    candidate_count=0,
+                    story_count=len(existing.article_ids),
+                    top_story_cluster_id=existing.top_story_cluster_id,
+                    generation_method=existing.generation_method or "unknown",
+                    provider=existing.provider,
+                    model=existing.model,
+                    fallback_used=(existing.generation_method == "fallback"),
+                    error=None,
+                )
+            logger.info("Force-regenerating digest, deleting existing", title=title)
+            await self._digest_repository.delete(existing.id)
+            await self._digest_repository.commit()
 
         cutoff = now - self._ranking_lookback_timedelta()
         eligible_clusters = (
@@ -354,12 +357,15 @@ class GenerateIntelligentDigestUseCase:
 
     def _collect_article_ids(
         self, candidate_stories: list[tuple[StoryCluster, list[object]]]
-    ) -> list[str]:
+    ) -> list[UUID]:
         """Collect article IDs from candidate stories."""
-        ids: list[str] = []
+        ids: list[UUID] = []
         for _, articles in candidate_stories:
             for article in articles:
-                ids.append(str(article.id))
+                if isinstance(article.id, UUID):
+                    ids.append(article.id)
+                else:
+                    ids.append(UUID(str(article.id)))
         return ids
 
     def _render_editorial_output(
@@ -456,7 +462,7 @@ class GenerateIntelligentDigestUseCase:
 
         return "\n".join(lines)
 
-    def _serialize_stories(self, output: EditorialStory) -> list[dict]:
+    def _serialize_stories(self, output: EditorialDigestOutput) -> list[dict]:
         """Serialize editorial stories to JSON-serializable dicts."""
         stories: list[dict] = []
         if output.top_story is not None:
