@@ -58,4 +58,16 @@ class UpdateArticleUseCase:
             published_at=updated.published_at.isoformat(),
             fetched_at=updated.fetched_at.isoformat(),
             status=updated.status.value,
+            importance_score=updated.importance_score,
+            confidence=updated.confidence,
+            key_takeaways=updated.key_takeaways,
+            why_it_matters=updated.why_it_matters,
+            companies=updated.companies,
+            topics=updated.topics,
+            categories=updated.categories,
+            ai_provider=updated.ai_provider,
+            ai_model=updated.ai_model,
+            ai_processed_at=(
+                updated.ai_processed_at.isoformat() if updated.ai_processed_at else None
+            ),
         )

@@ -2,22 +2,35 @@
 
 ## Current Phase
 
-Milestone 57 — Zero-Budget Infrastructure Discovery & Free Deployment Feasibility: **$0 DEPLOYMENT ARCHITECTURE COMPLETE — EXTERNAL ACCESS REQUIRED**.
+Milestone 65.1 — Article Intelligence Contract & Pipeline Integrity Hardening: **COMPLETE**.
 
-M57 additions:
-- Complete repository audit completed (frameworks, databases, workers, CI/CD, deployment configs)
-- Authoritative quality gate verified: 1,452 backend unit tests passing, 25 frontend tests passing, ruff clean, mypy clean, pip-audit clean, Docker builds passing
-- Migration head: 017 (linear chain 001→017, single head)
-- Comprehensive free-tier research completed for all components (PostgreSQL, Redis, backend hosting, frontend hosting, workers, email, AI, monitoring)
-- Best $0 architecture selected: Render (backend) + Neon PostgreSQL + Upstash Redis + Cloudflare Pages (frontend) + Celery Beat (automated scheduled tasks on Render) + GitHub Actions (manual/on-demand task runner)
-- Repository updated with free deployment support: `render.yaml`, `.github/workflows/scheduled-tasks.yml` (manual/on-demand only), `scripts/scheduled/run_task.py`
-- Documentation created: `docs/FREE_DEPLOYMENT_ARCHITECTURE.md`, `docs/MILESTONE_57_ZERO_BUDGET_DEPLOYMENT_REPORT.md`
-- First unavoidable paid blocker identified: AI API costs (OpenAI/Anthropic require payment)
-- All infrastructure can run for $0; AI features require paid API credits
-- Final release decision: $0 DEPLOYMENT ARCHITECTURE COMPLETE — EXTERNAL ACCESS REQUIRED
+M65.1 additions:
+- Converted `StructuredIntelligence` from dataclass to Pydantic v2 `BaseModel` with explicit field validators
+- Fixed container wiring: `analysis` capability now registered for all configured AI providers
+- Updated application DTO `ArticleResponse` to include all AI intelligence fields
+- Fixed semantic bug: `dedupe_topics` was incorrectly reused for company deduplication
+- Added round-trip persistence tests for structured intelligence fields
+- Added container tests verifying analysis capability registration
+- Resolved 20 MyPy false-positive errors on `routes/articles.py`
+- All quality gates pass: ruff clean, mypy clean (0 errors in 328 source files), 526 unit tests passing
+- Frontend: 25 tests passing, TypeScript typecheck clean, production build passing
+- Migration 018 verified: additive, downgrade implemented, schema matches ORM
 
-External blockers:
-- No production Linux host or managed container platform
+### Next Milestone
+
+Milestone 66 — (To be defined)
+
+---
+
+## Current Focus
+
+Milestone 65.1 — Article Intelligence Contract & Pipeline Integrity Hardening: **Complete**.
+
+M65.1 completed. The M65 structured analysis pipeline is now fully functional: providers advertise the `analysis` capability, the container wires it correctly, Pydantic v2 validates all structured output, and the application DTO matches the API schema. All quality gates pass.
+
+---
+
+## Overall Progress
 - No PostgreSQL 16+ production instance
 - No Redis 7+ production instance
 - No DNS access or production domain names

@@ -59,4 +59,16 @@ class CreateArticleUseCase:
             published_at=created.published_at.isoformat(),
             fetched_at=created.fetched_at.isoformat(),
             status=created.status.value,
+            importance_score=created.importance_score,
+            confidence=created.confidence,
+            key_takeaways=created.key_takeaways,
+            why_it_matters=created.why_it_matters,
+            companies=created.companies,
+            topics=created.topics,
+            categories=created.categories,
+            ai_provider=created.ai_provider,
+            ai_model=created.ai_model,
+            ai_processed_at=created.ai_processed_at.isoformat()
+            if created.ai_processed_at
+            else None,
         )

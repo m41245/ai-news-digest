@@ -45,4 +45,16 @@ class GetArticleUseCase:
             published_at=article.published_at.isoformat(),
             fetched_at=article.fetched_at.isoformat(),
             status=article.status.value,
+            importance_score=article.importance_score,
+            confidence=article.confidence,
+            key_takeaways=article.key_takeaways,
+            why_it_matters=article.why_it_matters,
+            companies=article.companies,
+            topics=article.topics,
+            categories=article.categories,
+            ai_provider=article.ai_provider,
+            ai_model=article.ai_model,
+            ai_processed_at=article.ai_processed_at.isoformat()
+            if article.ai_processed_at
+            else None,
         )

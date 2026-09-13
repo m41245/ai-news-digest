@@ -259,6 +259,7 @@ class Container:
             self._provider_registry.register(openai_provider)
             self._capability_registry.register_provider("summarization", openai_provider.id)
             self._capability_registry.register_provider("categorization", openai_provider.id)
+            self._capability_registry.register_provider("analysis", openai_provider.id)
 
         if self._settings.anthropic_enabled and self._settings.anthropic_api_key:
             anthropic_config = ProviderConfig(
@@ -274,6 +275,7 @@ class Container:
             self._provider_registry.register(anthropic_provider)
             self._capability_registry.register_provider("summarization", anthropic_provider.id)
             self._capability_registry.register_provider("categorization", anthropic_provider.id)
+            self._capability_registry.register_provider("analysis", anthropic_provider.id)
 
     #
     # Repositories

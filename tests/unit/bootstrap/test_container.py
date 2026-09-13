@@ -262,9 +262,11 @@ def test_container_provider_registration_openai(monkeypatch) -> None:
     # Both capabilities must be wired to the provider.
     assert "openai" in container.capability_registry.providers_for("summarization")
     assert "openai" in container.capability_registry.providers_for("categorization")
+    assert "openai" in container.capability_registry.providers_for("analysis")
 
     # The decision engine must resolve the summarization capability.
     assert container.decision_engine.resolve({"summarization"}) == {"openai"}
+    assert container.decision_engine.resolve({"analysis"}) == {"openai"}
 
 
 def test_container_provider_registration_anthropic(monkeypatch) -> None:
@@ -301,8 +303,10 @@ def test_container_provider_registration_anthropic(monkeypatch) -> None:
     assert container.provider_registry.exists("anthropic")
     assert "anthropic" in container.capability_registry.providers_for("summarization")
     assert "anthropic" in container.capability_registry.providers_for("categorization")
+    assert "anthropic" in container.capability_registry.providers_for("analysis")
 
     assert container.decision_engine.resolve({"categorization"}) == {"anthropic"}
+    assert container.decision_engine.resolve({"analysis"}) == {"anthropic"}
 
 
 def test_container_unwraps_secretstr_api_keys() -> None:

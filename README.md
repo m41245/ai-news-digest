@@ -4,7 +4,7 @@ A production-oriented AI-powered news aggregation and daily digest platform buil
 
 The project is designed to collect articles from multiple RSS sources, organize and categorize them, generate AI-powered summaries, and produce high-quality daily news digests through a scalable and maintainable architecture.
 
-> **Project Status:** Milestone 57 — Zero-Budget Infrastructure Discovery & Free Deployment Feasibility: **$0 DEPLOYMENT ARCHITECTURE COMPLETE — EXTERNAL ACCESS REQUIRED**.
+> **Project Status:** Milestone 65.1 — Article Intelligence Contract & Pipeline Integrity Hardening: **Complete**.
 
 Recent additions build on top of the existing architecture without replacing
 it:
@@ -560,6 +560,7 @@ Current migration chain:
 - `015` — Composite indexes for personalized feed performance and source filtering
 - `016` — Notifications tables (`notifications`, `notification_deliveries`, `notification_preferences`)
 - `017` — Notification scheduling columns (`scheduled_for`, `claimed_at`, `processing_started_at`, `next_attempt_at`, `provider_idempotency_key`, `delivery_window`, `suppression_reason`) with composite indexes
+- `018` — AI metadata fields (`ai_input_tokens`, `ai_output_tokens`, `ai_prompt_version`)
 
 ---
 

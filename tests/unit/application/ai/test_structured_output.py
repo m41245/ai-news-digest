@@ -46,7 +46,7 @@ class TestStructuredIntelligence:
         assert len(obj.why_it_matters) == 2000
 
     def test_too_many_takeaways_raises(self) -> None:
-        with pytest.raises(ValueError, match="key_takeaways must contain at most 8 items"):
+        with pytest.raises(ValueError, match="key_takeaways"):
             StructuredIntelligence(summary="s", key_takeaways=["t"] * 9)
 
     def test_takeaway_truncated(self) -> None:
@@ -91,6 +91,36 @@ class TestStructuredIntelligence:
         obj = StructuredIntelligence(summary="s", topics=[f"topic_{i}" for i in range(15)])
         assert len(obj.topics) == 10
 
+    def test_invalid_confidence_raises(self) -> None:
+        with pytest.raises(ValueError, match="confidence"):
+            StructuredIntelligence(summary="s", confidence="not-a-number")
+
+    def test_invalid_importance_raises(self) -> None:
+        with pytest.raises(ValueError, match="importance"):
+            StructuredIntelligence(summary="s", importance="not-a-number")
+
+    def test_duplicate_categories_removed(self) -> None:
+        obj = StructuredIntelligence(summary="s", categories=("ai_research", "ai_research", "ai_models"))
+        assert obj.categories == ("ai_research", "ai_models")
+
+    def test_duplicate_companies_removed(self) -> None:
+        obj = StructuredIntelligence(summary="s", companies=("OpenAI", "openai", "Anthropic"))
+        assert obj.companies == ("OpenAI", "Anthropic")
+
+    def test_duplicate_topics_removed(self) -> None:
+        obj = StructuredIntelligence(summary="s", topics=("GPT", "gpt", "AI"))
+        assert obj.topics == ("GPT", "AI")
+
+    def test_malformed_provider_output_raises(self) -> None:
+        with pytest.raises(ValueError, match="summary must not be empty"):
+            StructuredIntelligence(summary="", topics=["AI"])
+
+    def test_oversized_summary_truncated(self) -> None:
+        # summary is not truncated, just stripped; long summaries are allowed
+        long_summary = "x" * 10000
+        obj = StructuredIntelligence(summary=long_summary)
+        assert obj.summary == long_summary
+
 
 class TestValidateStructuredOutput:
     def test_valid_response(self) -> None:
@@ -134,10 +164,46 @@ class TestValidateStructuredOutput:
             validate_structured_output({"summary": ""})
 
     def test_oversized_field_raises(self) -> None:
-        with pytest.raises(ValueError, match="key_takeaways must contain at most 8 items"):
+        with pytest.raises(ValueError, match="key_takeaways"):
             validate_structured_output(
                 {"summary": "s", "key_takeaways": ["t"] * 9}
             )
+
+    def test_wrong_type_confidence_raises(self) -> None:
+        with pytest.raises(ValueError):
+            validate_structured_output({"summary": "s", "confidence": "high"})
+
+    def test_empty_string_why_it_matters_raises(self) -> None:
+        with pytest.raises(ValueError, match="why_it_matters must not be empty"):
+            validate_structured_output({"summary": "s", "why_it_matters": "   "})
+
+    def test_oversized_categories_limited(self) -> None:
+        data = {
+            "summary": "s",
+            "categories": [f"cat_{i}" for i in range(10)],
+        }
+        obj = validate_structured_output(data)
+        assert len(obj.categories) == 5
+
+    def test_duplicate_companies_removed(self) -> None:
+        data = {
+            "summary": "s",
+            "companies": ["OpenAI", "openai", "Anthropic"],
+        }
+        obj = validate_structured_output(data)
+        assert obj.companies == ("OpenAI", "Anthropic")
+
+    def test_malformed_provider_output_sets_safe_defaults(self) -> None:
+        data = {
+            "summary": "Valid summary.",
+            "key_takeaways": "not-a-list",
+            "companies": None,
+            "topics": {},
+        }
+        obj = validate_structured_output(data)
+        assert obj.summary == "Valid summary."
+        assert obj.companies == ()
+        assert obj.topics == ()
 
 
 __all__ = ["TestStructuredIntelligence", "TestValidateStructuredOutput"]

@@ -156,3 +156,85 @@ def test_article_mapper_update_model_without_category(
     ArticleMapper.update_model(sample_article_model, sample_article)
 
     assert sample_article_model.category_id is None
+
+
+def test_article_mapper_round_trip_preserves_ai_fields() -> None:
+    """Test that structured intelligence fields survive domain -> ORM -> domain.
+    
+    Note: companies and categories are reconstructed from association tables,
+    not direct columns, so they require link setup to survive round trip.
+    The JSON columns (key_takeaways, topics) and scalar AI fields do survive.
+    """
+    article = Article.create(
+        title="AI Article",
+        url="https://example.com/ai-article",
+        summary="Original summary",
+        content="Full content about AI",
+        source_id=uuid4(),
+        published_at=datetime.now(UTC),
+    )
+    article.importance_score = 0.9
+    article.confidence = 0.8
+    article.key_takeaways = ("Takeaway 1", "Takeaway 2")
+    article.why_it_matters = "Why it matters"
+    article.topics = ("AI", "Machine Learning")
+    article.companies = ("OpenAI",)
+    article.categories = ("ai_research",)
+    article.ai_provider = "openai"
+    article.ai_model = "gpt-4o-mini"
+    article.ai_processed_at = datetime.now(UTC)
+    article.ai_input_tokens = 100
+    article.ai_output_tokens = 50
+    article.ai_prompt_version = "v1"
+
+    model = ArticleMapper.to_model(article)
+    round_tripped = ArticleMapper.to_domain(model)
+
+    assert round_tripped.importance_score == 0.9
+    assert round_tripped.confidence == 0.8
+    assert round_tripped.key_takeaways == ("Takeaway 1", "Takeaway 2")
+    assert round_tripped.why_it_matters == "Why it matters"
+    assert round_tripped.topics == ("AI", "Machine Learning")
+    assert round_tripped.ai_provider == "openai"
+    assert round_tripped.ai_model == "gpt-4o-mini"
+    assert round_tripped.ai_processed_at is not None
+    assert round_tripped.ai_input_tokens == 100
+    assert round_tripped.ai_output_tokens == 50
+    assert round_tripped.ai_prompt_version == "v1"
+    # companies and categories come from association tables; verify model columns directly
+    assert model.key_takeaways_json == '["Takeaway 1", "Takeaway 2"]'
+    assert model.topics_json == '["AI", "Machine Learning"]'
+    assert model.why_it_matters == "Why it matters"
+
+
+def test_article_mapper_update_model_preserves_ai_fields(
+    sample_article: Article, sample_article_model: ArticleModel
+) -> None:
+    """Test that updating ORM model preserves structured intelligence fields."""
+    sample_article.importance_score = 0.7
+    sample_article.confidence = 0.6
+    sample_article.key_takeaways = ("New takeaway",)
+    sample_article.why_it_matters = "Updated significance"
+    sample_article.topics = ("NLP",)
+    sample_article.companies = ("Anthropic",)
+    sample_article.categories = ("ai_models",)
+    sample_article.ai_provider = "anthropic"
+    sample_article.ai_model = "claude-3-5-sonnet"
+    sample_article.ai_processed_at = datetime.now(UTC)
+    sample_article.ai_input_tokens = 200
+    sample_article.ai_output_tokens = 80
+    sample_article.ai_prompt_version = "v1"
+
+    ArticleMapper.update_model(sample_article_model, sample_article)
+
+    assert sample_article_model.importance_score == 0.7
+    assert sample_article_model.confidence == 0.6
+    assert sample_article_model.key_takeaways_json == '["New takeaway"]'
+    assert sample_article_model.why_it_matters == "Updated significance"
+    assert sample_article_model.topics_json == '["NLP"]'
+    assert sample_article_model.ai_provider == "anthropic"
+    assert sample_article_model.ai_model == "claude-3-5-sonnet"
+    assert sample_article_model.ai_processed_at is not None
+    assert sample_article_model.ai_input_tokens == 200
+    assert sample_article_model.ai_output_tokens == 80
+    assert sample_article_model.ai_prompt_version == "v1"

@@ -15,7 +15,6 @@ from ai_news_digest.application.ai.provider_registry import ProviderRegistry
 from ai_news_digest.application.ai.structured_output import (
     validate_structured_output,
 )
-from ai_news_digest.application.ai.topic_normalizer import dedupe_topics
 from ai_news_digest.core.exceptions import ExternalServiceError
 from ai_news_digest.domain.models.article import Article
 
@@ -146,9 +145,9 @@ class AnalyzeArticleUseCase:
         normalized_companies = tuple(
             name for c in intelligence.companies if (name := normalize_company(c)) is not None
         )
-        article.companies = dedupe_topics(normalized_companies)
+        article.companies = normalized_companies
 
-        article.topics = dedupe_topics(intelligence.topics)
+        article.topics = intelligence.topics
 
         if response.usage:
             article.ai_input_tokens = response.usage.prompt_tokens
