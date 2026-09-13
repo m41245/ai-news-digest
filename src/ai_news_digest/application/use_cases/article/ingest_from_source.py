@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
+from typing import Any
 from uuid import UUID
 
+from ai_news_digest.core.logging import get_logger
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.models.rss_entry import RssEntry
 from ai_news_digest.domain.models.source import Source
 from ai_news_digest.domain.models.url import CanonicalUrl
 from ai_news_digest.domain.ports.article_repository import ArticleRepository
 from ai_news_digest.domain.ports.rss_fetcher import RSSFetcher
+
+logger = get_logger(__name__)
 
 
 @dataclass(slots=True)
@@ -30,10 +35,14 @@ class IngestFromSourceUseCase:
         article_repository: ArticleRepository,
         *,
         canonical_url: type[CanonicalUrl] = CanonicalUrl,
+        extract_article: Any = None,
+        extraction_timeout: float = 15.0,
     ) -> None:
         self._rss_fetcher = rss_fetcher
         self._article_repository = article_repository
         self._canonical_url = canonical_url
+        self._extract_article = extract_article
+        self._extraction_timeout = extraction_timeout
 
     async def execute(
         self,
@@ -107,5 +116,20 @@ class IngestFromSourceUseCase:
         )
 
         await self._article_repository.create(article)
+
+        if self._extract_article is not None:
+            try:
+                article = await asyncio.wait_for(
+                    self._extract_article.execute(article),
+                    timeout=self._extraction_timeout,
+                )
+            except TimeoutError:
+                logger.warning("Article extraction timed out", url=article.url)
+            except Exception as exc:
+                logger.warning(
+                    "Article extraction failed",
+                    url=article.url,
+                    error=str(exc),
+                )
 
         return True

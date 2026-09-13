@@ -21,7 +21,6 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from ai_news_digest.application.use_cases.article.extract_article import (
     ContentQualityValidator,
@@ -36,10 +35,8 @@ from ai_news_digest.infrastructure.extraction import (
     StdlibHtmlExtractor,
 )
 from ai_news_digest.infrastructure.rss.url_safety import (
-    SSRFValidationError,
     validate_rss_http_url,
 )
-
 
 _HTML_ARTICLE = b"""
 <!DOCTYPE html>
@@ -51,11 +48,11 @@ _HTML_ARTICLE = b"""
 <main>
 <article>
 <h1>Real Article Title</h1>
-<p>This is the first meaningful paragraph of the article with enough content to pass quality validation.</p>
-<p>This is the second meaningful paragraph that continues the article narrative with sufficient length.</p>
-<p>This is the third paragraph providing additional context and detail about the subject matter.</p>
-<p>This is the fourth paragraph that concludes the article with final thoughts and analysis.</p>
-<p>This is the fifth paragraph ensuring we have enough content for robust quality assessment.</p>
+<p>This is the first meaningful paragraph with enough content to pass validation criteria.</p>
+<p>This is the second meaningful paragraph continuing the article with sufficient length.</p>
+<p>This is the third paragraph providing additional context about the subject matter.</p>
+<p>This is the fourth paragraph concluding the article with final thoughts and analysis.</p>
+<p>This is the fifth paragraph ensuring enough content for robust quality assessment.</p>
 </article>
 </main>
 <footer>Site Footer</footer>
@@ -71,7 +68,7 @@ async def test_extraction_pipeline_success(
     db_session,
     container,
 ) -> None:
-    """Full pipeline: RSS article → HTTP fetch → extraction → cleaning → quality → persistence."""
+    """Full pipeline: RSS article -> fetch -> extraction -> cleaning -> quality -> persistence."""
     source = Source.create(
         name="Integration Test Source",
         feed_url="https://example.com/feed.xml",
@@ -90,20 +87,26 @@ async def test_extraction_pipeline_success(
     )
     article = await container.article_repository.create(article)
 
-    # Build real infrastructure components
     fetcher = SsrfHttpArticleFetcher(timeout=10.0, max_response_bytes=5_000_000)
     extractor = StdlibHtmlExtractor()
     cleaner = ContentCleaner()
-    validator = ContentQualityValidator(min_char_count=50, min_avg_paragraph_length=20)
+    validator = ContentQualityValidator(
+        min_char_count=50, min_avg_paragraph_length=20
+    )
 
-    # Mock the fetcher to return real HTML without making a network call
+    from ai_news_digest.domain.enums.extraction_method import (
+        ExtractionMethod,
+    )
+    from ai_news_digest.domain.enums.extraction_quality import (
+        ExtractionQuality,
+    )
+
     async def mock_fetch(url: str) -> FetchResult:
-        # SSRF validation still runs
         await validate_rss_http_url(url)
         return FetchResult(
             content=_HTML_ARTICLE.decode("utf-8", errors="replace"),
-            method=__import__("ai_news_digest.domain.enums.extraction_method", fromlist=["ExtractionMethod"]).ExtractionMethod.HTML,
-            quality=__import__("ai_news_digest.domain.enums.extraction_quality", fromlist=["ExtractionQuality"]).ExtractionQuality.HIGH,
+            method=ExtractionMethod.HTML,
+            quality=ExtractionQuality.HIGH,
             extracted_at=datetime.now(UTC),
         )
 

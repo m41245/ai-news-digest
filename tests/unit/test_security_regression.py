@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from ai_news_digest.core.config import Settings
 from ai_news_digest.main import create_app
 
@@ -300,3 +302,74 @@ class TestProtectedEndpoints:
         client = TestClient(_get_app())
         response = client.get("/api/v1/deliveries")
         assert response.status_code in (401, 503)
+
+
+class TestArticleFetcherSSRF:
+    """Tests verifying article fetcher SSRF protections."""
+
+    @pytest.mark.asyncio
+    async def test_article_fetcher_rejects_localhost(self) -> None:
+        from ai_news_digest.infrastructure.extraction.ssrf_http_client import (
+            SsrfHttpArticleFetcher,
+        )
+
+        fetcher = SsrfHttpArticleFetcher()
+        result = await fetcher.fetch("http://localhost/article")
+        assert result.failure_reason is not None
+        assert result.content == ""
+
+    @pytest.mark.asyncio
+    async def test_article_fetcher_rejects_loopback(self) -> None:
+        from ai_news_digest.infrastructure.extraction.ssrf_http_client import (
+            SsrfHttpArticleFetcher,
+        )
+
+        fetcher = SsrfHttpArticleFetcher()
+        result = await fetcher.fetch("http://127.0.0.1/article")
+        assert result.failure_reason is not None
+        assert result.content == ""
+
+    @pytest.mark.asyncio
+    async def test_article_fetcher_rejects_private_ip(self) -> None:
+        from ai_news_digest.infrastructure.extraction.ssrf_http_client import (
+            SsrfHttpArticleFetcher,
+        )
+
+        fetcher = SsrfHttpArticleFetcher()
+        for ip in ("10.0.0.1", "172.16.0.1", "192.168.1.1"):
+            result = await fetcher.fetch(f"http://{ip}/article")
+            assert result.failure_reason is not None
+            assert result.content == ""
+
+    @pytest.mark.asyncio
+    async def test_article_fetcher_rejects_link_local(self) -> None:
+        from ai_news_digest.infrastructure.extraction.ssrf_http_client import (
+            SsrfHttpArticleFetcher,
+        )
+
+        fetcher = SsrfHttpArticleFetcher()
+        result = await fetcher.fetch("http://169.254.1.1/article")
+        assert result.failure_reason is not None
+        assert result.content == ""
+
+    @pytest.mark.asyncio
+    async def test_article_fetcher_rejects_ipv6_loopback(self) -> None:
+        from ai_news_digest.infrastructure.extraction.ssrf_http_client import (
+            SsrfHttpArticleFetcher,
+        )
+
+        fetcher = SsrfHttpArticleFetcher()
+        result = await fetcher.fetch("http://[::1]/article")
+        assert result.failure_reason is not None
+        assert result.content == ""
+
+    @pytest.mark.asyncio
+    async def test_article_fetcher_rejects_ipv4_mapped_ipv6(self) -> None:
+        from ai_news_digest.infrastructure.extraction.ssrf_http_client import (
+            SsrfHttpArticleFetcher,
+        )
+
+        fetcher = SsrfHttpArticleFetcher()
+        result = await fetcher.fetch("http://[::ffff:127.0.0.1]/article")
+        assert result.failure_reason is not None
+        assert result.content == ""
