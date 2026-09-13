@@ -113,6 +113,7 @@ celery_app = Celery(
         "ai_news_digest.workers.tasks.deliver",
         "ai_news_digest.workers.tasks.cleanup",
         "ai_news_digest.workers.tasks.notifications",
+        "ai_news_digest.workers.tasks.ranking",
     ],
     task_cls=AwaitableTask,
 )
@@ -177,6 +178,14 @@ celery_app.conf.update(
         "daily-story-clustering": {
             "task": "workers.tasks.cluster.cluster_pending_articles",
             "schedule": crontab(hour=8, minute=0),
+            "options": {
+                "expires": 3600,
+                "send_events": True,
+            },
+        },
+        "daily-story-ranking": {
+            "task": "workers.tasks.ranking.rank_stories",
+            "schedule": crontab(hour=8, minute=5),
             "options": {
                 "expires": 3600,
                 "send_events": True,

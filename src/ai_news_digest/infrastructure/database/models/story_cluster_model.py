@@ -77,6 +77,16 @@ class StoryClusterModel(Base):
         nullable=True,
     )
 
+    ranking_score: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+
+    ranking_explanation: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
     status: Mapped[str] = mapped_column(
         String(20),
         nullable=False,

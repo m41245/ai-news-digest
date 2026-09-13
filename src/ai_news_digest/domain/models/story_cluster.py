@@ -24,6 +24,8 @@ class StoryCluster:
     latest_article_id: UUID | None = None
     importance_score: float | None = None
     confidence: float | None = None
+    ranking_score: float | None = None
+    ranking_explanation: str | None = None
     status: ClusterStatus = ClusterStatus.ACTIVE
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -41,6 +43,8 @@ class StoryCluster:
         latest_article_id: UUID | None = None,
         importance_score: float | None = None,
         confidence: float | None = None,
+        ranking_score: float | None = None,
+        ranking_explanation: str | None = None,
     ) -> StoryCluster:
         now = datetime.now(UTC)
         return cls(
@@ -54,6 +58,8 @@ class StoryCluster:
             latest_article_id=latest_article_id,
             importance_score=importance_score,
             confidence=confidence,
+            ranking_score=ranking_score,
+            ranking_explanation=ranking_explanation,
             status=ClusterStatus.ACTIVE,
             created_at=now,
             updated_at=now,

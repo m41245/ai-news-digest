@@ -17,6 +17,10 @@ class TopicRepository:
     async def list_by_ids(self, topic_ids: list[str]) -> list[Any]:
         raise NotImplementedError
 
+    async def list_all(self) -> list[Any]:
+        """Return all topics."""
+        raise NotImplementedError
+
     async def create(self, topic: Any) -> Any:
         raise NotImplementedError
 

@@ -29,6 +29,10 @@ class SqlAlchemyTopicRepository(TopicRepository):
         result = await self._session.execute(select(TopicModel).where(TopicModel.id.in_(topic_ids)))
         return list(result.scalars().all())
 
+    async def list_all(self) -> list[Any]:
+        result = await self._session.execute(select(TopicModel))
+        return list(result.scalars().all())
+
     async def create(self, topic: Any) -> Any:
         self._session.add(topic)
         await self._session.flush()

@@ -497,6 +497,9 @@ class Container:
             digest_repository=self.digest_repository,
             source_repository=self.source_repository,
             category_repository=self.category_repository,
+            story_cluster_repository=self.story_cluster_repository,
+            company_repository=self.company_repository,
+            topic_repository=self.topic_repository,
         )
 
     @property

@@ -23,6 +23,7 @@ from ai_news_digest.api.v1.routes.health import router as health_router
 from ai_news_digest.api.v1.routes.notifications import router as notifications_router
 from ai_news_digest.api.v1.routes.public import router as public_router
 from ai_news_digest.api.v1.routes.sources import router as sources_router
+from ai_news_digest.api.v1.routes.story_ranking import router as story_ranking_router
 from ai_news_digest.api.v1.routes.user_preferences import router as user_preferences_router
 from ai_news_digest.api.v1.routes.users import router as users_router
 from ai_news_digest.core.config import Settings, get_settings
@@ -189,7 +190,12 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     )
 
     application.include_router(
-        notifications_router,
+        user_preferences_router,
+        prefix=app_settings.api_prefix,
+    )
+
+    application.include_router(
+        story_ranking_router,
         prefix=app_settings.api_prefix,
     )
 

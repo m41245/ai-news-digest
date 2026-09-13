@@ -471,6 +471,92 @@ class Settings(BaseSettings):
     )
 
     # ======================================================================
+    # Story Ranking (M68)
+    # ======================================================================
+
+    story_ranking_enabled: bool = Field(
+        default=True,
+        description="Enable deterministic story cluster ranking before digest generation.",
+    )
+
+    ranking_lookback_hours: int = Field(
+        default=24,
+        ge=1,
+        le=720,
+        description="Lookback window in hours for daily ranking/Top Story selection.",
+    )
+
+    ranking_max_candidates: int = Field(
+        default=200,
+        ge=1,
+        le=500,
+        description="Maximum number of StoryClusters to evaluate during ranking.",
+    )
+
+    ranking_recency_weight: float = Field(
+        default=0.15,
+        ge=0.0,
+        le=1.0,
+        description="Weight for the recency signal in story ranking.",
+    )
+
+    ranking_source_trust_weight: float = Field(
+        default=0.20,
+        ge=0.0,
+        le=1.0,
+        description="Weight for the source trust signal in story ranking.",
+    )
+
+    ranking_source_diversity_weight: float = Field(
+        default=0.10,
+        ge=0.0,
+        le=1.0,
+        description="Weight for the source diversity signal in story ranking.",
+    )
+
+    ranking_corroboration_weight: float = Field(
+        default=0.15,
+        ge=0.0,
+        le=1.0,
+        description="Weight for the corroboration signal in story ranking.",
+    )
+
+    ranking_company_relevance_weight: float = Field(
+        default=0.15,
+        ge=0.0,
+        le=1.0,
+        description="Weight for the company relevance signal in story ranking.",
+    )
+
+    ranking_category_topic_relevance_weight: float = Field(
+        default=0.10,
+        ge=0.0,
+        le=1.0,
+        description="Weight for the category/topic relevance signal in story ranking.",
+    )
+
+    ranking_article_quality_weight: float = Field(
+        default=0.10,
+        ge=0.0,
+        le=1.0,
+        description="Weight for the article quality signal in story ranking.",
+    )
+
+    ranking_official_announcement_weight: float = Field(
+        default=0.05,
+        ge=0.0,
+        le=1.0,
+        description="Weight for the official announcement signal in story ranking.",
+    )
+
+    ranking_recency_decay_hours: float = Field(
+        default=24.0,
+        ge=1.0,
+        le=720.0,
+        description="Decay half-life in hours for the recency signal.",
+    )
+
+    # ======================================================================
     # Email / SMTP
     # ======================================================================
 

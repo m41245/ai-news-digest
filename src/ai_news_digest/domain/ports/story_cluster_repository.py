@@ -65,6 +65,19 @@ class StoryClusterRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def bulk_update_ranking(
+        self,
+        updates: list[tuple[UUID, float, str]],
+    ) -> None:
+        """
+        Bulk-update ranking_score and ranking_explanation for multiple clusters.
+
+        ``updates`` is a list of ``(cluster_id, ranking_score, ranking_explanation)``
+        tuples. This is an additive optimization for ranking tasks.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     async def attach_article(
         self,
         cluster_id: UUID,

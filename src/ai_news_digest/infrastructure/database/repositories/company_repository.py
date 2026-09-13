@@ -33,6 +33,10 @@ class SqlAlchemyCompanyRepository(CompanyRepository):
         )
         return list(result.scalars().all())
 
+    async def list_all(self) -> list[Any]:
+        result = await self._session.execute(select(CompanyModel))
+        return list(result.scalars().all())
+
     async def create(self, company: Any) -> Any:
         self._session.add(company)
         await self._session.flush()

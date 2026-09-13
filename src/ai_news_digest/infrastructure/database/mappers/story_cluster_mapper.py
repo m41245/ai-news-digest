@@ -34,6 +34,8 @@ class StoryClusterMapper:
             ),
             importance_score=cluster.importance_score,
             confidence=cluster.confidence,
+            ranking_score=cluster.ranking_score,
+            ranking_explanation=cluster.ranking_explanation,
             status=cluster.status.value,
         )
 
@@ -55,6 +57,8 @@ class StoryClusterMapper:
         )
         model.importance_score = cluster.importance_score
         model.confidence = cluster.confidence
+        model.ranking_score = cluster.ranking_score
+        model.ranking_explanation = cluster.ranking_explanation
         model.status = cluster.status.value
 
     @staticmethod
@@ -82,6 +86,8 @@ class StoryClusterMapper:
             ),
             importance_score=model.importance_score,
             confidence=model.confidence,
+            ranking_score=model.ranking_score,
+            ranking_explanation=model.ranking_explanation,
             status=status,
             created_at=model.created_at,
             updated_at=model.updated_at,

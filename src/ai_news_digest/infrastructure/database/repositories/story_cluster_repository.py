@@ -167,6 +167,28 @@ class StoryClusterRepository(
         model = await self._refresh(model)
         return StoryClusterMapper.to_domain(model)
 
+    async def bulk_update_ranking(
+        self,
+        updates: list[tuple[UUID, float, str]],
+    ) -> None:
+        from sqlalchemy import update as sa_update
+
+        if not updates:
+            return
+
+        for cluster_id, score, explanation in updates:
+            statement = (
+                sa_update(StoryClusterModel)
+                .where(StoryClusterModel.id == str(cluster_id))
+                .values(
+                    ranking_score=score,
+                    ranking_explanation=explanation,
+                )
+            )
+            await self._session.execute(statement)
+
+        await self._commit()
+
     async def attach_article(
         self,
         cluster_id: UUID,

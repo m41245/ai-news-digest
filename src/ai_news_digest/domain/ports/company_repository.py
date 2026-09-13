@@ -17,6 +17,10 @@ class CompanyRepository:
     async def list_by_ids(self, company_ids: list[str]) -> list[Any]:
         raise NotImplementedError
 
+    async def list_all(self) -> list[Any]:
+        """Return all companies."""
+        raise NotImplementedError
+
     async def create(self, company: Any) -> Any:
         raise NotImplementedError
 

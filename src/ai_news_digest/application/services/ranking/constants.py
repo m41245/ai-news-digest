@@ -1,6 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ai_news_digest.domain.models.story_cluster import StoryCluster
 
 
 class PreferenceValidation:
@@ -54,6 +59,72 @@ class FeedDefaults:
     CANDIDATE_LIMIT: int = 200
 
 
+class RankingDefaults:
+    """
+    Default values and bounds for story cluster ranking.
+    """
+
+    MIN_SCORE: float = 0.0
+    MAX_SCORE: float = 100.0
+    DEFAULT_RANKING_LOOKBACK_HOURS: int = 24
+    MAX_RANKING_CANDIDATES: int = 200
+    MAX_UNIQUE_SOURCES_DIVERSITY: int = 10
+    MAX_COMPANY_RELEVANCE: int = 3
+    MAX_CATEGORY_TOPIC_RELEVANCE: int = 5
+    RECENCY_DECAY_HOURS: float = 24.0
+
+
+class SourceTrustDefaults:
+    """
+    Source trust scores by verification status.
+    """
+
+    VERIFIED: float = 1.0
+    PENDING_REVIEW: float = 0.5
+    REJECTED: float = 0.0
+    INACTIVE: float = 0.0
+
+
+class SourceTypeScoreDefaults:
+    """
+    Base trust multipliers by source type.
+    """
+
+    OFFICIAL_COMPANY: float = 1.0
+    TECH_PUBLICATION: float = 0.9
+    RESEARCH_ORG: float = 0.85
+    BUSINESS_NEWS: float = 0.8
+    OTHER: float = 0.6
+
+
+class ExtractionQualityScoreDefaults:
+    """
+    Quality scores mapped to article extraction quality levels.
+    """
+
+    NONE: float = 0.0
+    LOW: float = 0.3
+    MEDIUM: float = 0.6
+    HIGH: float = 0.8
+    FULL: float = 1.0
+
+
+class StoryRankingWeights:
+    """
+    Score weights and thresholds for deterministic story cluster ranking.
+    All weights are relative; final score is normalized to 0-100.
+    """
+
+    RECENCY: float = 0.15
+    SOURCE_TRUST: float = 0.20
+    SOURCE_DIVERSITY: float = 0.10
+    CORROBORATION: float = 0.15
+    COMPANY_RELEVANCE: float = 0.15
+    CATEGORY_TOPIC_RELEVANCE: float = 0.10
+    ARTICLE_QUALITY: float = 0.10
+    OFFICIAL_ANNOUNCEMENT: float = 0.05
+
+
 class RankingWeights:
     """
     Score weights and thresholds for personalized feed ranking.
@@ -105,3 +176,67 @@ class RankingExplanation:
     @property
     def all_reasons(self) -> list[str]:
         return self.personalization + self.quality + self.freshness + self.fallback
+
+
+@dataclass
+class StoryRankingSignal:
+    """Individual signal contribution to a cluster's ranking score."""
+
+    name: str
+    raw_value: float
+    normalized_value: float
+    weight: float
+    contribution: float
+    explanation: str
+
+
+@dataclass
+class StoryRankingResult:
+    """Deterministic ranking result for a single StoryCluster."""
+
+    cluster_id: str
+    score: float
+    signals: list[StoryRankingSignal]
+    explanation: str
+
+
+@dataclass
+class RankedCluster:
+    """A StoryCluster with its computed ranking."""
+
+    cluster: StoryCluster
+    score: float
+    rank: int
+    signals: list[StoryRankingSignal]
+    explanation: str
+
+
+@dataclass
+class TopStoryResult:
+    """Result of Top Story selection."""
+
+    top_story_cluster_id: str | None
+    top_story_score: float | None
+    total_candidates: int
+    eligible_candidates: int
+    ranking_window_start: datetime
+    ranking_window_end: datetime
+    generated_at: datetime
+
+
+__all__ = [
+    "ExtractionQualityScoreDefaults",
+    "FeedDefaults",
+    "PreferenceValidation",
+    "RankedCluster",
+    "RankingDefaults",
+    "RankingExplanation",
+    "RankingWeights",
+    "SourceTrustDefaults",
+    "SourceTypePreferenceBehavior",
+    "SourceTypeScoreDefaults",
+    "StoryRankingResult",
+    "StoryRankingSignal",
+    "StoryRankingWeights",
+    "TopStoryResult",
+]
