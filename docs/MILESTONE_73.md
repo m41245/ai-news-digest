@@ -132,4 +132,9 @@ None.
 
 ## Recommended Next Milestone
 
-M74 or M75 should focus on real AI provider activation (`AI_ENABLED=true`), personalized feeds, or notification enhancements per the project roadmap. M73's hardening work provides a stable foundation for those features.
+Continue with the next milestone in the project sequence. Keep AI disabled during remaining development. Real provider activation should only occur during the final controlled launch/verification phase, not mixed with ordinary feature development. Personalization should only be pursued if explicitly specified by a future milestone.
+
+## Documentation Status
+
+- `docs/MILESTONE_73.md` — Created.
+- `docs/PROJECT_STATUS.md` — **Not updated for M73.** The file contains unstaged M70 modifications that must be preserved. Updating it for M73 would require carefully preserving those M70 changes; this should be done as a separate deliberate action when M70 changes are ready to be committed.
