@@ -32,6 +32,8 @@ class RoutingDecision:
     fallback_used: bool
     reason: str
     metadata: dict[str, Any] = field(default_factory=dict)
+    quota_exclusions: list[tuple[str, str]] = field(default_factory=list)
+    budget_excluded: bool = False
 
 
 @dataclass(slots=True)
@@ -79,3 +81,5 @@ class AIResponse:
     latency_ms: float
 
     metadata: dict[str, Any] = field(default_factory=dict)
+    estimated_cost: float = 0.0
+    cost_known: bool = False

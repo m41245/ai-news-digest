@@ -1039,3 +1039,91 @@ class TestProductionEmailConfigurationValidation:
         )
         assert test_settings.email_provider == "console"
         assert test_settings.email_base_url == ""
+
+
+class TestAIActivationConfiguration:
+    """Tests verifying M70 AI activation configuration."""
+
+    def test_ai_enabled_defaults_to_false(self) -> None:
+        """AI_ENABLED defaults to false for safe activation."""
+        test_settings = TestSettings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            jwt_secret_key="a" * 64,
+        )
+        assert test_settings.ai_enabled is False
+
+    def test_ai_enabled_can_be_explicitly_enabled(self) -> None:
+        """AI_ENABLED can be explicitly set to true."""
+        test_settings = Settings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            jwt_secret_key="a" * 64,
+            ai_enabled=True,
+        )
+        assert test_settings.ai_enabled is True
+
+    def test_production_ai_disabled_by_default(self) -> None:
+        """Production settings default to AI disabled."""
+        test_settings = TestSettings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            environment="production",
+            jwt_secret_key="a" * 64,
+        )
+        assert test_settings.ai_enabled is False
+
+    def test_openai_enabled_true_without_key_in_development(self) -> None:
+        """OpenAI can be enabled without a key in development."""
+        test_settings = TestSettings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            environment="development",
+            jwt_secret_key="a" * 64,
+            openai_enabled=True,
+        )
+        assert test_settings.openai_enabled is True
+
+    def test_production_openai_enabled_requires_api_key(self) -> None:
+        """Production mode requires OPENAI_API_KEY when OPENAI_ENABLED=true."""
+        with pytest.raises(ValidationError, match="OPENAI_API_KEY must be set"):
+            Settings(
+                database_url="postgresql://test",
+                redis_url="redis://test",
+                celery_broker_url="redis://broker",
+                celery_result_backend="redis://backend",
+                environment="production",
+                jwt_secret_key="a" * 64,
+                openai_enabled=True,
+                openai_api_key=None,
+                email_provider="smtp",
+                email_development_mode=False,
+                email_base_url="https://example.com",
+                smtp_host="smtp.example.com",
+            )
+
+    def test_production_anthropic_enabled_requires_api_key(self) -> None:
+        """Production mode requires ANTHROPIC_API_KEY when ANTHROPIC_ENABLED=true."""
+        with pytest.raises(ValidationError, match="ANTHROPIC_API_KEY must be set"):
+            Settings(
+                database_url="postgresql://test",
+                redis_url="redis://test",
+                celery_broker_url="redis://broker",
+                celery_result_backend="redis://backend",
+                environment="production",
+                jwt_secret_key="a" * 64,
+                anthropic_enabled=True,
+                anthropic_api_key=None,
+                email_provider="smtp",
+                email_development_mode=False,
+                email_base_url="https://example.com",
+                smtp_host="smtp.example.com",
+            )

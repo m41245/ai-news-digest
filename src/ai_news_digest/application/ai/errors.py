@@ -42,12 +42,21 @@ class AIPermanentProcessingError(AIError):
     """Raised when processing has definitively failed and should not be retried."""
 
 
+class AIQuotaExhaustedError(AIError):
+    """Raised when a provider's quota has been exhausted."""
+
+
+class AIBudgetExceededError(AIError):
+    """Raised when the global AI budget has been exceeded."""
+
+
 __all__ = [
     "AIAuthenticationError",
+    "AIBudgetExceededError",
     "AIConfigurationError",
     "AIError",
     "AIInvalidResponseError",
-    "AIPermanentProcessingError",
+    "AIQuotaExhaustedError",
     "AIRateLimitError",
     "AITimeoutError",
     "AITransientError",

@@ -27,6 +27,8 @@ class FailureCategory(StrEnum):
     UNSUPPORTED_CAPABILITY = "unsupported_capability"
     PERMANENT_PROCESSING_ERROR = "permanent_processing_error"
     INVALID_REQUEST = "invalid_request"
+    QUOTA_EXHAUSTED = "quota_exhausted"
+    BUDGET_EXCEEDED = "budget_exceeded"
 
 
 @dataclass(slots=True)

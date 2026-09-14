@@ -308,6 +308,150 @@ class Settings(BaseSettings):
         validation_alias="XAI_MAX_RETRIES",
     )
 
+    # ======================================================================
+    # AI Provider Quota & Pricing (M79)
+    # ======================================================================
+
+    openai_request_limit: int = Field(
+        default=0,
+        ge=0,
+        validation_alias="OPENAI_REQUEST_LIMIT",
+        description="Maximum requests per window for OpenAI. 0 means unlimited.",
+    )
+
+    openai_token_limit: int = Field(
+        default=0,
+        ge=0,
+        validation_alias="OPENAI_TOKEN_LIMIT",
+        description="Maximum tokens per window for OpenAI. 0 means unlimited.",
+    )
+
+    openai_cost_limit: float = Field(
+        default=0.0,
+        ge=0.0,
+        validation_alias="OPENAI_COST_LIMIT",
+        description="Maximum cost per window for OpenAI in USD. 0 means unlimited.",
+    )
+
+    openai_input_cost_per_1k_tokens: float = Field(
+        default=0.0,
+        ge=0.0,
+        validation_alias="OPENAI_INPUT_COST_PER_1K_TOKENS",
+        description="Input cost per 1k tokens for OpenAI in USD. 0 means unknown.",
+    )
+
+    openai_output_cost_per_1k_tokens: float = Field(
+        default=0.0,
+        ge=0.0,
+        validation_alias="OPENAI_OUTPUT_COST_PER_1K_TOKENS",
+        description="Output cost per 1k tokens for OpenAI in USD. 0 means unknown.",
+    )
+
+    anthropic_request_limit: int = Field(
+        default=0,
+        ge=0,
+        validation_alias="ANTHROPIC_REQUEST_LIMIT",
+        description="Maximum requests per window for Anthropic. 0 means unlimited.",
+    )
+
+    anthropic_token_limit: int = Field(
+        default=0,
+        ge=0,
+        validation_alias="ANTHROPIC_TOKEN_LIMIT",
+        description="Maximum tokens per window for Anthropic. 0 means unlimited.",
+    )
+
+    anthropic_cost_limit: float = Field(
+        default=0.0,
+        ge=0.0,
+        validation_alias="ANTHROPIC_COST_LIMIT",
+        description="Maximum cost per window for Anthropic in USD. 0 means unlimited.",
+    )
+
+    anthropic_input_cost_per_1k_tokens: float = Field(
+        default=0.0,
+        ge=0.0,
+        validation_alias="ANTHROPIC_INPUT_COST_PER_1K_TOKENS",
+        description="Input cost per 1k tokens for Anthropic in USD. 0 means unknown.",
+    )
+
+    anthropic_output_cost_per_1k_tokens: float = Field(
+        default=0.0,
+        ge=0.0,
+        validation_alias="ANTHROPIC_OUTPUT_COST_PER_1K_TOKENS",
+        description="Output cost per 1k tokens for Anthropic in USD. 0 means unknown.",
+    )
+
+    gemini_request_limit: int = Field(
+        default=0,
+        ge=0,
+        validation_alias="GEMINI_REQUEST_LIMIT",
+        description="Maximum requests per window for Gemini. 0 means unlimited.",
+    )
+
+    gemini_token_limit: int = Field(
+        default=0,
+        ge=0,
+        validation_alias="GEMINI_TOKEN_LIMIT",
+        description="Maximum tokens per window for Gemini. 0 means unlimited.",
+    )
+
+    gemini_cost_limit: float = Field(
+        default=0.0,
+        ge=0.0,
+        validation_alias="GEMINI_COST_LIMIT",
+        description="Maximum cost per window for Gemini in USD. 0 means unlimited.",
+    )
+
+    gemini_input_cost_per_1k_tokens: float = Field(
+        default=0.0,
+        ge=0.0,
+        validation_alias="GEMINI_INPUT_COST_PER_1K_TOKENS",
+        description="Input cost per 1k tokens for Gemini in USD. 0 means unknown.",
+    )
+
+    gemini_output_cost_per_1k_tokens: float = Field(
+        default=0.0,
+        ge=0.0,
+        validation_alias="GEMINI_OUTPUT_COST_PER_1K_TOKENS",
+        description="Output cost per 1k tokens for Gemini in USD. 0 means unknown.",
+    )
+
+    xai_request_limit: int = Field(
+        default=0,
+        ge=0,
+        validation_alias="XAI_REQUEST_LIMIT",
+        description="Maximum requests per window for xAI Grok. 0 means unlimited.",
+    )
+
+    xai_token_limit: int = Field(
+        default=0,
+        ge=0,
+        validation_alias="XAI_TOKEN_LIMIT",
+        description="Maximum tokens per window for xAI Grok. 0 means unlimited.",
+    )
+
+    xai_cost_limit: float = Field(
+        default=0.0,
+        ge=0.0,
+        validation_alias="XAI_COST_LIMIT",
+        description="Maximum cost per window for xAI Grok in USD. 0 means unlimited.",
+    )
+
+    xai_input_cost_per_1k_tokens: float = Field(
+        default=0.0,
+        ge=0.0,
+        validation_alias="XAI_INPUT_COST_PER_1K_TOKENS",
+        description="Input cost per 1k tokens for xAI Grok in USD. 0 means unknown.",
+    )
+
+    xai_output_cost_per_1k_tokens: float = Field(
+        default=0.0,
+        ge=0.0,
+        validation_alias="XAI_OUTPUT_COST_PER_1K_TOKENS",
+        description="Output cost per 1k tokens for xAI Grok in USD. 0 means unknown.",
+    )
+
     default_llm_provider: Literal[
         "openai",
         "anthropic",
@@ -410,6 +554,40 @@ class Settings(BaseSettings):
         ge=1,
         le=10,
         description="Consecutive successes required to close a half-open circuit.",
+    )
+
+    # ======================================================================
+    # AI Cost & Quota (M79)
+    # ======================================================================
+
+    ai_daily_cost_budget: float = Field(
+        default=0.0,
+        ge=0.0,
+        validation_alias="AI_DAILY_COST_BUDGET",
+        description=(
+            "Daily global AI cost budget in USD. "
+            "When 0 (default), no daily budget limit is enforced."
+        ),
+    )
+
+    ai_monthly_cost_budget: float = Field(
+        default=0.0,
+        ge=0.0,
+        validation_alias="AI_MONTHLY_COST_BUDGET",
+        description=(
+            "Monthly global AI cost budget in USD. "
+            "When 0 (default), no monthly budget limit is enforced."
+        ),
+    )
+
+    ai_max_estimated_request_cost: float = Field(
+        default=0.0,
+        ge=0.0,
+        validation_alias="AI_MAX_ESTIMATED_REQUEST_COST",
+        description=(
+            "Maximum estimated cost per individual AI request in USD. "
+            "When 0 (default), no per-request cost cap is enforced."
+        ),
     )
 
     # ======================================================================

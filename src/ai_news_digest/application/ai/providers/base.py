@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 from ai_news_digest.application.ai.models import (
     AIRequest,
@@ -67,3 +68,8 @@ class AIProvider(Plugin, ABC):
     @abstractmethod
     async def health_check(self) -> bool:
         """Lightweight connectivity test."""
+
+    @property
+    def provider_config(self) -> Any:
+        """Return the provider configuration, if available."""
+        return getattr(self, "_config", None)

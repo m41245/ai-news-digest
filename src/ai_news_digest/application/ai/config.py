@@ -34,3 +34,13 @@ class ProviderConfig:
     reliability_score: float = 0.0
 
     context_window: int = 0
+
+    request_limit: int = 0
+
+    token_limit: int = 0
+
+    cost_limit: float = 0.0
+
+    input_cost_per_1k_tokens: float = 0.0
+
+    output_cost_per_1k_tokens: float = 0.0

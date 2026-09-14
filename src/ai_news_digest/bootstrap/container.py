@@ -8,6 +8,7 @@ from ai_news_digest.application.ai.config import ProviderConfig
 from ai_news_digest.application.ai.decision_engine import DecisionEngine
 from ai_news_digest.application.ai.provider_health_registry import ProviderHealthRegistry
 from ai_news_digest.application.ai.provider_manager import ProviderManager
+from ai_news_digest.application.ai.provider_quota_registry import ProviderQuotaRegistry
 from ai_news_digest.application.ai.provider_registry import ProviderRegistry
 from ai_news_digest.application.rendering.renderer_factory import (
     DigestRendererFactory,
@@ -227,6 +228,7 @@ class Container:
             self._capability_registry,
         )
         self._health_registry = self._create_health_registry()
+        self._quota_registry = self._create_quota_registry()
 
     @property
     def session(self) -> AsyncSession:
@@ -274,6 +276,11 @@ class Container:
                 model=self._settings.openai_model,
                 timeout=self._settings.openai_timeout,
                 max_retries=self._settings.openai_max_retries,
+                request_limit=self._settings.openai_request_limit,
+                token_limit=self._settings.openai_token_limit,
+                cost_limit=self._settings.openai_cost_limit,
+                input_cost_per_1k_tokens=self._settings.openai_input_cost_per_1k_tokens,
+                output_cost_per_1k_tokens=self._settings.openai_output_cost_per_1k_tokens,
             )
             openai_provider = LLMProviderFactory.create_openai_provider(openai_config)
             self._provider_registry.register(openai_provider)
@@ -290,6 +297,11 @@ class Container:
                 model=self._settings.anthropic_model,
                 timeout=self._settings.anthropic_timeout,
                 max_retries=self._settings.anthropic_max_retries,
+                request_limit=self._settings.anthropic_request_limit,
+                token_limit=self._settings.anthropic_token_limit,
+                cost_limit=self._settings.anthropic_cost_limit,
+                input_cost_per_1k_tokens=self._settings.anthropic_input_cost_per_1k_tokens,
+                output_cost_per_1k_tokens=self._settings.anthropic_output_cost_per_1k_tokens,
             )
             anthropic_provider = LLMProviderFactory.create_anthropic_provider(anthropic_config)
             self._provider_registry.register(anthropic_provider)
@@ -306,6 +318,11 @@ class Container:
                 model=self._settings.gemini_model,
                 timeout=self._settings.gemini_timeout,
                 max_retries=self._settings.gemini_max_retries,
+                request_limit=self._settings.gemini_request_limit,
+                token_limit=self._settings.gemini_token_limit,
+                cost_limit=self._settings.gemini_cost_limit,
+                input_cost_per_1k_tokens=self._settings.gemini_input_cost_per_1k_tokens,
+                output_cost_per_1k_tokens=self._settings.gemini_output_cost_per_1k_tokens,
             )
             gemini_provider = LLMProviderFactory.create_gemini_provider(gemini_config)
             self._provider_registry.register(gemini_provider)
@@ -322,6 +339,11 @@ class Container:
                 model=self._settings.xai_model,
                 timeout=self._settings.xai_timeout,
                 max_retries=self._settings.xai_max_retries,
+                request_limit=self._settings.xai_request_limit,
+                token_limit=self._settings.xai_token_limit,
+                cost_limit=self._settings.xai_cost_limit,
+                input_cost_per_1k_tokens=self._settings.xai_input_cost_per_1k_tokens,
+                output_cost_per_1k_tokens=self._settings.xai_output_cost_per_1k_tokens,
             )
             xai_provider = LLMProviderFactory.create_grok_provider(xai_config)
             self._provider_registry.register(xai_provider)
@@ -349,6 +371,22 @@ class Container:
         except Exception as exc:
             logger.warning(
                 "Failed to create Redis provider health registry",
+                error=str(exc),
+            )
+            return None
+
+    def _create_quota_registry(self) -> ProviderQuotaRegistry | None:
+        """Create the provider quota registry if Redis is available."""
+        if not self._settings.ai_enabled:
+            return None
+        try:
+            from ai_news_digest.infrastructure.quota.redis_provider_quota_registry import (
+                RedisProviderQuotaRegistry,
+            )
+            return RedisProviderQuotaRegistry()
+        except Exception as exc:
+            logger.warning(
+                "Failed to create Redis provider quota registry",
                 error=str(exc),
             )
             return None
@@ -458,11 +496,16 @@ class Container:
             capability_registry=self._capability_registry,
             decision_engine=self._decision_engine,
             health_registry=self._health_registry,
+            quota_registry=self._quota_registry,
         )
 
     @property
     def provider_health_registry(self) -> ProviderHealthRegistry | None:
         return self._health_registry
+
+    @property
+    def provider_quota_registry(self) -> ProviderQuotaRegistry | None:
+        return self._quota_registry
 
     @property
     def rendering_factory(self) -> DigestRendererFactory:

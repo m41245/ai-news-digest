@@ -173,6 +173,22 @@ async def ai_health() -> dict[str, Any]:
             providers = container.provider_registry.list_all()
             provider_statuses: dict[str, Any] = {}
             health_registry = container.provider_health_registry
+            quota_registry = container.provider_quota_registry
+
+            global_budget: dict[str, Any] = {}
+            if quota_registry is not None:
+                try:
+                    budget = await quota_registry.get_global_budget()
+                    global_budget = {
+                        "daily_budget": float(budget.daily_budget),
+                        "monthly_budget": float(budget.monthly_budget),
+                        "daily_spend": float(budget.daily_spend),
+                        "monthly_spend": float(budget.monthly_spend),
+                        "daily_remaining": float(budget.daily_remaining),
+                        "monthly_remaining": float(budget.monthly_remaining),
+                    }
+                except Exception as exc:
+                    global_budget = {"error": str(exc)}
 
             for provider in providers:
                 status_info: dict[str, Any] = {
@@ -180,6 +196,26 @@ async def ai_health() -> dict[str, Any]:
                     "model": provider.model_name,
                     "configured": provider.enabled,
                 }
+
+                if quota_registry is not None:
+                    try:
+                        quota_config = await quota_registry.get_provider_quota(provider.id)
+                        if quota_config is not None:
+                            limits = []
+                            for limit in quota_config.limits:
+                                limits.append(
+                                    {
+                                        "window": limit.window.value,
+                                "request_limit": limit.request_limit,
+                                "token_limit": limit.token_limit,
+                                "cost_limit": float(limit.cost_limit)
+                                if limit.cost_limit is not None
+                                else None,
+                                    }
+                                )
+                            status_info["quota_limits"] = limits
+                    except Exception as exc:
+                        status_info["quota_error"] = str(exc)
 
                 if health_registry is not None:
                     try:
@@ -233,6 +269,7 @@ async def ai_health() -> dict[str, Any]:
             return {
                 "status": "ok" if any_available else "degraded",
                 "ai_enabled": get_settings().ai_enabled,
+                "global_budget": global_budget,
                 "providers": provider_statuses,
             }
     except Exception as exc:
