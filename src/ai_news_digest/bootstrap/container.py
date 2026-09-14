@@ -258,6 +258,9 @@ class Container:
 
     def _configure_providers(self) -> None:
         """Configure and register AI providers."""
+        if not self._settings.ai_enabled:
+            return
+
         if self._settings.openai_enabled and self._settings.openai_api_key:
             openai_config = ProviderConfig(
                 provider_name="openai",
@@ -289,6 +292,38 @@ class Container:
             self._capability_registry.register_provider("summarization", anthropic_provider.id)
             self._capability_registry.register_provider("categorization", anthropic_provider.id)
             self._capability_registry.register_provider("analysis", anthropic_provider.id)
+
+        if self._settings.gemini_enabled and self._settings.gemini_api_key:
+            gemini_config = ProviderConfig(
+                provider_name="gemini",
+                api_key=self._settings.gemini_api_key.get_secret_value(),
+                enabled=self._settings.gemini_enabled,
+                priority=self._settings.gemini_priority,
+                model=self._settings.gemini_model,
+                timeout=self._settings.gemini_timeout,
+                max_retries=self._settings.gemini_max_retries,
+            )
+            gemini_provider = LLMProviderFactory.create_gemini_provider(gemini_config)
+            self._provider_registry.register(gemini_provider)
+            self._capability_registry.register_provider("summarization", gemini_provider.id)
+            self._capability_registry.register_provider("categorization", gemini_provider.id)
+            self._capability_registry.register_provider("analysis", gemini_provider.id)
+
+        if self._settings.xai_enabled and self._settings.xai_api_key:
+            xai_config = ProviderConfig(
+                provider_name="grok",
+                api_key=self._settings.xai_api_key.get_secret_value(),
+                enabled=self._settings.xai_enabled,
+                priority=self._settings.xai_priority,
+                model=self._settings.xai_model,
+                timeout=self._settings.xai_timeout,
+                max_retries=self._settings.xai_max_retries,
+            )
+            xai_provider = LLMProviderFactory.create_grok_provider(xai_config)
+            self._provider_registry.register(xai_provider)
+            self._capability_registry.register_provider("summarization", xai_provider.id)
+            self._capability_registry.register_provider("categorization", xai_provider.id)
+            self._capability_registry.register_provider("analysis", xai_provider.id)
 
     #
     # Repositories

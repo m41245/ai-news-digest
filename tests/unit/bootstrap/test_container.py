@@ -247,6 +247,10 @@ def test_container_provider_registration_openai(monkeypatch) -> None:
 
     fake_settings.anthropic_enabled = False
     fake_settings.anthropic_api_key = None
+    fake_settings.gemini_enabled = False
+    fake_settings.gemini_api_key = None
+    fake_settings.xai_enabled = False
+    fake_settings.xai_api_key = None
 
     with (
         patch(
@@ -286,13 +290,22 @@ def test_container_provider_registration_anthropic(monkeypatch) -> None:
     fake_settings = MagicMock()
     fake_settings.openai_enabled = False
     fake_settings.openai_api_key = None
+    fake_settings.gemini_enabled = False
+    fake_settings.gemini_api_key = None
+    fake_settings.xai_enabled = False
+    fake_settings.xai_api_key = None
 
     fake_settings.anthropic_enabled = True
-    fake_settings.anthropic_api_key = SecretStr("test-anthropic-key")
+    fake_settings.anthropic_api_key = SecretStr("sk-ant-secret")
     fake_settings.anthropic_priority = 2
     fake_settings.anthropic_model = "claude-3-5-sonnet"
     fake_settings.anthropic_timeout = 30
     fake_settings.anthropic_max_retries = 3
+
+    fake_settings.gemini_enabled = False
+    fake_settings.gemini_api_key = None
+    fake_settings.xai_enabled = False
+    fake_settings.xai_api_key = None
 
     with (
         patch(
@@ -308,7 +321,7 @@ def test_container_provider_registration_anthropic(monkeypatch) -> None:
 
     config = create_anthropic.call_args.args[0]
     assert config.provider_name == "anthropic"
-    assert config.api_key == "test-anthropic-key"
+    assert config.api_key == "sk-ant-secret"
 
     assert container.provider_registry.exists("anthropic")
     assert "anthropic" in container.capability_registry.providers_for("summarization")
@@ -339,6 +352,11 @@ def test_container_unwraps_secretstr_api_keys() -> None:
     fake_settings.anthropic_model = "claude-3-5-sonnet"
     fake_settings.anthropic_timeout = 30
     fake_settings.anthropic_max_retries = 3
+
+    fake_settings.gemini_enabled = False
+    fake_settings.gemini_api_key = None
+    fake_settings.xai_enabled = False
+    fake_settings.xai_api_key = None
 
     captured_configs: list[ProviderConfig] = []
 
@@ -380,3 +398,184 @@ def test_container_unwraps_secretstr_api_keys() -> None:
 
     assert container.provider_registry.exists("openai")
     assert container.provider_registry.exists("anthropic")
+
+
+def test_container_provider_registration_gemini(monkeypatch) -> None:
+    """Test that Gemini provider registration works when an API key is configured."""
+    from unittest.mock import MagicMock, patch
+
+    from ai_news_digest.application.ai.config import ProviderConfig
+
+    fake_settings = MagicMock()
+    fake_settings.openai_enabled = False
+    fake_settings.openai_api_key = None
+    fake_settings.anthropic_enabled = False
+    fake_settings.anthropic_api_key = None
+    fake_settings.xai_enabled = False
+    fake_settings.xai_api_key = None
+
+    fake_settings.gemini_enabled = True
+    fake_settings.gemini_api_key = SecretStr("test-gemini-key")
+    fake_settings.gemini_priority = 3
+    fake_settings.gemini_model = "gemini-2.0-flash"
+    fake_settings.gemini_timeout = 30
+    fake_settings.gemini_max_retries = 3
+
+    with (
+        patch(
+            "ai_news_digest.bootstrap.container.get_settings",
+            return_value=fake_settings,
+        ),
+        patch(
+            "ai_news_digest.bootstrap.container.LLMProviderFactory.create_gemini_provider",
+            return_value=AIProvider(provider_id="gemini", provider_name="gemini"),
+        ) as create_gemini,
+    ):
+        container = Container(MagicMock(spec=AsyncSession))
+
+    config: ProviderConfig = create_gemini.call_args.args[0]
+    assert config.provider_name == "gemini"
+    assert config.api_key == "test-gemini-key"
+
+    assert container.provider_registry.exists("gemini")
+    assert "gemini" in container.capability_registry.providers_for("summarization")
+    assert "gemini" in container.capability_registry.providers_for("categorization")
+    assert "gemini" in container.capability_registry.providers_for("analysis")
+
+
+def test_container_provider_registration_grok(monkeypatch) -> None:
+    """Test that Grok provider registration works when an API key is configured."""
+    from unittest.mock import MagicMock, patch
+
+    from ai_news_digest.application.ai.config import ProviderConfig
+
+    fake_settings = MagicMock()
+    fake_settings.openai_enabled = False
+    fake_settings.openai_api_key = None
+    fake_settings.anthropic_enabled = False
+    fake_settings.anthropic_api_key = None
+    fake_settings.gemini_enabled = False
+    fake_settings.gemini_api_key = None
+
+    fake_settings.xai_enabled = True
+    fake_settings.xai_api_key = SecretStr("test-xai-key")
+    fake_settings.xai_priority = 4
+    fake_settings.xai_model = "grok-2-latest"
+    fake_settings.xai_timeout = 30
+    fake_settings.xai_max_retries = 3
+
+    with (
+        patch(
+            "ai_news_digest.bootstrap.container.get_settings",
+            return_value=fake_settings,
+        ),
+        patch(
+            "ai_news_digest.bootstrap.container.LLMProviderFactory.create_grok_provider",
+            return_value=AIProvider(provider_id="grok", provider_name="grok"),
+        ) as create_grok,
+    ):
+        container = Container(MagicMock(spec=AsyncSession))
+
+    config: ProviderConfig = create_grok.call_args.args[0]
+    assert config.provider_name == "grok"
+    assert config.api_key == "test-xai-key"
+
+    assert container.provider_registry.exists("grok")
+    assert "grok" in container.capability_registry.providers_for("summarization")
+    assert "grok" in container.capability_registry.providers_for("categorization")
+    assert "grok" in container.capability_registry.providers_for("analysis")
+
+
+def test_container_unwraps_secretstr_api_keys_new_providers() -> None:
+    """Regression test: Container must unwrap SecretStr keys for new providers."""
+    from unittest.mock import MagicMock, patch
+
+    from ai_news_digest.application.ai.config import ProviderConfig
+
+    fake_settings = MagicMock()
+    fake_settings.openai_enabled = True
+    fake_settings.openai_api_key = SecretStr("sk-openai-secret")
+    fake_settings.openai_priority = 1
+    fake_settings.openai_model = "gpt-4o-mini"
+    fake_settings.openai_timeout = 30
+    fake_settings.openai_max_retries = 3
+
+    fake_settings.anthropic_enabled = True
+    fake_settings.anthropic_api_key = SecretStr("sk-ant-secret")
+    fake_settings.anthropic_priority = 2
+    fake_settings.anthropic_model = "claude-3-5-sonnet"
+    fake_settings.anthropic_timeout = 30
+    fake_settings.anthropic_max_retries = 3
+
+    fake_settings.gemini_enabled = True
+    fake_settings.gemini_api_key = SecretStr("sk-gemini-secret")
+    fake_settings.gemini_priority = 3
+    fake_settings.gemini_model = "gemini-2.0-flash"
+    fake_settings.gemini_timeout = 30
+    fake_settings.gemini_max_retries = 3
+
+    fake_settings.xai_enabled = True
+    fake_settings.xai_api_key = SecretStr("sk-xai-secret")
+    fake_settings.xai_priority = 4
+    fake_settings.xai_model = "grok-2-latest"
+    fake_settings.xai_timeout = 30
+    fake_settings.xai_max_retries = 3
+
+    captured_configs: list[ProviderConfig] = []
+
+    def fake_create_openai(config: ProviderConfig) -> AIProvider:
+        captured_configs.append(("openai", config))
+        return AIProvider(provider_id="openai", provider_name="openai")
+
+    def fake_create_anthropic(config: ProviderConfig) -> AIProvider:
+        captured_configs.append(("anthropic", config))
+        return AIProvider(provider_id="anthropic", provider_name="anthropic")
+
+    def fake_create_gemini(config: ProviderConfig) -> AIProvider:
+        captured_configs.append(("gemini", config))
+        return AIProvider(provider_id="gemini", provider_name="gemini")
+
+    def fake_create_grok(config: ProviderConfig) -> AIProvider:
+        captured_configs.append(("grok", config))
+        return AIProvider(provider_id="grok", provider_name="grok")
+
+    with (
+        patch(
+            "ai_news_digest.bootstrap.container.get_settings",
+            return_value=fake_settings,
+        ),
+        patch(
+            "ai_news_digest.bootstrap.container.LLMProviderFactory.create_openai_provider",
+            side_effect=fake_create_openai,
+        ),
+        patch(
+            "ai_news_digest.bootstrap.container.LLMProviderFactory.create_anthropic_provider",
+            side_effect=fake_create_anthropic,
+        ),
+        patch(
+            "ai_news_digest.bootstrap.container.LLMProviderFactory.create_gemini_provider",
+            side_effect=fake_create_gemini,
+        ),
+        patch(
+            "ai_news_digest.bootstrap.container.LLMProviderFactory.create_grok_provider",
+            side_effect=fake_create_grok,
+        ),
+    ):
+        container = Container(MagicMock(spec=AsyncSession))
+
+    assert len(captured_configs) == 4
+
+    expected_keys = {
+        "openai": "sk-openai-secret",
+        "anthropic": "sk-ant-secret",
+        "gemini": "sk-gemini-secret",
+        "grok": "sk-xai-secret",
+    }
+    for provider_name, config in captured_configs:
+        assert config.api_key == expected_keys[provider_name]
+        assert not isinstance(config.api_key, SecretStr)
+
+    assert container.provider_registry.exists("openai")
+    assert container.provider_registry.exists("anthropic")
+    assert container.provider_registry.exists("gemini")
+    assert container.provider_registry.exists("grok")

@@ -2,36 +2,29 @@
 
 ## Current Phase
 
-Milestone 68 — Intelligent Story Ranking + Top Story Selection: **COMPLETE**.
+Milestone 76 — Multi-Provider AI Gateway & Provider Abstraction Foundation: **COMPLETE**.
 
-M68 additions:
-- Added deterministic StoryCluster ranking engine with 8 normalized signals
-- Ranking signals: recency, source trust, source diversity, corroboration,
-  company relevance, category/topic relevance, article quality, official announcement
-- All weights are configurable via environment variables
-- Final score bounded to 0–100, fully explainable with per-signal breakdown
-- Top Story selection with timezone-aware daily window
-- Ranking persisted on StoryCluster via migration 019 (additive)
-- Digest generation now uses ranking when enabled
-- New `/api/v1/story-ranking/top-story` and `/clusters` endpoints
-- New Celery Beat task `daily-story-ranking` scheduled at 08:05
-- 16 new unit tests covering ranking mathematics, recency, source trust,
-  source diversity, companies, categories/topics, article quality, determinism,
-  tie-breaking, and Top Story selection
-- All quality gates pass: ruff clean, mypy clean, 615 application/core tests passing
-- Existing M67 functionality remains intact
+M76 additions:
+- Added Google Gemini provider adapter using existing `httpx` client
+- Added xAI Grok provider adapter reusing existing `openai` SDK with custom `base_url`
+- Extended `LLMProviderFactory` to construct all four providers (OpenAI, Anthropic, Gemini, Grok)
+- Extended `Container._configure_providers` to register Gemini and Grok with capability mappings
+- Added provider configuration to `core/config.py` with environment-driven settings
+- Added comprehensive contract tests for Gemini and Grok providers
+- Added container registration tests verifying SecretStr unwrapping for all providers
+- All quality gates pass: ruff clean, mypy clean for new code, 240+ relevant unit tests passing
 
 ### Next Milestone
 
-Milestone 69 — Intelligent Daily Digest Generation (LLM editorial layer)
+Milestone 77 — Dynamic Provider Routing
 
 ---
 
 ## Current Focus
 
-Milestone 68 — Intelligent Story Ranking + Top Story Selection: **Complete**.
+Milestone 76 — Multi-Provider AI Gateway & Provider Abstraction Foundation: **Complete**.
 
-M68 completed. The ranking engine is deterministic, explainable, and reusable by future digest generation, homepage, personalized feeds, and notifications. No vector database, no per-story LLM calls, no unnecessary infrastructure.
+M76 completed. The platform now supports OpenAI, Anthropic, Gemini, and Grok through a unified provider-neutral interface. Provider registry, capability matching, and deterministic fallback are in place. Missing credentials safely result in unavailable providers. AI remains disabled by default (`AI_ENABLED=false`).
 
 ---
 

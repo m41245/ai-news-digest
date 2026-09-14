@@ -2,7 +2,7 @@ import json
 from functools import lru_cache
 from typing import Any, Literal
 
-from pydantic import Field, SecretStr, ValidationInfo, field_validator
+from pydantic import Field, SecretStr, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -242,14 +242,91 @@ class Settings(BaseSettings):
         validation_alias="ANTHROPIC_MAX_RETRIES",
     )
 
+    gemini_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias="GEMINI_API_KEY",
+    )
+
+    gemini_enabled: bool = Field(
+        default=False,
+        validation_alias="GEMINI_ENABLED",
+    )
+
+    gemini_model: str = Field(
+        default="gemini-2.0-flash",
+        validation_alias="GEMINI_MODEL",
+    )
+
+    gemini_priority: int = Field(
+        default=3,
+        ge=1,
+        validation_alias="GEMINI_PRIORITY",
+    )
+
+    gemini_timeout: int = Field(
+        default=30,
+        ge=1,
+        validation_alias="GEMINI_TIMEOUT",
+    )
+
+    gemini_max_retries: int = Field(
+        default=3,
+        ge=0,
+        validation_alias="GEMINI_MAX_RETRIES",
+    )
+
+    xai_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias="XAI_API_KEY",
+    )
+
+    xai_enabled: bool = Field(
+        default=False,
+        validation_alias="XAI_ENABLED",
+    )
+
+    xai_model: str = Field(
+        default="grok-2-latest",
+        validation_alias="XAI_MODEL",
+    )
+
+    xai_priority: int = Field(
+        default=4,
+        ge=1,
+        validation_alias="XAI_PRIORITY",
+    )
+
+    xai_timeout: int = Field(
+        default=30,
+        ge=1,
+        validation_alias="XAI_TIMEOUT",
+    )
+
+    xai_max_retries: int = Field(
+        default=3,
+        ge=0,
+        validation_alias="XAI_MAX_RETRIES",
+    )
+
     default_llm_provider: Literal[
         "openai",
         "anthropic",
+        "gemini",
+        "grok",
     ] = "openai"
 
     # ==================================================================
     # AI Processing
     # ==================================================================
+
+    ai_enabled: bool = Field(
+        default=False,
+        description=(
+            "Master switch for all AI processing. When false, no AI providers "
+            "are registered and no AI processing occurs regardless of individual "
+            "provider enable flags. Requires intentional configuration to activate."
+        ),
+    )
 
     ai_max_content_length: int = Field(
         default=8000,
@@ -455,12 +532,22 @@ class Settings(BaseSettings):
         default=8,
         ge=0,
         le=23,
+        description=(
+            "Hour of the day (in ``digest_timezone``) when the daily digest "
+            "generation task runs. This must be scheduled AFTER the daily "
+            "story ranking task to ensure ranking data is available."
+        ),
     )
 
     digest_schedule_minute: int = Field(
-        default=0,
+        default=15,
         ge=0,
         le=59,
+        description=(
+            "Minute of the hour when the daily digest generation task runs. "
+            "The default of 15 ensures digest generation runs after the "
+            "default 08:05 daily story ranking task."
+        ),
     )
 
     digest_max_articles: int = Field(
@@ -1088,6 +1175,29 @@ class Settings(BaseSettings):
                 "ANTHROPIC_API_KEY must be set when ANTHROPIC_ENABLED=true in production."
             )
         return value
+
+    @model_validator(mode="after")
+    def validate_ai_provider_keys(self) -> "Settings":
+        """Cross-field validation for AI provider API keys after all fields are loaded."""
+        environment = self.environment
+        if environment == "production":
+            if self.openai_enabled and not self.openai_api_key:
+                raise ValueError(
+                    "OPENAI_API_KEY must be set when OPENAI_ENABLED=true in production."
+                )
+            if self.anthropic_enabled and not self.anthropic_api_key:
+                raise ValueError(
+                    "ANTHROPIC_API_KEY must be set when ANTHROPIC_ENABLED=true in production."
+                )
+            if self.gemini_enabled and not self.gemini_api_key:
+                raise ValueError(
+                    "GEMINI_API_KEY must be set when GEMINI_ENABLED=true in production."
+                )
+            if self.xai_enabled and not self.xai_api_key:
+                raise ValueError(
+                    "XAI_API_KEY must be set when XAI_ENABLED=true in production."
+                )
+        return self
 
     @field_validator("smtp_host")
     @classmethod
