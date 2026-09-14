@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from collections.abc import Mapping
 from types import TracebackType
 
@@ -20,7 +19,9 @@ from .exceptions import (
     RSSTimeoutError,
 )
 
-logger = logging.getLogger(__name__)
+from ai_news_digest.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class RSSClient:

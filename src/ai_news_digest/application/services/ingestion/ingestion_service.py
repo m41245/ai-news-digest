@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 
 from ai_news_digest.application.services.ingestion.models import IngestionResult
 from ai_news_digest.application.services.rss.exceptions import RSSException
@@ -9,7 +8,9 @@ from ai_news_digest.application.services.rss.models import FeedResult
 from ai_news_digest.domain.ports.article_repository import ArticleRepository
 from ai_news_digest.domain.ports.source_repository import SourceRepository
 
-logger = logging.getLogger(__name__)
+from ai_news_digest.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class IngestionService:

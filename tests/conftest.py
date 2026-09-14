@@ -17,10 +17,16 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from ai_news_digest.core.logging import configure_logging
 from ai_news_digest.infrastructure.database.base import Base
 
 if TYPE_CHECKING:
     from ai_news_digest.bootstrap.container import Container
+
+# Configure logging before any tests run to ensure structlog is properly
+# initialized with wrap_for_formatter, which is required for Python 3.14+
+# compatibility (Python 3.14 changed Logger._log() to reject arbitrary kwargs).
+configure_logging()
 
 # On Windows, the default ProactorEventLoop can cause issues with asyncpg
 # connection-pool cleanup. The selector-based loop is more compatible.

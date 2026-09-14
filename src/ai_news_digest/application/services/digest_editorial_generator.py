@@ -9,7 +9,6 @@ and provides a deterministic fallback when AI generation fails.
 from __future__ import annotations
 
 import json
-import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -32,7 +31,9 @@ from ai_news_digest.domain.models.story_cluster import StoryCluster
 if TYPE_CHECKING:
     pass
 
-logger = logging.getLogger(__name__)
+from ai_news_digest.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 _EDITORIAL_SYSTEM_PROMPT = """\
 You are an editorial assistant for an AI news intelligence platform.

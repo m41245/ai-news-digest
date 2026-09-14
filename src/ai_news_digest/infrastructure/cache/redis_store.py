@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import logging
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -15,7 +14,9 @@ from ai_news_digest.core.config import settings
 from ai_news_digest.core.exceptions import ExternalServiceError
 from ai_news_digest.domain.ports.cache_store import CacheStore
 
-logger = logging.getLogger(__name__)
+from ai_news_digest.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def _safe_redis_url_diagnostics(redis_url: str) -> dict[str, object]:

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from email.message import EmailMessage
 
 import aiosmtplib
@@ -16,7 +15,9 @@ from ai_news_digest.infrastructure.email.errors import (
     EmailTimeoutError,
 )
 
-logger = logging.getLogger(__name__)
+from ai_news_digest.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class SMTPSender(EmailSender):

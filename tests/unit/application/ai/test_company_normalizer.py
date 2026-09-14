@@ -4,7 +4,6 @@ Unit tests for company normalization.
 
 from __future__ import annotations
 
-import pytest
 
 from ai_news_digest.application.ai.company_normalizer import (
     _KNOWN_COMPANIES,

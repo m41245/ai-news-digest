@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 from ai_news_digest.domain.ports.email_sender import EmailSender
@@ -8,7 +7,9 @@ from ai_news_digest.domain.ports.email_sender import EmailSender
 if TYPE_CHECKING:
     from ai_news_digest.core.config import Settings
 
-logger = logging.getLogger(__name__)
+from ai_news_digest.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class ConsoleEmailSender(EmailSender):

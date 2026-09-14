@@ -4,7 +4,6 @@ Unit tests for topic normalization.
 
 from __future__ import annotations
 
-import pytest
 
 from ai_news_digest.application.ai.topic_normalizer import dedupe_topics, normalize_topic
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 from fastapi import Request, status
@@ -23,7 +22,9 @@ from ai_news_digest.core.exceptions import (
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
-logger = logging.getLogger(__name__)
+from ai_news_digest.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def _is_production() -> bool:

@@ -6,7 +6,6 @@ Transforms ranked StoryClusters into a high-quality, structured daily AI news di
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
@@ -21,6 +20,7 @@ from ai_news_digest.application.services.digest_editorial_generator import (
     build_fallback_digest,
 )
 from ai_news_digest.core.config import get_settings
+from ai_news_digest.core.logging import get_logger
 from ai_news_digest.domain.models.digest import Digest
 from ai_news_digest.domain.models.source import Source
 from ai_news_digest.domain.models.story_cluster import StoryCluster
@@ -31,7 +31,7 @@ from ai_news_digest.domain.ports.story_cluster_repository import StoryClusterRep
 if TYPE_CHECKING:
     pass
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass(slots=True)

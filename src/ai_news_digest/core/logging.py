@@ -125,6 +125,7 @@ def configure_logging() -> None:
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
+            structlog.stdlib.PositionalArgumentsFormatter(),
             add_service_and_environment,
             structlog.stdlib.add_log_level,
             timestamper,

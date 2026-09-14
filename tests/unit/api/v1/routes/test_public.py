@@ -223,7 +223,6 @@ def test_public_digest_includes_stories_and_top_story(
     client: TestClient,
     mock_container: MagicMock,
 ) -> None:
-    from ai_news_digest.domain.models.digest import Digest
 
     digest = Digest(
         id=uuid4(),
@@ -273,8 +272,6 @@ def test_public_top_story_endpoint(
     client: TestClient,
     mock_container: MagicMock,
 ) -> None:
-    from ai_news_digest.domain.models.story_cluster import StoryCluster
-    from ai_news_digest.domain.enums.cluster_status import ClusterStatus
 
     mock_cluster = StoryCluster(
         id=uuid4(),
@@ -323,8 +320,6 @@ def test_public_story_cluster_endpoint(
     client: TestClient,
     mock_container: MagicMock,
 ) -> None:
-    from ai_news_digest.domain.models.story_cluster import StoryCluster
-    from ai_news_digest.domain.enums.cluster_status import ClusterStatus
 
     mock_cluster = StoryCluster(
         id=uuid4(),
@@ -362,8 +357,6 @@ def test_list_public_story_clusters_returns_paginated(
     client: TestClient,
     mock_container: MagicMock,
 ) -> None:
-    from ai_news_digest.domain.models.story_cluster import StoryCluster
-    from ai_news_digest.domain.enums.cluster_status import ClusterStatus
 
     mock_cluster = StoryCluster(
         id=uuid4(),
@@ -403,7 +396,6 @@ def test_list_public_companies_returns_list(
     client: TestClient,
     mock_container: MagicMock,
 ) -> None:
-    from ai_news_digest.domain.models.company import Company
 
     mock_company = MagicMock()
     mock_company.id = uuid4()
@@ -424,7 +416,6 @@ def test_list_public_topics_returns_list(
     client: TestClient,
     mock_container: MagicMock,
 ) -> None:
-    from ai_news_digest.domain.models.topic import Topic
 
     mock_topic = MagicMock()
     mock_topic.id = uuid4()
