@@ -19,6 +19,7 @@ export function CompaniesPage() {
       <Seo
         title="Companies"
         description="Browse news articles organized by company."
+        canonical="/companies"
       />
       <div className="container-page py-8">
         <div className="mb-8">

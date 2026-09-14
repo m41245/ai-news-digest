@@ -19,6 +19,7 @@ export function CategoriesPage() {
       <Seo
         title="Categories"
         description="Browse news articles organized by category."
+        canonical="/categories"
       />
       <div className="container-page py-8">
         <div className="mb-8">

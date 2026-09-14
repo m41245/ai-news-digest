@@ -19,6 +19,7 @@ export function TopicsPage() {
       <Seo
         title="Topics"
         description="Browse news articles organized by topic."
+        canonical="/topics"
       />
       <div className="container-page py-8">
         <div className="mb-8">

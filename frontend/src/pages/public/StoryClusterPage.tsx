@@ -2,9 +2,10 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Seo } from "../../components/Seo";
 import { publicApi } from "../../api";
-import { Spinner } from "../../components/ui/Spinner";
 import { ErrorState } from "../../components/ui/ErrorState";
 import { Badge } from "../../components/ui/Badge";
+import { EmptyState } from "../../components/ui/EmptyState";
+import { Skeleton, StoryCardSkeleton } from "../../components/ui/Skeleton";
 import { formatDateTime } from "../../utils";
 
 export function StoryClusterPage() {
@@ -18,8 +19,30 @@ export function StoryClusterPage() {
 
   if (isLoading) {
     return (
-      <div className="container-page py-16">
-        <Spinner label="Loading story" />
+      <div className="container-page py-8">
+        <div className="max-w-3xl">
+          <Skeleton className="h-4 w-24 mb-4" />
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <Skeleton className="h-6 w-24" />
+            <Skeleton className="h-5 w-20" />
+            <Skeleton className="h-5 w-20" />
+          </div>
+          <Skeleton className="h-8 w-3/4 mb-3" />
+          <Skeleton className="h-4 w-48 mb-8" />
+          <div className="mb-8">
+            <Skeleton className="h-5 w-24 mb-2" />
+            <Skeleton className="h-4 w-full mb-2" />
+            <Skeleton className="h-4 w-5/6" />
+          </div>
+          <div className="mb-8">
+            <Skeleton className="h-6 w-32 mb-4" />
+            <div className="flex flex-col gap-4">
+              <StoryCardSkeleton />
+              <StoryCardSkeleton />
+              <StoryCardSkeleton />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -39,7 +62,7 @@ export function StoryClusterPage() {
     <>
       <Seo
         title={cluster.title}
-        description={cluster.summary ?? undefined}
+        description={cluster.summary ?? `A story cluster with ${cluster.article_count} articles from ${cluster.source_count} sources.`}
         ogType="article"
         canonical={`/stories/${cluster.slug}`}
       />
@@ -99,7 +122,7 @@ export function StoryClusterPage() {
             <div className="mt-3 space-y-2">
               {cluster.contradictions.map((c, i) => (
                 <div key={i} className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
-                  {JSON.stringify(c)}
+                  {typeof c === "string" ? c : JSON.stringify(c)}
                 </div>
               ))}
             </div>
@@ -116,45 +139,52 @@ export function StoryClusterPage() {
 
         <div className="mt-8 max-w-3xl">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">Recent Articles</h2>
-          <div className="flex flex-col gap-4">
-            {cluster.recent_articles.map((article) => (
-              <div
-                key={article.id}
-                className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  {article.source_name && (
-                    <Badge tone="brand">{article.source_name}</Badge>
+          {cluster.recent_articles.length > 0 ? (
+            <div className="flex flex-col gap-4">
+              {cluster.recent_articles.map((article) => (
+                <div
+                  key={article.id}
+                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    {article.source_name && (
+                      <Badge tone="brand">{article.source_name}</Badge>
+                    )}
+                    {article.source_role && <Badge>{article.source_role}</Badge>}
+                    <span className="ml-auto text-xs text-slate-500">
+                      {formatDateTime(article.published_at)}
+                    </span>
+                  </div>
+                  <h3 className="mt-2 text-lg font-semibold text-slate-900">
+                    <a
+                      href={article.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-brand-700 focus-visible:text-brand-700"
+                    >
+                      {article.title}
+                    </a>
+                  </h3>
+                  {article.summary && (
+                    <p className="mt-1 text-sm text-slate-600">{article.summary}</p>
                   )}
-                  {article.source_role && <Badge>{article.source_role}</Badge>}
-                  <span className="ml-auto text-xs text-slate-500">
-                    {formatDateTime(article.published_at)}
-                  </span>
+                  <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
+                    {article.importance_score != null && (
+                      <span>Importance: {article.importance_score.toFixed(2)}</span>
+                    )}
+                    {article.confidence != null && (
+                      <span>Confidence: {article.confidence.toFixed(2)}</span>
+                    )}
+                  </div>
                 </div>
-                <h3 className="mt-2 text-lg font-semibold text-slate-900">
-                  <a
-                    href={article.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-brand-700 focus-visible:text-brand-700"
-                  >
-                    {article.title}
-                  </a>
-                </h3>
-                {article.summary && (
-                  <p className="mt-1 text-sm text-slate-600">{article.summary}</p>
-                )}
-                <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
-                  {article.importance_score != null && (
-                    <span>Importance: {article.importance_score.toFixed(2)}</span>
-                  )}
-                  {article.confidence != null && (
-                    <span>Confidence: {article.confidence.toFixed(2)}</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="No articles"
+              description="There are no articles linked to this story yet."
+            />
+          )}
         </div>
       </article>
     </>

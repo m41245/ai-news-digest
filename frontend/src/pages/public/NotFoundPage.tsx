@@ -4,7 +4,7 @@ import { Seo } from "../../components/Seo";
 export function NotFoundPage() {
   return (
     <>
-      <Seo title="Page not found" noindex />
+      <Seo title="Page not found" description="The page you are looking for does not exist." noindex />
       <div className="container-page flex min-h-[50vh] flex-col items-center justify-center py-16 text-center">
         <p className="text-sm font-semibold text-brand-600">404</p>
         <h1 className="mt-2 text-3xl font-bold text-slate-900">Page not found</h1>

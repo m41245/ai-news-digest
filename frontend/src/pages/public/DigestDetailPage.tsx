@@ -2,10 +2,11 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Seo } from "../../components/Seo";
 import { publicApi } from "../../api";
-import { Spinner } from "../../components/ui/Spinner";
 import { ErrorState } from "../../components/ui/ErrorState";
+import { EmptyState } from "../../components/ui/EmptyState";
 import { TopStoryCard } from "../../components/TopStoryCard";
 import { StoryCard } from "../../components/StoryCard";
+import { StoryCardSkeleton, TopStorySkeleton, Skeleton } from "../../components/ui/Skeleton";
 import { formatDateTime } from "../../utils";
 
 export function DigestDetailPage() {
@@ -19,8 +20,29 @@ export function DigestDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="container-page py-16">
-        <Spinner label="Loading digest" />
+      <div className="container-page py-8">
+        <div className="max-w-3xl">
+          <Skeleton className="h-4 w-24 mb-4" />
+          <Skeleton className="h-8 w-3/4 mb-3" />
+          <Skeleton className="h-4 w-48 mb-8" />
+          <div className="mb-8">
+            <Skeleton className="h-6 w-32 mb-4" />
+            <TopStorySkeleton />
+          </div>
+          <div className="mb-8">
+            <Skeleton className="h-5 w-full mb-2" />
+            <Skeleton className="h-5 w-5/6" />
+            <Skeleton className="h-5 w-4/6" />
+          </div>
+          <div>
+            <Skeleton className="h-6 w-24 mb-4" />
+            <div className="flex flex-col gap-4">
+              <StoryCardSkeleton />
+              <StoryCardSkeleton />
+              <StoryCardSkeleton />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -76,7 +98,7 @@ export function DigestDetailPage() {
           </div>
         </div>
 
-        {digest.stories && digest.stories.length > 0 && (
+        {digest.stories && digest.stories.length > 0 ? (
           <div className="mt-12 max-w-3xl">
             <h2 className="text-2xl font-bold text-slate-900 mb-6">Stories</h2>
             <div className="flex flex-col gap-6">
@@ -89,6 +111,13 @@ export function DigestDetailPage() {
                 />
               ))}
             </div>
+          </div>
+        ) : (
+          <div className="mt-12 max-w-3xl">
+            <EmptyState
+              title="No stories in this digest"
+              description="This digest does not contain any individual story breakdowns."
+            />
           </div>
         )}
       </article>

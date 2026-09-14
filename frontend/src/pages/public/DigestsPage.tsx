@@ -26,6 +26,7 @@ export function DigestsPage() {
       <Seo
         title="Digests"
         description="Daily AI-generated news digests that summarize the most important articles."
+        canonical="/digests"
       />
       <div className="container-page py-8">
         <div className="mb-8">

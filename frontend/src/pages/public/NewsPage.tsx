@@ -5,18 +5,61 @@ import { Seo } from "../../components/Seo";
 import { publicApi } from "../../api";
 import { ArticleCard } from "../../components/ArticleCard";
 import { Input } from "../../components/ui/Input";
-import { ListSkeleton } from "../../components/ui/Skeleton";
+import { ArticleCardSkeleton } from "../../components/ui/Skeleton";
 import { ErrorState } from "../../components/ui/ErrorState";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Pagination } from "../../components/ui/Pagination";
 import { Button } from "../../components/ui/Button";
-import type { Category, Source, Company, Topic } from "../../types";
 
 const PAGE_SIZE = 12;
+
+function FilterGroup({ label, activeValue, options, onSelect, getLabel }: {
+  label: string;
+  activeValue: string | undefined;
+  options: Array<{ id: string; name: string }>;
+  onSelect: (value: string | undefined) => void;
+  getLabel?: (option: { id: string; name: string }) => string;
+}) {
+  return (
+    <div className="mb-4">
+      <span className="block text-sm font-medium text-slate-600 mb-2">{label}</span>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => onSelect(undefined)}
+          className={[
+            "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+            !activeValue
+              ? "bg-brand-600 text-white"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200",
+          ].join(" ")}
+        >
+          All
+        </button>
+        {options.map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => onSelect(opt.id)}
+            className={[
+              "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+              activeValue === opt.id
+                ? "bg-brand-600 text-white"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200",
+            ].join(" ")}
+          >
+            {getLabel ? getLabel(opt) : opt.name}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function NewsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchInput, setSearchInput] = useState(searchParams.get("search") ?? "");
+  const [filtersOpen, setFiltersOpen] = useState(true);
 
   const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
   const categoryId = searchParams.get("category") || undefined;
@@ -96,6 +139,7 @@ export function NewsPage() {
       <Seo
         title="Latest News"
         description="Browse the latest AI-summarized news articles, filtered by category or source."
+        canonical="/news"
       />
       <div className="container-page py-8">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -117,192 +161,105 @@ export function NewsPage() {
           </form>
         </div>
 
-        <div className="mb-6 flex flex-wrap gap-2">
-          <span className="py-1 text-sm font-medium text-slate-600">
-            Category:
-          </span>
+        <div className="mb-4 flex items-center justify-between">
           <button
             type="button"
-            onClick={() => updateParam("category", undefined)}
-            className={[
-              "rounded-full px-3 py-1 text-sm font-medium transition-colors",
-              !categoryId
-                ? "bg-brand-600 text-white"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200",
-            ].join(" ")}
+            onClick={() => setFiltersOpen((o) => !o)}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            aria-expanded={filtersOpen}
           >
-            All
+            {filtersOpen ? "Hide filters" : "Show filters"}
+            {hasActiveFilters && (
+              <span className="inline-flex h-2 w-2 rounded-full bg-brand-600" aria-hidden="true" />
+            )}
           </button>
-          {categories?.map((c: Category) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => updateParam("category", c.id)}
-              className={[
-                "rounded-full px-3 py-1 text-sm font-medium transition-colors",
-                categoryId === c.id
-                  ? "bg-brand-600 text-white"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200",
-              ].join(" ")}
-            >
-              {c.name}
-            </button>
-          ))}
+          {hasActiveFilters && (
+            <Button variant="secondary" size="sm" onClick={clearAllFilters}>
+              Clear all
+            </Button>
+          )}
         </div>
 
-        <div className="mb-6 flex flex-wrap gap-2">
-          <span className="py-1 text-sm font-medium text-slate-600">
-            Source:
-          </span>
-          <button
-            type="button"
-            onClick={() => updateParam("source", undefined)}
-            className={[
-              "rounded-full px-3 py-1 text-sm font-medium transition-colors",
-              !sourceId
-                ? "bg-brand-600 text-white"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200",
-            ].join(" ")}
-          >
-            All
-          </button>
-          {sources?.map((s: Source) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => updateParam("source", s.id)}
-              className={[
-                "rounded-full px-3 py-1 text-sm font-medium transition-colors",
-                sourceId === s.id
-                  ? "bg-brand-600 text-white"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200",
-              ].join(" ")}
-            >
-              {s.name}
-            </button>
-          ))}
-        </div>
-
-        <div className="mb-6 flex flex-wrap gap-2">
-          <span className="py-1 text-sm font-medium text-slate-600">
-            Company:
-          </span>
-          <button
-            type="button"
-            onClick={() => updateParam("company", undefined)}
-            className={[
-              "rounded-full px-3 py-1 text-sm font-medium transition-colors",
-              !companyId
-                ? "bg-brand-600 text-white"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200",
-            ].join(" ")}
-          >
-            All
-          </button>
-          {companies?.map((c: Company) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => updateParam("company", c.id)}
-              className={[
-                "rounded-full px-3 py-1 text-sm font-medium transition-colors",
-                companyId === c.id
-                  ? "bg-brand-600 text-white"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200",
-              ].join(" ")}
-            >
-              {c.name}
-            </button>
-          ))}
-        </div>
-
-        <div className="mb-6 flex flex-wrap gap-2">
-          <span className="py-1 text-sm font-medium text-slate-600">
-            Topic:
-          </span>
-          <button
-            type="button"
-            onClick={() => updateParam("topic", undefined)}
-            className={[
-              "rounded-full px-3 py-1 text-sm font-medium transition-colors",
-              !topicId
-                ? "bg-brand-600 text-white"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200",
-            ].join(" ")}
-          >
-            All
-          </button>
-          {topics?.map((t: Topic) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => updateParam("topic", t.id)}
-              className={[
-                "rounded-full px-3 py-1 text-sm font-medium transition-colors",
-                topicId === t.id
-                  ? "bg-brand-600 text-white"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200",
-              ].join(" ")}
-            >
-              {t.name}
-            </button>
-          ))}
-        </div>
+        {filtersOpen && (
+          <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
+            <FilterGroup
+              label="Category"
+              activeValue={categoryId}
+              options={categories ?? []}
+              onSelect={(v) => updateParam("category", v)}
+            />
+            <FilterGroup
+              label="Source"
+              activeValue={sourceId}
+              options={sources ?? []}
+              onSelect={(v) => updateParam("source", v)}
+            />
+            <FilterGroup
+              label="Company"
+              activeValue={companyId}
+              options={companies ?? []}
+              onSelect={(v) => updateParam("company", v)}
+            />
+            <FilterGroup
+              label="Topic"
+              activeValue={topicId}
+              options={topics ?? []}
+              onSelect={(v) => updateParam("topic", v)}
+            />
+          </div>
+        )}
 
         {hasActiveFilters && (
           <div className="mb-6 flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium text-slate-600">Active filters:</span>
             {search && (
               <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-700">
-                Search: "{search}"
-                <button type="button" onClick={() => { updateParam("search", undefined); setSearchInput(""); }} className="text-brand-500 hover:text-brand-700">×</button>
+                Search: &quot;{search}&quot;
+                <button type="button" onClick={() => { updateParam("search", undefined); setSearchInput(""); }} className="text-brand-500 hover:text-brand-700" aria-label={`Remove search filter: ${search}`}>×</button>
               </span>
             )}
             {categoryId && (
               <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-700">
                 Category
-                <button type="button" onClick={() => updateParam("category", undefined)} className="text-brand-500 hover:text-brand-700">×</button>
+                <button type="button" onClick={() => updateParam("category", undefined)} className="text-brand-500 hover:text-brand-700" aria-label="Remove category filter">×</button>
               </span>
             )}
             {sourceId && (
               <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-700">
                 Source
-                <button type="button" onClick={() => updateParam("source", undefined)} className="text-brand-500 hover:text-brand-700">×</button>
+                <button type="button" onClick={() => updateParam("source", undefined)} className="text-brand-500 hover:text-brand-700" aria-label="Remove source filter">×</button>
               </span>
             )}
             {companyId && (
               <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-700">
                 Company
-                <button type="button" onClick={() => updateParam("company", undefined)} className="text-brand-500 hover:text-brand-700">×</button>
+                <button type="button" onClick={() => updateParam("company", undefined)} className="text-brand-500 hover:text-brand-700" aria-label="Remove company filter">×</button>
               </span>
             )}
             {topicId && (
               <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-700">
                 Topic
-                <button type="button" onClick={() => updateParam("topic", undefined)} className="text-brand-500 hover:text-brand-700">×</button>
+                <button type="button" onClick={() => updateParam("topic", undefined)} className="text-brand-500 hover:text-brand-700" aria-label="Remove topic filter">×</button>
               </span>
             )}
             {minImportance && (
               <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-700">
                 Min importance: {minImportance}
-                <button type="button" onClick={() => updateParam("min_importance", undefined)} className="text-brand-500 hover:text-brand-700">×</button>
+                <button type="button" onClick={() => updateParam("min_importance", undefined)} className="text-brand-500 hover:text-brand-700" aria-label={`Remove minimum importance filter: ${minImportance}`}>×</button>
               </span>
             )}
             {publishedFrom && (
               <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-700">
                 From: {publishedFrom}
-                <button type="button" onClick={() => updateParam("published_from", undefined)} className="text-brand-500 hover:text-brand-700">×</button>
+                <button type="button" onClick={() => updateParam("published_from", undefined)} className="text-brand-500 hover:text-brand-700" aria-label={`Remove published from filter: ${publishedFrom}`}>×</button>
               </span>
             )}
             {publishedTo && (
               <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-700">
                 To: {publishedTo}
-                <button type="button" onClick={() => updateParam("published_to", undefined)} className="text-brand-500 hover:text-brand-700">×</button>
+                <button type="button" onClick={() => updateParam("published_to", undefined)} className="text-brand-500 hover:text-brand-700" aria-label={`Remove published to filter: ${publishedTo}`}>×</button>
               </span>
             )}
-            <Button variant="secondary" size="sm" onClick={clearAllFilters}>
-              Clear all
-            </Button>
           </div>
         )}
 
@@ -314,7 +271,11 @@ export function NewsPage() {
         )}
 
         {isLoading ? (
-          <ListSkeleton rows={4} />
+          <div className="grid gap-4 lg:grid-cols-2">
+            {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+              <ArticleCardSkeleton key={i} />
+            ))}
+          </div>
         ) : data && data.items.length > 0 ? (
           <>
             <p className="mb-4 text-sm text-slate-500">

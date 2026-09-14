@@ -4,8 +4,40 @@ import { useQuery } from "@tanstack/react-query";
 import { publicApi } from "../../api";
 import { TopStoryCard } from "../../components/TopStoryCard";
 import { DigestCard } from "../../components/DigestCard";
-import { Spinner } from "../../components/ui/Spinner";
 import { EmptyState } from "../../components/ui/EmptyState";
+import { Skeleton } from "../../components/ui/Skeleton";
+
+function TopStorySkeleton() {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-5 w-24" />
+        <Skeleton className="h-6 w-3/4" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-2/3" />
+        <div className="flex gap-3">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-3 w-24" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DigestSkeleton() {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-5 w-16" />
+          <Skeleton className="h-3 w-20" />
+        </div>
+        <Skeleton className="h-5 w-2/3" />
+        <Skeleton className="h-3 w-24" />
+      </div>
+    </div>
+  );
+}
 
 export function LandingPage() {
   const { data: topStoryData, isLoading: topStoryLoading } = useQuery({
@@ -36,11 +68,19 @@ export function LandingPage() {
   return (
     <>
       <Helmet>
-        <title>AI News Digest</title>
+        <title>AI News Digest — News distilled by AI</title>
         <meta
           name="description"
           content="AI-powered news aggregation, summarization, and daily digests. Stay informed with curated, categorized news delivered in a clear, readable format."
         />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="AI News Digest — News distilled by AI" />
+        <meta property="og:site_name" content="AI News Digest" />
+        <meta property="og:description" content="AI-powered news aggregation, summarization, and daily digests." />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="AI News Digest — News distilled by AI" />
+        <meta name="twitter:description" content="AI-powered news aggregation, summarization, and daily digests." />
+        <link rel="canonical" href="/" />
       </Helmet>
       <section className="container-page py-20 sm:py-28">
         <div className="mx-auto max-w-3xl text-center">
@@ -72,15 +112,33 @@ export function LandingPage() {
         </div>
       </section>
 
-      {topStoryLoading || digestsLoading ? (
+      {(topStoryLoading || digestsLoading) && (
         <section className="border-t border-slate-200 bg-slate-50 py-16">
           <div className="container-page">
-            <div className="mx-auto max-w-2xl text-center">
-              <Spinner label="Loading top story and latest digest" />
+            <div className="mx-auto max-w-3xl">
+              <div className="mb-8">
+                <Skeleton className="h-7 w-32" />
+                <Skeleton className="mt-2 h-4 w-64" />
+              </div>
+              <div className="mb-12">
+                <TopStorySkeleton />
+              </div>
+              <div>
+                <div className="mb-6">
+                  <Skeleton className="h-7 w-32" />
+                  <Skeleton className="mt-2 h-4 w-64" />
+                </div>
+                <div className="flex flex-col gap-4">
+                  <DigestSkeleton />
+                  <DigestSkeleton />
+                </div>
+              </div>
             </div>
           </div>
         </section>
-      ) : (
+      )}
+
+      {!(topStoryLoading || digestsLoading) && (
         <>
           {topStory && (
             <section className="border-t border-slate-200 bg-slate-50 py-16">

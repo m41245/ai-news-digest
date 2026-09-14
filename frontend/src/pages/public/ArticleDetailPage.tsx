@@ -3,8 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Seo } from "../../components/Seo";
 import { publicApi } from "../../api";
 import { Badge } from "../../components/ui/Badge";
-import { Spinner } from "../../components/ui/Spinner";
 import { ErrorState } from "../../components/ui/ErrorState";
+import { Skeleton } from "../../components/ui/Skeleton";
 import { formatDateTime } from "../../utils";
 
 export function ArticleDetailPage() {
@@ -18,8 +18,23 @@ export function ArticleDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="container-page py-16">
-        <Spinner label="Loading article" />
+      <div className="container-page py-8">
+        <div className="max-w-3xl">
+          <Skeleton className="h-4 w-24 mb-4" />
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <Skeleton className="h-6 w-24" />
+            <Skeleton className="h-6 w-24" />
+          </div>
+          <Skeleton className="h-8 w-3/4 mb-3" />
+          <Skeleton className="h-4 w-full mb-2" />
+          <Skeleton className="h-4 w-5/6 mb-2" />
+          <Skeleton className="h-4 w-1/2 mb-6" />
+          <div className="rounded-xl border border-slate-200 bg-brand-50/50 p-6">
+            <Skeleton className="h-4 w-32 mb-3" />
+            <Skeleton className="h-4 w-full mb-2" />
+            <Skeleton className="h-4 w-5/6" />
+          </div>
+        </div>
       </div>
     );
   }

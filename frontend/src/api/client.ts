@@ -42,7 +42,22 @@ api.interceptors.response.use(
         window.location.assign(`/login?redirect=${encodeURIComponent(current)}`);
       }
     }
-    const detail = error.response?.data?.detail ?? error.message;
+    const status = error.response?.status;
+    let detail = error.response?.data?.detail;
+    if (typeof detail !== "string") {
+      detail = error.message;
+    }
+    if (status && status >= 500) {
+      detail = "Something went wrong on our end. Please try again later.";
+    } else if (status === 404) {
+      detail = "The requested resource was not found.";
+    } else if (status === 429) {
+      detail = "Too many requests. Please wait a moment and try again.";
+    } else if (status === 403) {
+      detail = "You do not have permission to access this resource.";
+    } else if (status === 401) {
+      detail = "Authentication required.";
+    }
     return Promise.reject(new Error(detail));
   },
 );

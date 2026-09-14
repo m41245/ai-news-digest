@@ -8,8 +8,10 @@ Only processed articles (beyond NEW/FAILED) are surfaced.
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 from datetime import UTC, datetime, timedelta
+from functools import lru_cache
 from typing import Annotated, Any, cast
 from uuid import UUID
 
@@ -58,23 +60,32 @@ router = APIRouter(
 )
 
 
+@lru_cache(maxsize=1)
+def _cached_source_category_maps(
+    sources_tuple: tuple[tuple[str, str], ...],
+    categories_tuple: tuple[tuple[str, str], ...],
+) -> tuple[dict[str, str], dict[str, str]]:
+    source_map = dict(sources_tuple)
+    category_map = dict(categories_tuple)
+    return source_map, category_map
+
+
 async def _build_source_and_category_maps(
     container: Container,
-) -> tuple[dict[UUID, str], dict[UUID, str]]:
+) -> tuple[dict[str, str], dict[str, str]]:
     """Build id -> name lookup maps for sources and categories."""
     sources = await container.source_repository.list_all()
     categories = await container.category_repository.list_all()
 
-    return (
-        {source.id: source.name for source in sources},
-        {category.id: category.name for category in categories},
-    )
+    sources_tuple = tuple((str(s.id), s.name) for s in sources)
+    categories_tuple = tuple((str(c.id), c.name) for c in categories)
+    return _cached_source_category_maps(sources_tuple, categories_tuple)
 
 
 def _to_public_article(
     article: Article,
-    source_map: dict[UUID, str],
-    category_map: dict[UUID, str],
+    source_map: dict[str, str],
+    category_map: dict[str, str],
 ) -> PublicArticleResponse:
     return PublicArticleResponse(
         id=str(article.id),
@@ -83,8 +94,8 @@ def _to_public_article(
         summary=article.summary,
         status=article.status.value,
         published_at=article.published_at.isoformat(),
-        source_name=source_map.get(article.source_id),
-        category_name=(category_map.get(article.category_id) if article.category_id else None),
+        source_name=source_map.get(str(article.source_id)) if article.source_id else None,
+        category_name=(category_map.get(str(article.category_id)) if article.category_id else None),
         companies=list(article.companies) if article.companies else None,
         topics=list(article.topics) if article.topics else None,
         key_takeaways=list(article.key_takeaways) if article.key_takeaways else None,
@@ -219,11 +230,27 @@ async def list_public_digests(
     total = await container.digest_repository.count()
 
     top_story_map: dict[str, dict[str, Any]] = {}
-    for digest in digests:
-        if digest.top_story_cluster_id:
-            top_story = await _build_top_story(digest, container)
-            if top_story:
-                top_story_map[str(digest.id)] = top_story
+    cluster_ids = [digest.top_story_cluster_id for digest in digests if digest.top_story_cluster_id]
+    if cluster_ids:
+        clusters = await asyncio.gather(
+            *[container.story_cluster_repository.get_by_id(cid) for cid in cluster_ids]
+        )
+        for cluster in clusters:
+            if cluster is None:
+                continue
+            cluster_data = {
+                "cluster_id": str(cluster.id),
+                "title": cluster.title,
+                "slug": cluster.slug,
+                "summary": cluster.summary,
+                "importance_score": cluster.importance_score,
+                "confidence": cluster.confidence,
+                "ranking_score": cluster.ranking_score,
+                "ranking_explanation": cluster.ranking_explanation,
+            }
+            for digest in digests:
+                if digest.top_story_cluster_id == cluster.id:
+                    top_story_map[str(digest.id)] = cluster_data
 
     return PaginatedResponse(
         items=[
@@ -396,8 +423,8 @@ async def get_public_story_cluster(
     )
 
     sources = await container.source_repository.list_all()
-    source_map = {source.id: source.name for source in sources}
-    source_type_map = {source.id: source.source_type.value for source in sources}
+    source_map = {str(source.id): source.name for source in sources}
+    source_type_map = {str(source.id): source.source_type.value for source in sources}
 
     representative_article = None
     if cluster.representative_article_id is not None:
@@ -408,14 +435,12 @@ async def get_public_story_cluster(
 
     source_role_map: dict[str, str] = {}
     for article in articles:
-        source_type = source_type_map.get(article.source_id, "other")
+        source_type = source_type_map.get(str(article.source_id), "other")
         source_role = classify_source_role(
             article_published_at=article.published_at,
             cluster_first_published_at=cluster.first_published_at,
             source_type=source_type,
-            representative_title=(
-                representative_article.title if representative_article else None
-            ),
+            representative_title=(representative_article.title if representative_article else None),
             article_title=article.title,
         )
         source_role_map[str(article.id)] = source_role
@@ -433,8 +458,8 @@ async def get_public_story_cluster(
             "published_at": article.published_at.isoformat(),
             "importance_score": article.importance_score,
             "confidence": article.confidence,
-            "source_name": source_map.get(article.source_id),
-            "source_type": source_type_map.get(article.source_id),
+            "source_name": source_map.get(str(article.source_id)),
+            "source_type": source_type_map.get(str(article.source_id)),
             "source_role": source_role_map.get(str(article.id)),
         }
         for article in articles[:20]
