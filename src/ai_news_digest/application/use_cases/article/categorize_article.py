@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from ai_news_digest.application.ai.decision_engine import DecisionEngine
 from ai_news_digest.application.ai.models import AIRequest, AIResponseFormat
-from ai_news_digest.application.ai.provider_registry import ProviderRegistry
-from ai_news_digest.core.exceptions import ExternalServiceError
+from ai_news_digest.application.ai.provider_manager import ProviderManager
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.models.category import Category
 from ai_news_digest.domain.ports.article_repository import ArticleRepository
@@ -19,13 +17,11 @@ class CategorizeArticleUseCase:
 
     def __init__(
         self,
-        decision_engine: DecisionEngine,
-        provider_registry: ProviderRegistry,
+        provider_manager: ProviderManager,
         article_repository: ArticleRepository,
         category_repository: CategoryRepository,
     ) -> None:
-        self._decision_engine = decision_engine
-        self._provider_registry = provider_registry
+        self._provider_manager = provider_manager
         self._article_repository = article_repository
         self._category_repository = category_repository
 
@@ -37,16 +33,6 @@ class CategorizeArticleUseCase:
         from ai_news_digest.application.ai.category_vocabulary import (
             normalize_category,
         )
-
-        provider_ids = self._decision_engine.resolve({"categorization"})
-
-        if not provider_ids:
-            raise ExternalServiceError(
-                "No AI provider currently supports the categorization capability."
-            )
-
-        provider_id = min(provider_ids)
-        provider = self._provider_registry.get(provider_id)
 
         request = AIRequest(
             system_prompt=(
@@ -65,7 +51,9 @@ class CategorizeArticleUseCase:
             response_format=AIResponseFormat.TEXT,
         )
 
-        response = await provider.generate(request)
+        response = await self._provider_manager.generate(
+            request, capability="categorization"
+        )
         raw_category = (response.content or "").strip()
 
         category_name = normalize_category(raw_category).value

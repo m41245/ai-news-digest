@@ -25,7 +25,6 @@ from ai_news_digest.application.use_cases.article.analyze_and_materialize import
 )
 from ai_news_digest.application.use_cases.article.analyze_article import (
     AnalyzeArticleUseCase,
-    get_provider_priority_provider_id,
 )
 from ai_news_digest.application.use_cases.article.categorize_article import (
     CategorizeArticleUseCase,
@@ -425,7 +424,11 @@ class Container:
 
     @property
     def provider_manager(self) -> ProviderManager:
-        return ProviderManager(self._provider_registry)
+        return ProviderManager(
+            registry=self._provider_registry,
+            capability_registry=self._capability_registry,
+            decision_engine=self._decision_engine,
+        )
 
     @property
     def rendering_factory(self) -> DigestRendererFactory:
@@ -487,23 +490,17 @@ class Container:
     @property
     def summarize_article(self) -> SummarizeArticleUseCase:
         return SummarizeArticleUseCase(
-            decision_engine=self.decision_engine,
-            provider_registry=self.provider_registry,
+            provider_manager=self.provider_manager,
             article_repository=self.article_repository,
             max_content_length=self._settings.ai_max_content_length,
         )
 
     @property
     def analyze_article(self) -> AnalyzeArticleUseCase | None:
-        provider_id = get_provider_priority_provider_id(
-            self.provider_registry,
-            self.capability_registry,
-        )
-        if provider_id is None:
+        if not self._settings.ai_enabled:
             return None
         return AnalyzeArticleUseCase(
-            provider_registry=self.provider_registry,
-            provider_id=provider_id,
+            provider_manager=self.provider_manager,
         )
 
     @property
@@ -522,8 +519,7 @@ class Container:
     @property
     def categorize_article(self) -> CategorizeArticleUseCase:
         return CategorizeArticleUseCase(
-            decision_engine=self.decision_engine,
-            provider_registry=self.provider_registry,
+            provider_manager=self.provider_manager,
             article_repository=self.article_repository,
             category_repository=self.category_repository,
         )

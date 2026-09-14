@@ -2,29 +2,27 @@
 
 ## Current Phase
 
-Milestone 76 — Multi-Provider AI Gateway & Provider Abstraction Foundation: **COMPLETE**.
+Milestone 77 — Dynamic AI Provider Routing: **COMPLETE**.
 
-M76 additions:
-- Added Google Gemini provider adapter using existing `httpx` client
-- Added xAI Grok provider adapter reusing existing `openai` SDK with custom `base_url`
-- Extended `LLMProviderFactory` to construct all four providers (OpenAI, Anthropic, Gemini, Grok)
-- Extended `Container._configure_providers` to register Gemini and Grok with capability mappings
-- Added provider configuration to `core/config.py` with environment-driven settings
-- Added comprehensive contract tests for Gemini and Grok providers
-- Added container registration tests verifying SecretStr unwrapping for all providers
-- All quality gates pass: ruff clean, mypy clean for new code, 240+ relevant unit tests passing
+M77 additions:
+- Added dynamic provider routing with capability-aware candidate filtering
+- Added structured `RoutingDecision` and `RoutingContext` models
+- Refactored `ProviderManager` into a full routing gateway with eligibility, preference, exclusion, and bounded fallback
+- Integrated routing into `SummarizeArticleUseCase`, `CategorizeArticleUseCase`, `AnalyzeArticleUseCase`, and `DigestEditorialGenerator`
+- Added 23 new routing tests covering capability filtering, preference, exclusions, priority ordering, deterministic tie-breaking, and failure fallback
+- All quality gates pass: ruff clean, mypy clean, 660+ relevant unit tests passing
 
 ### Next Milestone
 
-Milestone 77 — Dynamic Provider Routing
+Milestone 78 — Provider Health, Failure Tracking & Circuit Breakers
 
 ---
 
 ## Current Focus
 
-Milestone 76 — Multi-Provider AI Gateway & Provider Abstraction Foundation: **Complete**.
+Milestone 77 — Dynamic AI Provider Routing: **Complete**.
 
-M76 completed. The platform now supports OpenAI, Anthropic, Gemini, and Grok through a unified provider-neutral interface. Provider registry, capability matching, and deterministic fallback are in place. Missing credentials safely result in unavailable providers. AI remains disabled by default (`AI_ENABLED=false`).
+M77 completed. The platform now has a deterministic, capability-aware provider routing layer. Routing considers capability matching, provider eligibility (enabled, available, capable), explicit request preferences, excluded providers, and configured priority with deterministic tie-breaking. Bounded sequential fallback handles transient failures. AI remains disabled by default (`AI_ENABLED=false`).
 
 ---
 
@@ -1518,4 +1516,14 @@ The personalized feed now uses a scalable, story-level candidate query that pref
 - [x] Security review: no new issues, no hardcoded secrets, no wildcard CORS, no exposed internal services
 - [x] External activation checklist documented
 - [x] Final release decision: PRODUCTION DEPLOYMENT READY — EXTERNAL ACTIVATION BLOCKED
+
+### Milestone 77 — Dynamic AI Provider Routing
+
+- [x] Added `RoutingContext` and `RoutingDecision` dataclasses for structured routing outcomes
+- [x] Refactored `ProviderManager` into a dynamic routing gateway with capability filtering, eligibility checks, preference, exclusion, and bounded fallback
+- [x] Integrated routing into `SummarizeArticleUseCase`, `CategorizeArticleUseCase`, `AnalyzeArticleUseCase`, and `DigestEditorialGenerator`
+- [x] Added 23 routing tests: capability filtering, preference, exclusions, priority ordering, deterministic tie-breaking, failure fallback
+- [x] Verified AI use case tests pass with new routing integration
+- [x] Verified 660+ unit tests pass with no regressions
+- [x] Ruff clean, mypy clean, no new dependencies
 

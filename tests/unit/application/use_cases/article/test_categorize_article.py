@@ -20,27 +20,17 @@ from ai_news_digest.domain.models.article import Article
 
 
 @pytest.fixture
-def mock_decision_engine() -> MagicMock:
-    """Mock DecisionEngine for testing."""
-    engine = MagicMock()
-    engine.resolve.return_value = {"test-provider"}
-    return engine
+def mock_provider_manager() -> MagicMock:
+    """Mock ProviderManager for testing."""
+    manager = MagicMock()
+    manager.generate = AsyncMock()
+    return manager
 
 
 @pytest.fixture
-def mock_provider() -> MagicMock:
-    """Mock AI provider for testing."""
-    provider = MagicMock()
-    provider.generate = AsyncMock()
-    return provider
-
-
-@pytest.fixture
-def mock_provider_registry(mock_provider: MagicMock) -> MagicMock:
-    """Mock ProviderRegistry for testing."""
-    registry = MagicMock()
-    registry.get.return_value = mock_provider
-    return registry
+def mock_article_repository() -> AsyncMock:
+    """Mock ArticleRepository for testing."""
+    return AsyncMock()
 
 
 @pytest.fixture
@@ -63,16 +53,13 @@ def sample_article() -> Article:
 
 
 async def test_categorize_article_success(
-    mock_decision_engine: MagicMock,
-    mock_provider_registry: MagicMock,
-    mock_provider: MagicMock,
-    sample_article: Article,
+    mock_provider_manager: MagicMock,
     mock_article_repository: AsyncMock,
     mock_category_repository: AsyncMock,
+    sample_article: Article,
 ) -> None:
     """Test successful article categorization."""
-    # Arrange
-    mock_provider.generate.return_value = AIResponse(
+    mock_provider_manager.generate.return_value = AIResponse(
         provider="test-provider",
         model="test-model",
         content="Technology",
@@ -84,33 +71,28 @@ async def test_categorize_article_success(
     mock_category_repository.create.return_value = MagicMock(id=uuid4(), name="technology")
 
     use_case = CategorizeArticleUseCase(
-        decision_engine=mock_decision_engine,
-        provider_registry=mock_provider_registry,
+        provider_manager=mock_provider_manager,
         article_repository=mock_article_repository,
         category_repository=mock_category_repository,
     )
 
-    # Act
     result = await use_case.execute(sample_article)
 
-    # Assert
     assert result.status == ArticleStatus.CATEGORIZED
-    mock_decision_engine.resolve.assert_called_once_with({"categorization"})
-    mock_provider_registry.get.assert_called_once_with("test-provider")
+    mock_provider_manager.generate.assert_called_once()
+    call_kwargs = mock_provider_manager.generate.call_args
+    assert call_kwargs.kwargs.get("capability") == "categorization"
     mock_article_repository.update.assert_called_once_with(sample_article)
 
 
 async def test_categorize_article_empty_response(
-    mock_decision_engine: MagicMock,
-    mock_provider_registry: MagicMock,
-    mock_provider: MagicMock,
-    sample_article: Article,
+    mock_provider_manager: MagicMock,
     mock_article_repository: AsyncMock,
     mock_category_repository: AsyncMock,
+    sample_article: Article,
 ) -> None:
     """Test categorization when provider returns empty content."""
-    # Arrange
-    mock_provider.generate.return_value = AIResponse(
+    mock_provider_manager.generate.return_value = AIResponse(
         provider="test-provider",
         model="test-model",
         content="",
@@ -122,55 +104,42 @@ async def test_categorize_article_empty_response(
     mock_category_repository.create.return_value = MagicMock(id=uuid4(), name="general")
 
     use_case = CategorizeArticleUseCase(
-        decision_engine=mock_decision_engine,
-        provider_registry=mock_provider_registry,
+        provider_manager=mock_provider_manager,
         article_repository=mock_article_repository,
         category_repository=mock_category_repository,
     )
 
-    # Act
     result = await use_case.execute(sample_article)
 
-    # Assert
     assert result.status == ArticleStatus.CATEGORIZED
-    # Note: The implementation sets category_id to None when response is empty
-    # This is the current behavior being tested
 
 
-async def test_categorize_article_no_provider(
-    mock_decision_engine: MagicMock,
-    mock_provider_registry: MagicMock,
-    sample_article: Article,
+async def test_categorize_article_provider_raises(
+    mock_provider_manager: MagicMock,
     mock_article_repository: AsyncMock,
-    mock_category_repository: AsyncMock,
+    sample_article: Article,
 ) -> None:
-    """Test categorization when no provider supports capability."""
-    # Arrange
-    mock_decision_engine.resolve.return_value = set()
+    """Test categorization propagates provider errors."""
+    mock_provider_manager.generate.side_effect = ExternalServiceError("provider down")
 
     use_case = CategorizeArticleUseCase(
-        decision_engine=mock_decision_engine,
-        provider_registry=mock_provider_registry,
+        provider_manager=mock_provider_manager,
         article_repository=mock_article_repository,
-        category_repository=mock_category_repository,
+        category_repository=MagicMock(),
     )
 
-    # Act & Assert
-    with pytest.raises(ExternalServiceError, match="No AI provider currently supports"):
+    with pytest.raises(ExternalServiceError, match="provider down"):
         await use_case.execute(sample_article)
 
 
 async def test_categorize_article_whitespace_response(
-    mock_decision_engine: MagicMock,
-    mock_provider_registry: MagicMock,
-    mock_provider: MagicMock,
-    sample_article: Article,
+    mock_provider_manager: MagicMock,
     mock_article_repository: AsyncMock,
     mock_category_repository: AsyncMock,
+    sample_article: Article,
 ) -> None:
     """Test categorization when provider returns only whitespace."""
-    # Arrange
-    mock_provider.generate.return_value = AIResponse(
+    mock_provider_manager.generate.return_value = AIResponse(
         provider="test-provider",
         model="test-model",
         content="   ",
@@ -182,14 +151,11 @@ async def test_categorize_article_whitespace_response(
     mock_category_repository.create.return_value = MagicMock(id=uuid4(), name="general")
 
     use_case = CategorizeArticleUseCase(
-        decision_engine=mock_decision_engine,
-        provider_registry=mock_provider_registry,
+        provider_manager=mock_provider_manager,
         article_repository=mock_article_repository,
         category_repository=mock_category_repository,
     )
 
-    # Act
     result = await use_case.execute(sample_article)
 
-    # Assert
     assert result.status == ArticleStatus.CATEGORIZED

@@ -20,27 +20,17 @@ from ai_news_digest.domain.models.article import Article
 
 
 @pytest.fixture
-def mock_decision_engine() -> MagicMock:
-    """Mock DecisionEngine for testing."""
-    engine = MagicMock()
-    engine.resolve.return_value = {"test-provider"}
-    return engine
+def mock_provider_manager() -> MagicMock:
+    """Mock ProviderManager for testing."""
+    manager = MagicMock()
+    manager.generate = AsyncMock()
+    return manager
 
 
 @pytest.fixture
-def mock_provider() -> MagicMock:
-    """Mock AI provider for testing."""
-    provider = MagicMock()
-    provider.generate = AsyncMock()
-    return provider
-
-
-@pytest.fixture
-def mock_provider_registry(mock_provider: MagicMock) -> MagicMock:
-    """Mock ProviderRegistry for testing."""
-    registry = MagicMock()
-    registry.get.return_value = mock_provider
-    return registry
+def mock_article_repository() -> AsyncMock:
+    """Mock ArticleRepository for testing."""
+    return AsyncMock()
 
 
 @pytest.fixture
@@ -57,15 +47,12 @@ def sample_article() -> Article:
 
 
 async def test_summarize_article_success(
-    mock_decision_engine: MagicMock,
-    mock_provider_registry: MagicMock,
-    mock_provider: MagicMock,
-    sample_article: Article,
+    mock_provider_manager: MagicMock,
     mock_article_repository: AsyncMock,
+    sample_article: Article,
 ) -> None:
     """Test successful article summarization."""
-    # Arrange
-    mock_provider.generate.return_value = AIResponse(
+    mock_provider_manager.generate.return_value = AIResponse(
         provider="test-provider",
         model="test-model",
         content="Enhanced summary",
@@ -75,32 +62,27 @@ async def test_summarize_article_success(
     mock_article_repository.update.return_value = sample_article
 
     use_case = SummarizeArticleUseCase(
-        decision_engine=mock_decision_engine,
-        provider_registry=mock_provider_registry,
+        provider_manager=mock_provider_manager,
         article_repository=mock_article_repository,
     )
 
-    # Act
     result = await use_case.execute(sample_article)
 
-    # Assert
     assert result.summary == "Enhanced summary"
     assert result.status == ArticleStatus.SUMMARIZED
-    mock_decision_engine.resolve.assert_called_once_with({"summarization"})
-    mock_provider_registry.get.assert_called_once_with("test-provider")
+    mock_provider_manager.generate.assert_called_once()
+    call_kwargs = mock_provider_manager.generate.call_args
+    assert call_kwargs.kwargs.get("capability") == "summarization"
     mock_article_repository.update.assert_called_once_with(sample_article)
 
 
 async def test_summarize_article_empty_response(
-    mock_decision_engine: MagicMock,
-    mock_provider_registry: MagicMock,
-    mock_provider: MagicMock,
-    sample_article: Article,
+    mock_provider_manager: MagicMock,
     mock_article_repository: AsyncMock,
+    sample_article: Article,
 ) -> None:
     """Test summarization when provider returns empty content."""
-    # Arrange
-    mock_provider.generate.return_value = AIResponse(
+    mock_provider_manager.generate.return_value = AIResponse(
         provider="test-provider",
         model="test-model",
         content="",
@@ -110,50 +92,40 @@ async def test_summarize_article_empty_response(
     mock_article_repository.update.return_value = sample_article
 
     use_case = SummarizeArticleUseCase(
-        decision_engine=mock_decision_engine,
-        provider_registry=mock_provider_registry,
+        provider_manager=mock_provider_manager,
         article_repository=mock_article_repository,
     )
 
-    # Act
     result = await use_case.execute(sample_article)
 
-    # Assert
-    assert result.summary == "Original summary"  # Falls back to original
+    assert result.summary == "Original summary"
     assert result.status == ArticleStatus.SUMMARIZED
 
 
-async def test_summarize_article_no_provider(
-    mock_decision_engine: MagicMock,
-    mock_provider_registry: MagicMock,
-    sample_article: Article,
+async def test_summarize_article_provider_raises(
+    mock_provider_manager: MagicMock,
     mock_article_repository: AsyncMock,
+    sample_article: Article,
 ) -> None:
-    """Test summarization when no provider supports capability."""
-    # Arrange
-    mock_decision_engine.resolve.return_value = set()
+    """Test summarization propagates provider errors."""
+    mock_provider_manager.generate.side_effect = ExternalServiceError("provider down")
 
     use_case = SummarizeArticleUseCase(
-        decision_engine=mock_decision_engine,
-        provider_registry=mock_provider_registry,
+        provider_manager=mock_provider_manager,
         article_repository=mock_article_repository,
     )
 
-    # Act & Assert
-    with pytest.raises(ExternalServiceError, match="No AI provider currently supports"):
+    with pytest.raises(ExternalServiceError, match="provider down"):
         await use_case.execute(sample_article)
 
 
 async def test_summarize_article_whitespace_response(
-    mock_decision_engine: MagicMock,
-    mock_provider_registry: MagicMock,
-    mock_provider: MagicMock,
-    sample_article: Article,
+    mock_provider_manager: MagicMock,
     mock_article_repository: AsyncMock,
+    sample_article: Article,
 ) -> None:
     """Test summarization when provider returns only whitespace."""
-    # Arrange
-    mock_provider.generate.return_value = AIResponse(
+    mock_provider_manager.generate.return_value = AIResponse(
         provider="test-provider",
         model="test-model",
         content="   ",
@@ -163,13 +135,10 @@ async def test_summarize_article_whitespace_response(
     mock_article_repository.update.return_value = sample_article
 
     use_case = SummarizeArticleUseCase(
-        decision_engine=mock_decision_engine,
-        provider_registry=mock_provider_registry,
+        provider_manager=mock_provider_manager,
         article_repository=mock_article_repository,
     )
 
-    # Act
     result = await use_case.execute(sample_article)
 
-    # Assert
-    assert result.summary == "Original summary"  # Falls back to original after strip
+    assert result.summary == "Original summary"

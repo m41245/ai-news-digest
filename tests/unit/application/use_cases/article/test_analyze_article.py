@@ -19,24 +19,11 @@ from ai_news_digest.domain.models.article import Article
 
 
 @pytest.fixture
-def mock_provider() -> MagicMock:
-    """Mock AI provider for testing."""
-    provider = MagicMock()
-    provider.generate = AsyncMock()
-    provider.id = "test-provider"
-    provider.priority = MagicMock(return_value=1)
-    provider.provider_name = "test-provider"
-    provider.model_name = "test-model"
-    return provider
-
-
-@pytest.fixture
-def mock_provider_registry(mock_provider: MagicMock) -> MagicMock:
-    """Mock ProviderRegistry for testing."""
-    registry = MagicMock()
-    registry.get.return_value = mock_provider
-    registry.exists.return_value = True
-    return registry
+def mock_provider_manager() -> MagicMock:
+    """Mock ProviderManager for testing."""
+    manager = MagicMock()
+    manager.generate = AsyncMock()
+    return manager
 
 
 @pytest.fixture
@@ -53,13 +40,11 @@ def sample_article() -> Article:
 
 
 async def test_analyze_article_success(
-    mock_provider_registry: MagicMock,
-    mock_provider: MagicMock,
+    mock_provider_manager: MagicMock,
     sample_article: Article,
 ) -> None:
     """Test successful article analysis."""
-    # Arrange
-    mock_provider.generate.return_value = AIResponse(
+    mock_provider_manager.generate.return_value = AIResponse(
         provider="test-provider",
         model="test-model",
         content=(
@@ -73,14 +58,11 @@ async def test_analyze_article_success(
     )
 
     use_case = AnalyzeArticleUseCase(
-        provider_registry=mock_provider_registry,
-        provider_id="test-provider",
+        provider_manager=mock_provider_manager,
     )
 
-    # Act
     result = await use_case.execute(sample_article)
 
-    # Assert
     assert result.importance_score == 0.9
     assert result.confidence == 0.8
     assert result.key_takeaways == ("Takeaway 1",)
@@ -91,17 +73,17 @@ async def test_analyze_article_success(
     assert result.ai_provider == "test-provider"
     assert result.ai_model == "test-model"
     assert result.ai_processed_at is not None
-    mock_provider.generate.assert_called_once()
+    mock_provider_manager.generate.assert_called_once()
+    call_kwargs = mock_provider_manager.generate.call_args
+    assert call_kwargs.kwargs.get("capability") == "analysis"
 
 
 async def test_analyze_article_with_markdown_fences(
-    mock_provider_registry: MagicMock,
-    mock_provider: MagicMock,
+    mock_provider_manager: MagicMock,
     sample_article: Article,
 ) -> None:
     """Test analysis strips markdown code fences."""
-    # Arrange
-    mock_provider.generate.return_value = AIResponse(
+    mock_provider_manager.generate.return_value = AIResponse(
         provider="test-provider",
         model="test-model",
         content=(
@@ -116,44 +98,36 @@ async def test_analyze_article_with_markdown_fences(
     )
 
     use_case = AnalyzeArticleUseCase(
-        provider_registry=mock_provider_registry,
-        provider_id="test-provider",
+        provider_manager=mock_provider_manager,
     )
 
-    # Act
     result = await use_case.execute(sample_article)
 
-    # Assert
     assert result.importance_score == 0.5
     assert result.confidence == 0.5
 
 
-async def test_analyze_article_no_provider(
+async def test_analyze_article_provider_raises(
     sample_article: Article,
 ) -> None:
-    """Test analysis raises when no provider supports analysis."""
-    # Arrange
+    """Test analysis raises when provider fails."""
     use_case = AnalyzeArticleUseCase(
-        provider_registry=MagicMock(),
-        provider_id=None,
+        provider_manager=MagicMock(),
+    )
+    use_case._provider_manager.generate.side_effect = ExternalServiceError(
+        "No eligible providers available"
     )
 
-    # Act / Assert
-    with pytest.raises(
-        ExternalServiceError,
-        match="No AI provider currently supports the analysis capability",
-    ):
+    with pytest.raises(ExternalServiceError, match="No eligible providers available"):
         await use_case.execute(sample_article)
 
 
 async def test_analyze_article_empty_response(
-    mock_provider_registry: MagicMock,
-    mock_provider: MagicMock,
+    mock_provider_manager: MagicMock,
     sample_article: Article,
 ) -> None:
     """Test analysis raises when provider returns empty response."""
-    # Arrange
-    mock_provider.generate.return_value = AIResponse(
+    mock_provider_manager.generate.return_value = AIResponse(
         provider="test-provider",
         model="test-model",
         content="",
@@ -162,11 +136,9 @@ async def test_analyze_article_empty_response(
     )
 
     use_case = AnalyzeArticleUseCase(
-        provider_registry=mock_provider_registry,
-        provider_id="test-provider",
+        provider_manager=mock_provider_manager,
     )
 
-    # Act / Assert
     with pytest.raises(
         ExternalServiceError,
         match="AI provider returned an empty analysis response",
@@ -175,13 +147,11 @@ async def test_analyze_article_empty_response(
 
 
 async def test_analyze_article_invalid_json(
-    mock_provider_registry: MagicMock,
-    mock_provider: MagicMock,
+    mock_provider_manager: MagicMock,
     sample_article: Article,
 ) -> None:
     """Test analysis raises when provider returns invalid JSON."""
-    # Arrange
-    mock_provider.generate.return_value = AIResponse(
+    mock_provider_manager.generate.return_value = AIResponse(
         provider="test-provider",
         model="test-model",
         content="Not valid JSON",
@@ -190,10 +160,10 @@ async def test_analyze_article_invalid_json(
     )
 
     use_case = AnalyzeArticleUseCase(
-        provider_registry=mock_provider_registry,
-        provider_id="test-provider",
+        provider_manager=mock_provider_manager,
     )
 
-    # Act / Assert
-    with pytest.raises(ExternalServiceError, match="Invalid JSON response from AI provider"):
+    with pytest.raises(
+        ExternalServiceError, match="Invalid JSON response from AI provider"
+    ):
         await use_case.execute(sample_article)

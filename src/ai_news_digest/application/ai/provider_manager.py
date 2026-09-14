@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Iterable
 
+from ai_news_digest.application.ai.capability_registry import CapabilityRegistry
+from ai_news_digest.application.ai.decision_engine import DecisionEngine
 from ai_news_digest.application.ai.models import (
     AIRequest,
     AIResponse,
+    RoutingDecision,
 )
-from ai_news_digest.application.ai.provider_registry import (
-    ProviderRegistry,
-)
-from ai_news_digest.application.ai.providers.base import (
-    AIProvider,
-)
+from ai_news_digest.application.ai.provider_registry import ProviderRegistry
+from ai_news_digest.application.ai.providers.base import AIProvider
+from ai_news_digest.core.config import get_settings
 from ai_news_digest.core.exceptions import ExternalServiceError
 from ai_news_digest.core.metrics import (
     record_ai_failure,
@@ -21,27 +22,40 @@ from ai_news_digest.core.metrics import (
 
 
 class ProviderManager:
-    """Dynamically selects the best available AI provider."""
+    """Dynamic AI provider gateway with capability-aware routing and bounded fallback."""
 
     def __init__(
         self,
         registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
     ) -> None:
         self._registry = registry
+        self._capability_registry = capability_registry
+        self._decision_engine = decision_engine
 
     async def generate(
         self,
         request: AIRequest,
+        capability: str | None = None,
+        preferred_provider: str | None = None,
+        excluded_providers: Iterable[str] | None = None,
     ) -> AIResponse:
-        """Generate a response using the highest-ranked provider."""
-        providers = await self._available_providers()
+        """Generate a response using the best eligible provider with bounded fallback."""
+        decision = await self.route(
+            request,
+            capability=capability,
+            preferred_provider=preferred_provider,
+            excluded_providers=excluded_providers,
+        )
 
-        if not providers:
-            raise ExternalServiceError("No AI providers are currently available.")
+        if decision.selected_provider_id is None:
+            raise ExternalServiceError(decision.reason)
 
         last_exception: Exception | None = None
 
-        for provider in providers:
+        for provider_id in decision.attempted_provider_ids:
+            provider = self._registry.get(provider_id)
             provider_name = provider.provider_name
             record_ai_request(provider_name)
             start = time.monotonic()
@@ -57,19 +71,112 @@ class ProviderManager:
 
         raise ExternalServiceError("Every AI provider failed.") from last_exception
 
-    async def _available_providers(
+    async def route(
         self,
-    ) -> list[AIProvider]:
-        """Return providers sorted by priority."""
-        available: list[AIProvider] = []
+        request: AIRequest,
+        capability: str | None = None,
+        preferred_provider: str | None = None,
+        excluded_providers: Iterable[str] | None = None,
+    ) -> RoutingDecision:
+        """Return a deterministic routing decision for the given request context."""
+        settings = get_settings()
 
-        for provider in self._registry:
-            if await provider.available():
-                available.append(provider)
+        if not settings.ai_enabled:
+            return RoutingDecision(
+                selected_provider_id=None,
+                capability=capability,
+                candidate_provider_ids=[],
+                rejected_provider_ids=[],
+                attempted_provider_ids=[],
+                fallback_used=False,
+                reason="AI is disabled",
+            )
 
-        available.sort(
-            key=lambda provider: provider.priority(),
-            reverse=True,
+        excluded = set(excluded_providers) if excluded_providers else set()
+
+        candidate_ids = self._resolve_candidate_ids(capability)
+        candidates: list[AIProvider] = []
+        rejected: list[tuple[str, str]] = []
+
+        for provider_id in candidate_ids:
+            if provider_id in excluded:
+                rejected.append((provider_id, "excluded"))
+                continue
+
+            provider = self._registry.get(provider_id)
+            eligible, reason = await self._check_eligibility(provider, capability)
+            if not eligible:
+                rejected.append((provider_id, reason))
+                continue
+
+            candidates.append(provider)
+
+        preferred_ids = {preferred_provider} if preferred_provider else set()
+        candidates.sort(
+            key=lambda p: (
+                0 if p.id in preferred_ids else 1,
+                -p.priority(),
+                p.id,
+            )
         )
 
-        return available
+        attempted = [p.id for p in candidates]
+        selected_id = candidates[0].id if candidates else None
+
+        if selected_id is None:
+            reason_parts = ["No eligible providers available"]
+            if capability:
+                reason_parts.append(f"for capability '{capability}'")
+            if rejected:
+                reason_parts.append(
+                    f"(rejected: {', '.join(f'{pid}({reason})' for pid, reason in rejected)})"
+                )
+            return RoutingDecision(
+                selected_provider_id=None,
+                capability=capability,
+                candidate_provider_ids=[],
+                rejected_provider_ids=rejected,
+                attempted_provider_ids=[],
+                fallback_used=False,
+                reason="; ".join(reason_parts),
+            )
+
+        reason_parts = [
+            f"Selected {candidates[0].name} because it supports "
+            f"{capability or 'general capability'}, is enabled, "
+            f"credentials are configured, it is available, "
+            f"and it has the highest configured priority among eligible providers"
+        ]
+        return RoutingDecision(
+            selected_provider_id=selected_id,
+            capability=capability,
+            candidate_provider_ids=[p.id for p in candidates],
+            rejected_provider_ids=rejected,
+            attempted_provider_ids=attempted,
+            fallback_used=False,
+            reason="".join(reason_parts),
+            metadata={"priority": candidates[0].priority()},
+        )
+
+    def _resolve_candidate_ids(self, capability: str | None) -> set[str]:
+        """Return provider ids that are candidates for the requested capability."""
+        if capability:
+            return self._decision_engine.resolve({capability})
+        return set(self._registry.names())
+
+    async def _check_eligibility(
+        self,
+        provider: AIProvider,
+        capability: str | None,
+    ) -> tuple[bool, str]:
+        """Check whether a provider is eligible for the current request."""
+        if not provider.enabled:
+            return False, "disabled"
+
+        if not await provider.available():
+            return False, "unavailable"
+
+        if capability and capability not in provider.capabilities:
+            return False, "incapable"
+
+        return True, "eligible"

@@ -4,14 +4,13 @@ import json
 import re
 from datetime import UTC, datetime
 
-from ai_news_digest.application.ai.capability_registry import CapabilityRegistry
 from ai_news_digest.application.ai.category_vocabulary import (
     get_allowed_category_values,
     normalize_category,
 )
 from ai_news_digest.application.ai.company_normalizer import normalize_company
 from ai_news_digest.application.ai.models import AIRequest, AIResponseFormat
-from ai_news_digest.application.ai.provider_registry import ProviderRegistry
+from ai_news_digest.application.ai.provider_manager import ProviderManager
 from ai_news_digest.application.ai.structured_output import (
     validate_structured_output,
 )
@@ -46,30 +45,6 @@ _SYSTEM_PROMPT = (
 )
 
 
-def get_provider_priority_provider_id(
-    provider_registry: ProviderRegistry,
-    capability_registry: CapabilityRegistry,
-) -> str | None:
-    """Return the highest-priority provider that supports analysis."""
-    if not capability_registry.exists("analysis"):
-        return None
-
-    provider_ids = capability_registry.providers_for("analysis")
-
-    if not provider_ids:
-        return None
-
-    providers = [
-        provider_registry.get(pid) for pid in provider_ids if provider_registry.exists(pid)
-    ]
-
-    if not providers:
-        return None
-
-    providers.sort(key=lambda p: p.priority(), reverse=True)
-    return providers[0].id
-
-
 class AnalyzeArticleUseCase:
     """Analyze a single article using the platform provider selection flow.
 
@@ -79,19 +54,13 @@ class AnalyzeArticleUseCase:
 
     def __init__(
         self,
-        provider_registry: ProviderRegistry,
-        provider_id: str | None,
+        provider_manager: ProviderManager,
     ) -> None:
-        self._provider_registry = provider_registry
-        self._provider_id = provider_id
+        self._provider_manager = provider_manager
         self._prompt_version = _ANALYSIS_PROMPT_VERSION
 
     async def execute(self, article: Article) -> Article:
         """Analyze an article and update it with structured intelligence."""
-        if self._provider_id is None:
-            raise ExternalServiceError("No AI provider currently supports the analysis capability.")
-
-        provider = self._provider_registry.get(self._provider_id)
         content = _safe_article_text(article)
 
         request = AIRequest(
@@ -107,7 +76,9 @@ class AnalyzeArticleUseCase:
             metadata={"prompt_version": self._prompt_version, "article_id": str(article.id)},
         )
 
-        response = await provider.generate(request)
+        response = await self._provider_manager.generate(
+            request, capability="analysis"
+        )
         raw_content = (response.content or "").strip()
 
         if not raw_content:
@@ -133,8 +104,8 @@ class AnalyzeArticleUseCase:
         article.key_takeaways = intelligence.key_takeaways
         article.why_it_matters = intelligence.why_it_matters
         article.summary = intelligence.summary
-        article.ai_provider = provider.provider_name
-        article.ai_model = provider.model_name
+        article.ai_provider = response.provider
+        article.ai_model = response.model
         article.ai_processed_at = _utcnow()
 
         normalized_categories = tuple(
@@ -181,4 +152,4 @@ def _utcnow() -> datetime:
     return datetime.now(UTC)
 
 
-__all__ = ["_ANALYSIS_PROMPT_VERSION", "AnalyzeArticleUseCase", "get_provider_priority_provider_id"]
+__all__ = ["_ANALYSIS_PROMPT_VERSION", "AnalyzeArticleUseCase"]

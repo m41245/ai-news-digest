@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from ai_news_digest.application.ai.decision_engine import DecisionEngine
 from ai_news_digest.application.ai.models import AIRequest, AIResponseFormat
-from ai_news_digest.application.ai.provider_registry import ProviderRegistry
-from ai_news_digest.core.exceptions import ExternalServiceError
+from ai_news_digest.application.ai.provider_manager import ProviderManager
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.ports.article_repository import ArticleRepository
 
@@ -26,13 +24,11 @@ class SummarizeArticleUseCase:
 
     def __init__(
         self,
-        decision_engine: DecisionEngine,
-        provider_registry: ProviderRegistry,
+        provider_manager: ProviderManager,
         article_repository: ArticleRepository,
         max_content_length: int = 8000,
     ) -> None:
-        self._decision_engine = decision_engine
-        self._provider_registry = provider_registry
+        self._provider_manager = provider_manager
         self._article_repository = article_repository
         self._max_content_length = max_content_length
 
@@ -41,16 +37,6 @@ class SummarizeArticleUseCase:
         article: Article,
     ) -> Article:
         """Summarize an article and persist the resulting domain update."""
-        provider_ids = self._decision_engine.resolve({"summarization"})
-
-        if not provider_ids:
-            raise ExternalServiceError(
-                "No AI provider currently supports the summarization capability."
-            )
-
-        provider_id = min(provider_ids)
-        provider = self._provider_registry.get(provider_id)
-
         content = _truncate(article.content or article.summary, self._max_content_length)
 
         request = AIRequest(
@@ -68,7 +54,9 @@ class SummarizeArticleUseCase:
             response_format=AIResponseFormat.TEXT,
         )
 
-        response = await provider.generate(request)
+        response = await self._provider_manager.generate(
+            request, capability="summarization"
+        )
         summary_text = (response.content or article.summary).strip()
 
         if not summary_text:

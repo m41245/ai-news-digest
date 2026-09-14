@@ -11,6 +11,29 @@ class AIResponseFormat(StrEnum):
     MARKDOWN = "markdown"
 
 
+@dataclass(frozen=True, slots=True)
+class RoutingContext:
+    """Extensible request-level routing context."""
+
+    capability: str | None = None
+    preferred_provider: str | None = None
+    excluded_providers: frozenset[str] = frozenset()
+
+
+@dataclass(slots=True)
+class RoutingDecision:
+    """Structured outcome of a provider routing decision."""
+
+    selected_provider_id: str | None
+    capability: str | None
+    candidate_provider_ids: list[str]
+    rejected_provider_ids: list[tuple[str, str]]
+    attempted_provider_ids: list[str]
+    fallback_used: bool
+    reason: str
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
 @dataclass(slots=True)
 class AIRequest:
     """
