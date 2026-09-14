@@ -22,7 +22,7 @@ alembic = "^1.14.0"
 asyncpg = ">=0.29.0"
 
 celery = { version = "^5.4.0", extras = ["redis"] }
-redis = "^5.2.0"
+redis = ">=5.2,<7.0"
 
 httpx = "^0.28.0"
 feedparser = "^6.0.11"
