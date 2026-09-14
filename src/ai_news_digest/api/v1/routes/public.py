@@ -25,8 +25,11 @@ from ai_news_digest.api.v1.schemas.common import (
 from ai_news_digest.api.v1.schemas.public import (
     PublicArticleResponse,
     PublicCategoryResponse,
+    PublicCompanyResponse,
     PublicDigestResponse,
     PublicStoryClusterResponse,
+    PublicStoryClusterSearchResponse,
+    PublicTopicResponse,
     PublicTopStoryResponse,
 )
 from ai_news_digest.api.v1.schemas.source import SourceResponse
@@ -550,6 +553,122 @@ async def list_public_sources(
             status=source.status.value,
         )
         for source in sources
+    ]
+
+
+@router.get(
+    "/story-clusters",
+    response_model=PaginatedResponse[PublicStoryClusterSearchResponse],
+    summary="List public story clusters with optional search",
+)
+async def list_public_story_clusters(
+    container: Annotated[Container, Depends(get_container)],
+    limit: Annotated[int, Query(ge=1, le=MAX_PAGE_LIMIT)] = DEFAULT_PAGE_LIMIT,
+    offset: Annotated[int, Query(ge=0, le=MAX_OFFSET)] = 0,
+    search: Annotated[str | None, Query(max_length=200)] = None,
+    category_id: Annotated[str | None, Query()] = None,
+    company_id: Annotated[str | None, Query()] = None,
+    topic_id: Annotated[str | None, Query()] = None,
+    published_from: Annotated[str | None, Query()] = None,
+    published_to: Annotated[str | None, Query()] = None,
+    min_importance: Annotated[float | None, Query(ge=0)] = None,
+) -> PaginatedResponse[PublicStoryClusterSearchResponse]:
+    """List publicly visible story clusters with optional filtering and search."""
+    cat_id = UUID(category_id) if category_id else None
+    comp_id = UUID(company_id) if company_id else None
+    topic_uuid = UUID(topic_id) if topic_id else None
+
+    published_from_dt: datetime | None = None
+    published_to_dt: datetime | None = None
+    if published_from:
+        with contextlib.suppress(ValueError):
+            published_from_dt = datetime.fromisoformat(published_from)
+    if published_to:
+        with contextlib.suppress(ValueError):
+            published_to_dt = datetime.fromisoformat(published_to)
+
+    clusters = await container.story_cluster_repository.search_public(
+        search=search,
+        category_id=cat_id,
+        company_id=comp_id,
+        topic_id=topic_uuid,
+        published_from=published_from_dt,
+        published_to=published_to_dt,
+        min_importance=min_importance,
+        limit=limit,
+        offset=offset,
+    )
+    total = await container.story_cluster_repository.count_public(
+        search=search,
+        category_id=cat_id,
+        company_id=comp_id,
+        topic_id=topic_uuid,
+        published_from=published_from_dt,
+        published_to=published_to_dt,
+        min_importance=min_importance,
+    )
+
+    return PaginatedResponse(
+        items=[
+            PublicStoryClusterSearchResponse(
+                id=str(cluster.id),
+                title=cluster.title,
+                slug=cluster.slug,
+                summary=cluster.summary,
+                first_published_at=cluster.first_published_at.isoformat(),
+                importance_score=cluster.importance_score,
+                confidence=cluster.confidence,
+                status=cluster.status.value,
+                article_count=getattr(cluster, "article_count", 0),
+                source_count=getattr(cluster, "source_count", 0),
+            )
+            for cluster in clusters
+        ],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get(
+    "/companies",
+    response_model=list[PublicCompanyResponse],
+    summary="List public companies",
+)
+async def list_public_companies(
+    container: Annotated[Container, Depends(get_container)],
+) -> list[PublicCompanyResponse]:
+    """List all known companies with article counts."""
+    companies = await container.company_repository.list_all_with_counts()
+    return [
+        PublicCompanyResponse(
+            id=str(company.id),
+            name=company.name,
+            description=company.description,
+            article_count=getattr(company, "article_count", 0),
+        )
+        for company in companies
+    ]
+
+
+@router.get(
+    "/topics",
+    response_model=list[PublicTopicResponse],
+    summary="List public topics",
+)
+async def list_public_topics(
+    container: Annotated[Container, Depends(get_container)],
+) -> list[PublicTopicResponse]:
+    """List all known topics with article counts."""
+    topics = await container.topic_repository.list_all_with_counts()
+    return [
+        PublicTopicResponse(
+            id=str(topic.id),
+            name=topic.name,
+            description=topic.description,
+            article_count=getattr(topic, "article_count", 0),
+        )
+        for topic in topics
     ]
 
 

@@ -9,6 +9,33 @@ export interface PaginatedResponse<T> {
   offset: number;
 }
 
+export interface Company {
+  id: string;
+  name: string;
+  description?: string | null;
+  article_count: number;
+}
+
+export interface Topic {
+  id: string;
+  name: string;
+  description?: string | null;
+  article_count: number;
+}
+
+export interface PublicStoryClusterSearch {
+  id: string;
+  title: string;
+  slug: string;
+  summary?: string | null;
+  first_published_at?: string | null;
+  importance_score?: number | null;
+  confidence?: number | null;
+  status: string;
+  article_count: number;
+  source_count: number;
+}
+
 export interface Category {
   id: string;
   name: string;

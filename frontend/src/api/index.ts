@@ -4,6 +4,7 @@ import type {
   AdminUserUpdateRequest,
   Article,
   Category,
+  Company,
   Digest,
   DigestCreateRequest,
   IngestionResponse,
@@ -15,11 +16,13 @@ import type {
   NotificationResponse,
   PaginatedResponse,
   PublicDigest,
+  PublicStoryClusterSearch,
   RegisterRequest,
   Source,
   SourceCreateRequest,
   SourceUpdateRequest,
   SystemStats,
+  Topic,
   User,
   UserUpdateRequest,
 } from "../types";
@@ -65,6 +68,10 @@ export const publicApi = {
     api.get("/api/v1/public/categories").then((r) => r.data),
   sources: (): Promise<Source[]> =>
     api.get("/api/v1/public/sources").then((r) => r.data),
+  companies: (): Promise<Company[]> =>
+    api.get("/api/v1/public/companies").then((r) => r.data),
+  topics: (): Promise<Topic[]> =>
+    api.get("/api/v1/public/topics").then((r) => r.data),
   topStory: (): Promise<{
     top_story_cluster_id: string | null;
     top_story_score: number | null;
@@ -109,6 +116,18 @@ export const publicApi = {
     needs_verification: boolean;
     intelligence_confidence: string;
   }> => api.get(`/api/v1/public/story-clusters/${encodeURIComponent(slug)}`).then((r) => r.data),
+  storyClusters: (params: {
+    limit?: number;
+    offset?: number;
+    search?: string;
+    category_id?: string;
+    company_id?: string;
+    topic_id?: string;
+    published_from?: string;
+    published_to?: string;
+    min_importance?: number;
+  } = {}): Promise<PaginatedResponse<PublicStoryClusterSearch>> =>
+    api.get("/api/v1/public/story-clusters", { params }).then((r) => r.data),
   search: (q: string, limit = 20): Promise<PaginatedResponse<Article>> =>
     api
       .get("/api/v1/public/articles", { params: { search: q, limit } })

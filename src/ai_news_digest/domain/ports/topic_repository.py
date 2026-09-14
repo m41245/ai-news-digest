@@ -21,6 +21,10 @@ class TopicRepository:
         """Return all topics."""
         raise NotImplementedError
 
+    async def list_all_with_counts(self) -> list[Any]:
+        """Return all topics with article counts."""
+        raise NotImplementedError
+
     async def create(self, topic: Any) -> Any:
         raise NotImplementedError
 

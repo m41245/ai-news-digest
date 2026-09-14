@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_news_digest.domain.ports.company_repository import CompanyRepository
+from ai_news_digest.infrastructure.database.models.article_company_model import (
+    ArticleCompanyModel,
+)
 from ai_news_digest.infrastructure.database.models.company_model import CompanyModel
 
 
@@ -36,6 +39,24 @@ class SqlAlchemyCompanyRepository(CompanyRepository):
     async def list_all(self) -> list[Any]:
         result = await self._session.execute(select(CompanyModel))
         return list(result.scalars().all())
+
+    async def list_all_with_counts(self) -> list[Any]:
+        statement = (
+            select(
+                CompanyModel,
+                func.count(ArticleCompanyModel.article_id).label("article_count"),
+            )
+            .outerjoin(ArticleCompanyModel, CompanyModel.id == ArticleCompanyModel.company_id)
+            .group_by(CompanyModel.id)
+            .order_by(CompanyModel.name)
+        )
+        result = await self._session.execute(statement)
+        rows = result.all()
+        output: list[Any] = []
+        for company_model, article_count in rows:
+            company_model.article_count = article_count or 0
+            output.append(company_model)
+        return output
 
     async def create(self, company: Any) -> Any:
         self._session.add(company)

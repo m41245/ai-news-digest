@@ -11,6 +11,8 @@ import { DigestsPage } from "./pages/public/DigestsPage";
 import { DigestDetailPage } from "./pages/public/DigestDetailPage";
 import { StoryClusterPage } from "./pages/public/StoryClusterPage";
 import { CategoriesPage } from "./pages/public/CategoriesPage";
+import { CompaniesPage } from "./pages/public/CompaniesPage";
+import { TopicsPage } from "./pages/public/TopicsPage";
 import { PrivacyPolicyPage } from "./pages/public/PrivacyPolicyPage";
 import { TermsOfServicePage } from "./pages/public/TermsOfServicePage";
 import { NotFoundPage } from "./pages/public/NotFoundPage";
@@ -187,6 +189,22 @@ export function App() {
         element={
           <PublicLayout>
             <CategoriesPage />
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/companies"
+        element={
+          <PublicLayout>
+            <CompaniesPage />
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/topics"
+        element={
+          <PublicLayout>
+            <TopicsPage />
           </PublicLayout>
         }
       />

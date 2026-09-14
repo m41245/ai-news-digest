@@ -13,6 +13,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from ai_news_digest.api.v1.schemas.common import PaginatedResponse
+
 
 class PublicArticleResponse(BaseModel):
     """Public view of an article, enriched with source and category names."""
@@ -95,10 +97,54 @@ class PublicTopStoryResponse(BaseModel):
     confidence: float | None = None
 
 
+class PublicCompanyResponse(BaseModel):
+    """Public view of a company for discovery."""
+
+    id: str
+    name: str
+    description: str | None = None
+    article_count: int = 0
+
+
+class PublicTopicResponse(BaseModel):
+    """Public view of a topic for discovery."""
+
+    id: str
+    name: str
+    description: str | None = None
+    article_count: int = 0
+
+
+class PublicStoryClusterSearchResponse(BaseModel):
+    """Lightweight search result for a story cluster."""
+
+    id: str
+    title: str
+    slug: str
+    summary: str | None = None
+    first_published_at: str | None = None
+    importance_score: float | None = None
+    confidence: float | None = None
+    status: str
+    article_count: int = 0
+    source_count: int = 0
+
+
+class SearchResponse(BaseModel):
+    """Combined search results across articles and story clusters."""
+
+    articles: PaginatedResponse[PublicArticleResponse]
+    stories: PaginatedResponse[PublicStoryClusterSearchResponse]
+
+
 __all__ = [
     "PublicArticleResponse",
     "PublicCategoryResponse",
+    "PublicCompanyResponse",
     "PublicDigestResponse",
     "PublicStoryClusterResponse",
+    "PublicStoryClusterSearchResponse",
     "PublicTopStoryResponse",
+    "PublicTopicResponse",
+    "SearchResponse",
 ]

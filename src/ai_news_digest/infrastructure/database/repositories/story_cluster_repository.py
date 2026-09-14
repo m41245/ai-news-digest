@@ -156,6 +156,211 @@ class StoryClusterRepository(
         result = await self._session.execute(statement)
         return int(result.scalar_one())
 
+    async def search_public(
+        self,
+        *,
+        search: str | None = None,
+        category_id: UUID | None = None,
+        company_id: UUID | None = None,
+        topic_id: UUID | None = None,
+        published_from: datetime | None = None,
+        published_to: datetime | None = None,
+        min_importance: float | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[StoryCluster]:
+        from sqlalchemy import and_, exists, or_
+
+        from ai_news_digest.infrastructure.database.models.article_company_model import (
+            ArticleCompanyModel,
+        )
+        from ai_news_digest.infrastructure.database.models.article_model import (
+            ArticleModel,
+        )
+        from ai_news_digest.infrastructure.database.models.article_topic_model import (
+            ArticleTopicModel,
+        )
+
+        statement = (
+            select(
+                StoryClusterModel,
+                func.count(ArticleModel.id).label("article_count"),
+                func.count(func.distinct(ArticleModel.source_id)).label("source_count"),
+            )
+            .outerjoin(ArticleModel, ArticleModel.cluster_id == StoryClusterModel.id)
+            .where(StoryClusterModel.status == "active")
+            .group_by(StoryClusterModel.id)
+        )
+
+        if search and search.strip():
+            pattern = f"%{search.strip()}%"
+            statement = statement.where(
+                or_(
+                    StoryClusterModel.title.ilike(pattern),
+                    StoryClusterModel.summary.ilike(pattern),
+                )
+            )
+
+        if category_id is not None:
+            statement = statement.where(
+                exists(
+                    select(1)
+                    .where(
+                        and_(
+                            ArticleModel.cluster_id == StoryClusterModel.id,
+                            ArticleModel.category_id == str(category_id),
+                        )
+                    )
+                )
+            )
+
+        if company_id is not None:
+            statement = statement.where(
+                exists(
+                    select(1)
+                    .where(
+                        and_(
+                            ArticleModel.cluster_id == StoryClusterModel.id,
+                            ArticleCompanyModel.article_id == ArticleModel.id,
+                            ArticleCompanyModel.company_id == str(company_id),
+                        )
+                    )
+                )
+            )
+
+        if topic_id is not None:
+            statement = statement.where(
+                exists(
+                    select(1)
+                    .where(
+                        and_(
+                            ArticleModel.cluster_id == StoryClusterModel.id,
+                            ArticleTopicModel.article_id == ArticleModel.id,
+                            ArticleTopicModel.topic_id == str(topic_id),
+                        )
+                    )
+                )
+            )
+
+        if published_from is not None:
+            statement = statement.where(StoryClusterModel.first_published_at >= published_from)
+
+        if published_to is not None:
+            statement = statement.where(StoryClusterModel.first_published_at <= published_to)
+
+        if min_importance is not None:
+            statement = statement.where(StoryClusterModel.importance_score >= min_importance)
+
+        statement = (
+            statement.order_by(StoryClusterModel.first_published_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+
+        result = await self._session.execute(statement)
+        rows = result.all()
+        clusters: list[StoryCluster] = []
+        for row in rows:
+            cluster = row[0]
+            article_count = row[1] or 0
+            source_count = row[2] or 0
+            cluster.article_count = article_count
+            cluster.source_count = source_count
+            clusters.append(StoryClusterMapper.to_domain(cluster))
+        return clusters
+
+    async def count_public(
+        self,
+        *,
+        search: str | None = None,
+        category_id: UUID | None = None,
+        company_id: UUID | None = None,
+        topic_id: UUID | None = None,
+        published_from: datetime | None = None,
+        published_to: datetime | None = None,
+        min_importance: float | None = None,
+    ) -> int:
+        from sqlalchemy import and_, exists, or_
+
+        from ai_news_digest.infrastructure.database.models.article_company_model import (
+            ArticleCompanyModel,
+        )
+        from ai_news_digest.infrastructure.database.models.article_model import (
+            ArticleModel,
+        )
+        from ai_news_digest.infrastructure.database.models.article_topic_model import (
+            ArticleTopicModel,
+        )
+
+        statement = (
+            select(func.count(func.distinct(StoryClusterModel.id)))
+            .select_from(StoryClusterModel)
+            .outerjoin(ArticleModel, ArticleModel.cluster_id == StoryClusterModel.id)
+            .where(StoryClusterModel.status == "active")
+        )
+
+        if search and search.strip():
+            pattern = f"%{search.strip()}%"
+            statement = statement.where(
+                or_(
+                    StoryClusterModel.title.ilike(pattern),
+                    StoryClusterModel.summary.ilike(pattern),
+                )
+            )
+
+        if category_id is not None:
+            statement = statement.where(
+                exists(
+                    select(1)
+                    .where(
+                        and_(
+                            ArticleModel.cluster_id == StoryClusterModel.id,
+                            ArticleModel.category_id == str(category_id),
+                        )
+                    )
+                )
+            )
+
+        if company_id is not None:
+            statement = statement.where(
+                exists(
+                    select(1)
+                    .where(
+                        and_(
+                            ArticleModel.cluster_id == StoryClusterModel.id,
+                            ArticleCompanyModel.article_id == ArticleModel.id,
+                            ArticleCompanyModel.company_id == str(company_id),
+                        )
+                    )
+                )
+            )
+
+        if topic_id is not None:
+            statement = statement.where(
+                exists(
+                    select(1)
+                    .where(
+                        and_(
+                            ArticleModel.cluster_id == StoryClusterModel.id,
+                            ArticleTopicModel.article_id == ArticleModel.id,
+                            ArticleTopicModel.topic_id == str(topic_id),
+                        )
+                    )
+                )
+            )
+
+        if published_from is not None:
+            statement = statement.where(StoryClusterModel.first_published_at >= published_from)
+
+        if published_to is not None:
+            statement = statement.where(StoryClusterModel.first_published_at <= published_to)
+
+        if min_importance is not None:
+            statement = statement.where(StoryClusterModel.importance_score >= min_importance)
+
+        result = await self._session.execute(statement)
+        return int(result.scalar_one())
+
     async def update(self, cluster: StoryCluster) -> StoryCluster:
         statement = select(StoryClusterModel).where(StoryClusterModel.id == str(cluster.id))
         result = await self._session.execute(statement)

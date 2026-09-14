@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -328,6 +328,22 @@ class ArticleRepository(
             )
         )
 
+        search_rank = None
+        if search and search.strip():
+            pattern = f"%{search.strip()}%"
+            search_conditions = [
+                ArticleModel.title.ilike(pattern),
+                ArticleModel.summary.ilike(pattern),
+                ArticleModel.why_it_matters.ilike(pattern),
+            ]
+            statement = statement.where(or_(*search_conditions))
+
+            search_rank = (
+                (case((ArticleModel.title.ilike(pattern), 4), else_=0))
+                + (case((ArticleModel.summary.ilike(pattern), 2), else_=0))
+                + (case((ArticleModel.why_it_matters.ilike(pattern), 1), else_=0))
+            ).label("search_rank")
+
         statement = self._apply_public_filters(
             statement,
             category_id=category_id,
@@ -338,15 +354,22 @@ class ArticleRepository(
             published_from=published_from,
             published_to=published_to,
             search=search,
+            search_rank=search_rank,
         )
 
         if order_by == "importance":
-            statement = statement.order_by(
+            order_clause = [
                 ArticleModel.importance_score.desc().nulls_last(),
                 ArticleModel.published_at.desc(),
-            )
+            ]
+            if search_rank is not None:
+                order_clause.insert(0, search_rank.desc())
+            statement = statement.order_by(*order_clause)
         else:
-            statement = statement.order_by(ArticleModel.published_at.desc())
+            if search_rank is not None:
+                statement = statement.order_by(search_rank.desc(), ArticleModel.published_at.desc())
+            else:
+                statement = statement.order_by(ArticleModel.published_at.desc())
 
         statement = statement.limit(limit).offset(offset)
 
@@ -366,7 +389,7 @@ class ArticleRepository(
         search: str | None = None,
     ) -> int:
         statement = (
-            select(func.count())
+            select(func.count(func.distinct(ArticleModel.id)))
             .select_from(ArticleModel)
             .where(
                 ArticleModel.status.not_in(
@@ -385,6 +408,7 @@ class ArticleRepository(
             published_from=published_from,
             published_to=published_to,
             search=search,
+            search_rank=None,
         )
 
         result = await self._session.execute(statement)
@@ -403,6 +427,7 @@ class ArticleRepository(
         published_from: datetime | None,
         published_to: datetime | None,
         search: str | None,
+        search_rank: Any = None,
     ) -> Any:
         from ai_news_digest.infrastructure.database.models.article_company_model import (
             ArticleCompanyModel,
@@ -444,14 +469,17 @@ class ArticleRepository(
         if published_to is not None:
             statement = statement.where(ArticleModel.published_at <= published_to)
 
-        if search:
-            pattern = f"%{search}%"
+        if search and search.strip():
+            pattern = f"%{search.strip()}%"
             statement = statement.where(
                 or_(
                     ArticleModel.title.ilike(pattern),
                     ArticleModel.summary.ilike(pattern),
+                    ArticleModel.why_it_matters.ilike(pattern),
                 ),
             )
+
+        statement = statement.distinct()
 
         return statement
 

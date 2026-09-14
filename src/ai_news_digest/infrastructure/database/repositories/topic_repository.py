@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_news_digest.domain.ports.topic_repository import TopicRepository
+from ai_news_digest.infrastructure.database.models.article_topic_model import (
+    ArticleTopicModel,
+)
 from ai_news_digest.infrastructure.database.models.topic_model import TopicModel
 
 
@@ -32,6 +35,24 @@ class SqlAlchemyTopicRepository(TopicRepository):
     async def list_all(self) -> list[Any]:
         result = await self._session.execute(select(TopicModel))
         return list(result.scalars().all())
+
+    async def list_all_with_counts(self) -> list[Any]:
+        statement = (
+            select(
+                TopicModel,
+                func.count(ArticleTopicModel.article_id).label("article_count"),
+            )
+            .outerjoin(ArticleTopicModel, TopicModel.id == ArticleTopicModel.topic_id)
+            .group_by(TopicModel.id)
+            .order_by(TopicModel.name)
+        )
+        result = await self._session.execute(statement)
+        rows = result.all()
+        output: list[Any] = []
+        for topic_model, article_count in rows:
+            topic_model.article_count = article_count or 0
+            output.append(topic_model)
+        return output
 
     async def create(self, topic: Any) -> Any:
         self._session.add(topic)

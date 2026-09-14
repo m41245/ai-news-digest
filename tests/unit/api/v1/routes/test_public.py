@@ -356,3 +356,133 @@ def test_public_sources_endpoint(
     data = response.json()
     assert len(data) == 1
     assert data[0]["name"] == "Test Source"
+
+
+def test_list_public_story_clusters_returns_paginated(
+    client: TestClient,
+    mock_container: MagicMock,
+) -> None:
+    from ai_news_digest.domain.models.story_cluster import StoryCluster
+    from ai_news_digest.domain.enums.cluster_status import ClusterStatus
+
+    mock_cluster = StoryCluster(
+        id=uuid4(),
+        title="Test Cluster",
+        slug="test-cluster",
+        summary="Cluster summary",
+        importance_score=0.8,
+        confidence=0.85,
+        status=ClusterStatus.ACTIVE,
+    )
+    mock_container.story_cluster_repository.search_public = AsyncMock(return_value=[mock_cluster])
+    mock_container.story_cluster_repository.count_public = AsyncMock(return_value=1)
+
+    response = client.get("/public/story-clusters")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == "Test Cluster"
+
+
+def test_list_public_story_clusters_search_filter(
+    client: TestClient,
+    mock_container: MagicMock,
+) -> None:
+    mock_container.story_cluster_repository.search_public = AsyncMock(return_value=[])
+    mock_container.story_cluster_repository.count_public = AsyncMock(return_value=0)
+
+    response = client.get("/public/story-clusters", params={"search": "AI"})
+    assert response.status_code == 200
+    mock_container.story_cluster_repository.search_public.assert_awaited_once()
+    _, kwargs = mock_container.story_cluster_repository.search_public.await_args
+    assert kwargs["search"] == "AI"
+
+
+def test_list_public_companies_returns_list(
+    client: TestClient,
+    mock_container: MagicMock,
+) -> None:
+    from ai_news_digest.domain.models.company import Company
+
+    mock_company = MagicMock()
+    mock_company.id = uuid4()
+    mock_company.name = "Acme Corp"
+    mock_company.description = "A test company"
+    mock_company.article_count = 5
+    mock_container.company_repository.list_all_with_counts = AsyncMock(return_value=[mock_company])
+
+    response = client.get("/public/companies")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "Acme Corp"
+    assert data[0]["article_count"] == 5
+
+
+def test_list_public_topics_returns_list(
+    client: TestClient,
+    mock_container: MagicMock,
+) -> None:
+    from ai_news_digest.domain.models.topic import Topic
+
+    mock_topic = MagicMock()
+    mock_topic.id = uuid4()
+    mock_topic.name = "AI"
+    mock_topic.description = "Artificial Intelligence"
+    mock_topic.article_count = 10
+    mock_container.topic_repository.list_all_with_counts = AsyncMock(return_value=[mock_topic])
+
+    response = client.get("/public/topics")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "AI"
+    assert data[0]["article_count"] == 10
+
+
+def test_article_search_includes_why_it_matters(
+    client: TestClient,
+    mock_container: MagicMock,
+) -> None:
+    from ai_news_digest.domain.models.article import Article
+
+    article_with_intelligence = Article(
+        id=uuid4(),
+        title="Regular title",
+        url="https://example.com/intel",
+        summary="Summary",
+        content=None,
+        source_id=mock_container.source_repository.list_all.return_value[0].id,
+        category_id=mock_container.category_repository.list_all.return_value[0].id,
+        published_at=datetime(2026, 8, 23, 12, 0, tzinfo=UTC),
+        fetched_at=datetime.now(UTC),
+        status=ArticleStatus.READY,
+        why_it_matters="This is very important for AI development",
+    )
+    mock_container.article_repository.list_public_articles = AsyncMock(return_value=[article_with_intelligence])
+    mock_container.article_repository.count_public_articles = AsyncMock(return_value=1)
+
+    response = client.get("/public/articles", params={"search": "important"})
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["items"]) == 1
+    assert data["items"][0]["why_it_matters"] == "This is very important for AI development"
+
+
+def test_combined_filters_company_and_topic(
+    client: TestClient,
+    mock_container: MagicMock,
+) -> None:
+    mock_container.article_repository.list_public_articles = AsyncMock(return_value=[])
+    mock_container.article_repository.count_public_articles = AsyncMock(return_value=0)
+
+    response = client.get(
+        "/public/articles",
+        params={"company_id": str(uuid4()), "topic_id": str(uuid4())},
+    )
+    assert response.status_code == 200
+    mock_container.article_repository.list_public_articles.assert_awaited_once()
+    _, kwargs = mock_container.article_repository.list_public_articles.await_args
+    assert kwargs["company_id"] is not None
+    assert kwargs["topic_id"] is not None

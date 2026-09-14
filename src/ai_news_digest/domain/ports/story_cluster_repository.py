@@ -61,6 +61,38 @@ class StoryClusterRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def search_public(
+        self,
+        *,
+        search: str | None = None,
+        category_id: UUID | None = None,
+        company_id: UUID | None = None,
+        topic_id: UUID | None = None,
+        published_from: datetime | None = None,
+        published_to: datetime | None = None,
+        min_importance: float | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[StoryCluster]:
+        """Return public story clusters matching filters and optional search."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def count_public(
+        self,
+        *,
+        search: str | None = None,
+        category_id: UUID | None = None,
+        company_id: UUID | None = None,
+        topic_id: UUID | None = None,
+        published_from: datetime | None = None,
+        published_to: datetime | None = None,
+        min_importance: float | None = None,
+    ) -> int:
+        """Count public story clusters matching filters and optional search."""
+        raise NotImplementedError
+
+    @abstractmethod
     async def update(self, cluster: StoryCluster) -> StoryCluster:
         raise NotImplementedError
 

@@ -10,7 +10,7 @@ import { ErrorState } from "../../components/ui/ErrorState";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Pagination } from "../../components/ui/Pagination";
 import { Button } from "../../components/ui/Button";
-import type { Category, Source } from "../../types";
+import type { Category, Source, Company, Topic } from "../../types";
 
 const PAGE_SIZE = 12;
 
@@ -59,6 +59,16 @@ export function NewsPage() {
     queryFn: () => publicApi.sources(),
   });
 
+  const { data: companies } = useQuery({
+    queryKey: ["companies"],
+    queryFn: () => publicApi.companies(),
+  });
+
+  const { data: topics } = useQuery({
+    queryKey: ["topics"],
+    queryFn: () => publicApi.topics(),
+  });
+
   function updateParam(key: string, value: string | undefined) {
     const next = new URLSearchParams(searchParams);
     if (value) next.set(key, value);
@@ -71,6 +81,13 @@ export function NewsPage() {
     e.preventDefault();
     updateParam("search", searchInput.trim() || undefined);
   }
+
+  function clearAllFilters() {
+    setSearchParams({}, { replace: true });
+    setSearchInput("");
+  }
+
+  const hasActiveFilters = categoryId || sourceId || companyId || topicId || search || minImportance || publishedFrom || publishedTo;
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
 
@@ -166,6 +183,129 @@ export function NewsPage() {
           ))}
         </div>
 
+        <div className="mb-6 flex flex-wrap gap-2">
+          <span className="py-1 text-sm font-medium text-slate-600">
+            Company:
+          </span>
+          <button
+            type="button"
+            onClick={() => updateParam("company", undefined)}
+            className={[
+              "rounded-full px-3 py-1 text-sm font-medium transition-colors",
+              !companyId
+                ? "bg-brand-600 text-white"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200",
+            ].join(" ")}
+          >
+            All
+          </button>
+          {companies?.map((c: Company) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => updateParam("company", c.id)}
+              className={[
+                "rounded-full px-3 py-1 text-sm font-medium transition-colors",
+                companyId === c.id
+                  ? "bg-brand-600 text-white"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200",
+              ].join(" ")}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+
+        <div className="mb-6 flex flex-wrap gap-2">
+          <span className="py-1 text-sm font-medium text-slate-600">
+            Topic:
+          </span>
+          <button
+            type="button"
+            onClick={() => updateParam("topic", undefined)}
+            className={[
+              "rounded-full px-3 py-1 text-sm font-medium transition-colors",
+              !topicId
+                ? "bg-brand-600 text-white"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200",
+            ].join(" ")}
+          >
+            All
+          </button>
+          {topics?.map((t: Topic) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => updateParam("topic", t.id)}
+              className={[
+                "rounded-full px-3 py-1 text-sm font-medium transition-colors",
+                topicId === t.id
+                  ? "bg-brand-600 text-white"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200",
+              ].join(" ")}
+            >
+              {t.name}
+            </button>
+          ))}
+        </div>
+
+        {hasActiveFilters && (
+          <div className="mb-6 flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-slate-600">Active filters:</span>
+            {search && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-700">
+                Search: "{search}"
+                <button type="button" onClick={() => { updateParam("search", undefined); setSearchInput(""); }} className="text-brand-500 hover:text-brand-700">×</button>
+              </span>
+            )}
+            {categoryId && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-700">
+                Category
+                <button type="button" onClick={() => updateParam("category", undefined)} className="text-brand-500 hover:text-brand-700">×</button>
+              </span>
+            )}
+            {sourceId && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-700">
+                Source
+                <button type="button" onClick={() => updateParam("source", undefined)} className="text-brand-500 hover:text-brand-700">×</button>
+              </span>
+            )}
+            {companyId && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-700">
+                Company
+                <button type="button" onClick={() => updateParam("company", undefined)} className="text-brand-500 hover:text-brand-700">×</button>
+              </span>
+            )}
+            {topicId && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-700">
+                Topic
+                <button type="button" onClick={() => updateParam("topic", undefined)} className="text-brand-500 hover:text-brand-700">×</button>
+              </span>
+            )}
+            {minImportance && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-700">
+                Min importance: {minImportance}
+                <button type="button" onClick={() => updateParam("min_importance", undefined)} className="text-brand-500 hover:text-brand-700">×</button>
+              </span>
+            )}
+            {publishedFrom && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-700">
+                From: {publishedFrom}
+                <button type="button" onClick={() => updateParam("published_from", undefined)} className="text-brand-500 hover:text-brand-700">×</button>
+              </span>
+            )}
+            {publishedTo && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-700">
+                To: {publishedTo}
+                <button type="button" onClick={() => updateParam("published_to", undefined)} className="text-brand-500 hover:text-brand-700">×</button>
+              </span>
+            )}
+            <Button variant="secondary" size="sm" onClick={clearAllFilters}>
+              Clear all
+            </Button>
+          </div>
+        )}
+
         {isError && (
           <ErrorState
             message={error?.message ?? "Failed to load articles."}
@@ -204,7 +344,7 @@ export function NewsPage() {
             }
             action={
               search ? (
-                <Button variant="secondary" onClick={() => updateParam("search", undefined)}>
+                <Button variant="secondary" onClick={() => { updateParam("search", undefined); setSearchInput(""); }}>
                   Clear search
                 </Button>
               ) : undefined

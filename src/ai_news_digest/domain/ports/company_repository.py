@@ -21,6 +21,10 @@ class CompanyRepository:
         """Return all companies."""
         raise NotImplementedError
 
+    async def list_all_with_counts(self) -> list[Any]:
+        """Return all companies with article counts."""
+        raise NotImplementedError
+
     async def create(self, company: Any) -> Any:
         raise NotImplementedError
 
