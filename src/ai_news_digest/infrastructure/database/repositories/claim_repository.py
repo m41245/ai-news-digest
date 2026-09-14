@@ -6,15 +6,23 @@ from uuid import UUID
 from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 
+from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.models.claim import Claim
 from ai_news_digest.domain.models.evidence import Evidence
+from ai_news_digest.domain.models.source import Source
 from ai_news_digest.domain.ports.claim_repository import ClaimRepository
 from ai_news_digest.infrastructure.database.mappers.claim_mapper import ClaimMapper
 from ai_news_digest.infrastructure.database.mappers.evidence_mapper import EvidenceMapper
+from ai_news_digest.infrastructure.database.models.article_model import (
+    ArticleModel,
+)
 from ai_news_digest.infrastructure.database.models.claim_evidence_model import (
     ClaimEvidenceModel,
 )
 from ai_news_digest.infrastructure.database.models.claim_model import ClaimModel
+from ai_news_digest.infrastructure.database.models.source_model import (
+    SourceModel,
+)
 from ai_news_digest.infrastructure.database.repositories.base_repository import (
     BaseRepository,
 )
@@ -93,6 +101,49 @@ class SqlAlchemyClaimRepository(BaseRepository[ClaimModel], ClaimRepository):
         result = await self._session.execute(stmt)
         await self._commit()
         return int(result.rowcount)
+
+    async def list_recent_for_conflicts(
+        self,
+        *,
+        limit: int = 200,
+    ) -> list[Claim]:
+        statement = (
+            select(ClaimModel)
+            .options(selectinload(ClaimModel.evidence_items))
+            .order_by(ClaimModel.created_at.desc())
+            .limit(limit)
+        )
+        result = await self._session.execute(statement)
+        return [ClaimMapper.to_domain(model) for model in result.scalars().all()]
+
+    async def get_article_for_conflict(self, article_id: UUID) -> Article | None:
+        statement = (
+            select(ArticleModel)
+            .options(
+                selectinload(ArticleModel.company_links),
+                selectinload(ArticleModel.topic_links),
+            )
+            .where(ArticleModel.id == str(article_id))
+        )
+        result = await self._session.execute(statement)
+        model = result.scalar_one_or_none()
+        if model is None:
+            return None
+        from ai_news_digest.infrastructure.database.mappers.article_mapper import (
+            ArticleMapper,
+        )
+        return ArticleMapper.to_domain(model)
+
+    async def get_source_for_conflict(self, source_id: UUID) -> Source | None:
+        statement = select(SourceModel).where(SourceModel.id == str(source_id))
+        result = await self._session.execute(statement)
+        model = result.scalar_one_or_none()
+        if model is None:
+            return None
+        from ai_news_digest.infrastructure.database.mappers.source_mapper import (
+            SourceMapper,
+        )
+        return SourceMapper.to_domain(model)
 
 
 __all__ = ["SqlAlchemyClaimRepository"]

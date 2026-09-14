@@ -29,6 +29,7 @@ from ai_news_digest.api.v1.schemas.public import (
     PublicCategoryResponse,
     PublicClaimResponse,
     PublicCompanyResponse,
+    PublicConflictResponse,
     PublicDigestResponse,
     PublicEvidenceResponse,
     PublicStoryClusterResponse,
@@ -536,6 +537,41 @@ async def get_public_story_cluster(
         contradictions = []
         needs_verification = False
 
+    public_conflicts: list[PublicConflictResponse] = []
+    try:
+        conflict_repo = container.conflict_repository
+        article_conflict_ids = {a.id for a in articles}
+        recent_conflicts = await conflict_repo.list_recent(limit=200)
+        for conflict in recent_conflicts:
+            if (
+                UUID(conflict.article_a_id) in article_conflict_ids
+                or UUID(conflict.article_b_id) in article_conflict_ids
+            ):
+                source_a_name = source_map.get(conflict.source_a_id)
+                source_b_name = source_map.get(conflict.source_b_id)
+                pub_a = None
+                pub_b = None
+                for article in articles:
+                    if article.id == conflict.article_a_id:
+                        pub_a = article.published_at.isoformat()
+                    if article.id == conflict.article_b_id:
+                        pub_b = article.published_at.isoformat()
+                public_conflicts.append(
+                    PublicConflictResponse(
+                        conflict_type=conflict.conflict_type.value,
+                        status=conflict.status.value,
+                        confidence=conflict.confidence,
+                        explanation=conflict.explanation,
+                        source_a_name=source_a_name,
+                        source_b_name=source_b_name,
+                        same_source=conflict.same_source,
+                        published_at_a=pub_a,
+                        published_at_b=pub_b,
+                    )
+                )
+    except Exception:
+        public_conflicts = []
+
     try:
         from ai_news_digest.application.evaluation.confidence import (
             Confidence,
@@ -572,6 +608,7 @@ async def get_public_story_cluster(
         timeline=timeline,
         what_changed=what_changed,
         contradictions=contradictions,
+        conflicts=public_conflicts,
         needs_verification=needs_verification,
         intelligence_confidence=intelligence_confidence,
     )

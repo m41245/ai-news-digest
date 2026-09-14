@@ -5,6 +5,7 @@ import type {
   Article,
   Category,
   Company,
+  Conflict,
   Digest,
   DigestCreateRequest,
   IngestionResponse,
@@ -113,6 +114,7 @@ export const publicApi = {
     timeline: Array<Record<string, unknown>>;
     what_changed: string[];
     contradictions: Array<Record<string, unknown>>;
+    conflicts: Conflict[];
     needs_verification: boolean;
     intelligence_confidence: string;
   }> => api.get(`/api/v1/public/story-clusters/${encodeURIComponent(slug)}`).then((r) => r.data),

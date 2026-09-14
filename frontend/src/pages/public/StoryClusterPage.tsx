@@ -7,6 +7,15 @@ import { Badge } from "../../components/ui/Badge";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Skeleton, StoryCardSkeleton } from "../../components/ui/Skeleton";
 import { formatDateTime } from "../../utils";
+import type { Conflict } from "../../types";
+import { useQuery } from "@tanstack/react-query";
+import { Seo } from "../../components/Seo";
+import { publicApi } from "../../api";
+import { ErrorState } from "../../components/ui/ErrorState";
+import { Badge } from "../../components/ui/Badge";
+import { EmptyState } from "../../components/ui/EmptyState";
+import { Skeleton, StoryCardSkeleton } from "../../components/ui/Skeleton";
+import { formatDateTime } from "../../utils";
 
 export function StoryClusterPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -118,11 +127,66 @@ export function StoryClusterPage() {
 
         {cluster.contradictions && cluster.contradictions.length > 0 && (
           <div className="mt-8 max-w-3xl">
-            <h2 className="text-lg font-semibold text-slate-900">Contradictions</h2>
-            <div className="mt-3 space-y-2">
+            <h2 className="text-lg font-semibold text-slate-900">Conflicting Reports</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Different sources report incompatible facts about this story.
+              This does not mean any source is wrong.
+            </p>
+            <div className="mt-3 space-y-4">
               {cluster.contradictions.map((c, i) => (
-                <div key={i} className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+                <div
+                  key={i}
+                  className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+                >
                   {typeof c === "string" ? c : JSON.stringify(c)}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {cluster.conflicts && cluster.conflicts.length > 0 && (
+          <div className="mt-8 max-w-3xl">
+            <h2 className="text-lg font-semibold text-slate-900">Conflicting Reports</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Different sources report incompatible facts about this story.
+              This does not mean any source is wrong.
+            </p>
+            <div className="mt-3 space-y-4">
+              {(cluster.conflicts as Conflict[]).map((c, i) => (
+                <div
+                  key={i}
+                  className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{c.explanation}</span>
+                    <span className="text-xs text-amber-700">
+                      {c.conflict_type}
+                      {c.confidence != null && ` · ${(c.confidence * 100).toFixed(0)}%`}
+                    </span>
+                  </div>
+                  <div className="mt-2 grid gap-2 text-xs text-amber-800">
+                    {c.source_a_name && (
+                      <div>
+                        <span className="font-medium">{c.source_a_name}:</span>{" "}
+                        {c.published_at_a && (
+                          <span className="text-amber-600">
+                            [{new Date(c.published_at_a).toLocaleDateString()}]
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {c.source_b_name && (
+                      <div>
+                        <span className="font-medium">{c.source_b_name}:</span>{" "}
+                        {c.published_at_b && (
+                          <span className="text-amber-600">
+                            [{new Date(c.published_at_b).toLocaleDateString()}]
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

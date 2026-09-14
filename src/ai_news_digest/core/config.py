@@ -934,6 +934,60 @@ class Settings(BaseSettings):
     )
 
     # ======================================================================
+    # Cross-Source Conflict Detection (M82)
+    # ======================================================================
+
+    conflict_detection_enabled: bool = Field(
+        default=True,
+        description="Enable cross-source claim conflict detection.",
+    )
+
+    conflict_detection_max_claims: int = Field(
+        default=200,
+        ge=1,
+        le=2000,
+        description="Maximum number of recent claims to consider per run.",
+    )
+
+    conflict_detection_max_candidates: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        description="Maximum candidate pairs to consider per claim.",
+    )
+
+    conflict_detection_max_comparisons: int = Field(
+        default=200,
+        ge=1,
+        le=2000,
+        description="Maximum total claim-pair comparisons per run.",
+    )
+
+    conflict_detection_max_llm_comparisons: int = Field(
+        default=20,
+        ge=0,
+        le=200,
+        description="Maximum LLM-assisted ambiguity checks per run.",
+    )
+
+    conflict_detection_temporal_window_hours: float = Field(
+        default=72.0,
+        ge=1.0,
+        le=720.0,
+        description=(
+            "Maximum publication time difference (hours) for claims to be "
+            "considered temporally comparable."
+        ),
+    )
+
+    conflict_detection_confidence_threshold: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Minimum confidence to persist a potential conflict.",
+    )
+
+    # ======================================================================
     # Email / SMTP
     # ======================================================================
 

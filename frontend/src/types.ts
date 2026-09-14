@@ -36,6 +36,20 @@ export interface PublicStoryClusterSearch {
   source_count: number;
 }
 
+export interface Conflict {
+  conflict_type: string;
+  status: string;
+  confidence?: number | null;
+  explanation: string;
+  claim_a_text?: string | null;
+  claim_b_text?: string | null;
+  source_a_name?: string | null;
+  source_b_name?: string | null;
+  same_source: boolean;
+  published_at_a?: string | null;
+  published_at_b?: string | null;
+}
+
 export interface Category {
   id: string;
   name: string;

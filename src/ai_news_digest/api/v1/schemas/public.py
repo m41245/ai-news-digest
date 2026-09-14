@@ -16,6 +16,22 @@ from pydantic import BaseModel
 from ai_news_digest.api.v1.schemas.common import PaginatedResponse
 
 
+class PublicConflictResponse(BaseModel):
+    """Public view of a detected conflict."""
+
+    conflict_type: str
+    status: str
+    confidence: float | None = None
+    explanation: str
+    claim_a_text: str | None = None
+    claim_b_text: str | None = None
+    source_a_name: str | None = None
+    source_b_name: str | None = None
+    same_source: bool = False
+    published_at_a: str | None = None
+    published_at_b: str | None = None
+
+
 class PublicEvidenceResponse(BaseModel):
     """Public view of a single evidence item."""
 
@@ -97,6 +113,7 @@ class PublicStoryClusterResponse(BaseModel):
     timeline: list[dict[str, Any]] = []
     what_changed: list[str] = []
     contradictions: list[dict[str, Any]] = []
+    conflicts: list[PublicConflictResponse] = []
     needs_verification: bool = False
     intelligence_confidence: str = "low"
 

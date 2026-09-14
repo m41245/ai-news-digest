@@ -6,8 +6,10 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from uuid import UUID
 
+    from ai_news_digest.domain.models.article import Article
     from ai_news_digest.domain.models.claim import Claim
     from ai_news_digest.domain.models.evidence import Evidence
+    from ai_news_digest.domain.models.source import Source
 
 
 class ClaimRepository(ABC):
@@ -43,4 +45,23 @@ class ClaimRepository(ABC):
 
     @abstractmethod
     async def delete_evidence_for_claim(self, claim_id: UUID) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def list_recent_for_conflicts(
+        self,
+        *,
+        limit: int = 200,
+    ) -> list[Claim]:
+        """Return recent claims eligible for conflict detection."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_article_for_conflict(self, article_id: UUID) -> Article | None:
+        """Return an article for conflict candidate enrichment."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_source_for_conflict(self, source_id: UUID) -> Source | None:
+        """Return a source for conflict candidate enrichment."""
         raise NotImplementedError

@@ -114,6 +114,7 @@ celery_app = Celery(
         "ai_news_digest.workers.tasks.cleanup",
         "ai_news_digest.workers.tasks.notifications",
         "ai_news_digest.workers.tasks.ranking",
+        "ai_news_digest.workers.tasks.conflict",
     ],
     task_cls=AwaitableTask,
 )
@@ -261,6 +262,14 @@ celery_app.conf.update(
         "notification-cleanup-notifications": {
             "task": "workers.tasks.notifications.cleanup_old_notifications",
             "schedule": crontab(hour=2, minute=0),
+            "options": {
+                "expires": 3600,
+                "send_events": True,
+            },
+        },
+        "daily-conflict-detection": {
+            "task": "workers.tasks.conflict.detect_claim_conflicts",
+            "schedule": crontab(hour=9, minute=0),
             "options": {
                 "expires": 3600,
                 "send_events": True,

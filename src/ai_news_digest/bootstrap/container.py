@@ -43,6 +43,9 @@ from ai_news_digest.application.use_cases.article.extract_claims import (
 from ai_news_digest.application.use_cases.article.extract_article import (
     ExtractArticleUseCase,
 )
+from ai_news_digest.application.use_cases.claim.detect_conflicts import (
+    DetectClaimConflictsUseCase,
+)
 from ai_news_digest.application.use_cases.article.get import (
     GetArticleUseCase,
 )
@@ -150,6 +153,7 @@ from ai_news_digest.domain.ports.cache_store import CacheStore
 from ai_news_digest.domain.ports.category_repository import CategoryRepository
 from ai_news_digest.domain.ports.claim_repository import ClaimRepository
 from ai_news_digest.domain.ports.company_repository import CompanyRepository
+from ai_news_digest.domain.ports.conflict_repository import ConflictRepository
 from ai_news_digest.domain.ports.delivery_repository import DeliveryRepository
 from ai_news_digest.domain.ports.digest_repository import (
     DigestRepository as DigestRepositoryPort,
@@ -174,6 +178,9 @@ from ai_news_digest.infrastructure.database.repositories.category_repository imp
 )
 from ai_news_digest.infrastructure.database.repositories.claim_repository import (
     SqlAlchemyClaimRepository,
+)
+from ai_news_digest.infrastructure.database.repositories.conflict_repository import (
+    SqlAlchemyConflictRepository,
 )
 from ai_news_digest.infrastructure.database.repositories.company_repository import (
     SqlAlchemyCompanyRepository,
@@ -433,6 +440,18 @@ class Container:
     @property
     def claim_repository(self) -> ClaimRepository:
         return SqlAlchemyClaimRepository(self._session)
+
+    @property
+    def conflict_repository(self) -> ConflictRepository:
+        return SqlAlchemyConflictRepository(self._session)
+
+    @property
+    def detect_claim_conflicts(self) -> DetectClaimConflictsUseCase | None:
+        return DetectClaimConflictsUseCase(
+            claim_repository=self.claim_repository,
+            conflict_repository=self.conflict_repository,
+            provider_manager=self.provider_manager,
+        )
 
     @property
     def story_cluster_repository(self) -> StoryClusterRepository:
