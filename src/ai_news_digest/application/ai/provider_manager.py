@@ -10,15 +10,22 @@ from ai_news_digest.application.ai.models import (
     AIResponse,
     RoutingDecision,
 )
+from ai_news_digest.application.ai.provider_health import (
+    classify_failure,
+)
+from ai_news_digest.application.ai.provider_health_registry import ProviderHealthRegistry
 from ai_news_digest.application.ai.provider_registry import ProviderRegistry
 from ai_news_digest.application.ai.providers.base import AIProvider
 from ai_news_digest.core.config import get_settings
 from ai_news_digest.core.exceptions import ExternalServiceError
+from ai_news_digest.core.logging import get_logger
 from ai_news_digest.core.metrics import (
     record_ai_failure,
     record_ai_latency,
     record_ai_request,
 )
+
+logger = get_logger(__name__)
 
 
 class ProviderManager:
@@ -29,10 +36,12 @@ class ProviderManager:
         registry: ProviderRegistry,
         capability_registry: CapabilityRegistry,
         decision_engine: DecisionEngine,
+        health_registry: ProviderHealthRegistry | None = None,
     ) -> None:
         self._registry = registry
         self._capability_registry = capability_registry
         self._decision_engine = decision_engine
+        self._health_registry = health_registry
 
     async def generate(
         self,
@@ -64,9 +73,11 @@ class ProviderManager:
             except Exception as exc:
                 record_ai_failure(provider_name)
                 last_exception = exc
+                await self._record_failure(provider_id, exc)
                 continue
 
             record_ai_latency(provider_name, time.monotonic() - start)
+            await self._record_success(provider_id)
             return response
 
         raise ExternalServiceError("Every AI provider failed.") from last_exception
@@ -179,4 +190,35 @@ class ProviderManager:
         if capability and capability not in provider.capabilities:
             return False, "incapable"
 
+        if self._health_registry is not None and not await self._health_registry.is_eligible(
+            provider.id
+        ):
+            return False, "circuit_open"
+
         return True, "eligible"
+
+    async def _record_success(self, provider_id: str) -> None:
+        if self._health_registry is None:
+            return
+        try:
+            await self._health_registry.record_success(provider_id)
+        except Exception as exc:
+            logger.warning(
+                "Failed to record provider success",
+                provider_id=provider_id,
+                error=str(exc),
+            )
+
+    async def _record_failure(self, provider_id: str, exc: Exception) -> None:
+        if self._health_registry is None:
+            return
+        try:
+            category = classify_failure(exc)
+            await self._health_registry.record_failure(provider_id, category)
+        except Exception as exc2:
+            logger.warning(
+                "Failed to record provider failure",
+                provider_id=provider_id,
+                error=str(exc2),
+            )
+

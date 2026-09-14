@@ -6,6 +6,7 @@ from ai_news_digest.application.ai.capability import Capability
 from ai_news_digest.application.ai.capability_registry import CapabilityRegistry
 from ai_news_digest.application.ai.config import ProviderConfig
 from ai_news_digest.application.ai.decision_engine import DecisionEngine
+from ai_news_digest.application.ai.provider_health_registry import ProviderHealthRegistry
 from ai_news_digest.application.ai.provider_manager import ProviderManager
 from ai_news_digest.application.ai.provider_registry import ProviderRegistry
 from ai_news_digest.application.rendering.renderer_factory import (
@@ -138,6 +139,7 @@ from ai_news_digest.application.use_cases.user_preference.update_preferences imp
     UpdatePreferencesUseCase,
 )
 from ai_news_digest.core.config import get_settings
+from ai_news_digest.core.logging import get_logger
 from ai_news_digest.domain.models.url import CanonicalUrl
 from ai_news_digest.domain.ports.article_repository import ArticleRepository
 from ai_news_digest.domain.ports.cache_store import CacheStore
@@ -202,6 +204,8 @@ from ai_news_digest.infrastructure.rss.feedparser_fetcher import (
     FeedparserFetcher,
 )
 
+logger = get_logger(__name__)
+
 
 class Container:
     """
@@ -222,6 +226,7 @@ class Container:
             self._provider_registry,
             self._capability_registry,
         )
+        self._health_registry = self._create_health_registry()
 
     @property
     def session(self) -> AsyncSession:
@@ -323,6 +328,30 @@ class Container:
             self._capability_registry.register_provider("summarization", xai_provider.id)
             self._capability_registry.register_provider("categorization", xai_provider.id)
             self._capability_registry.register_provider("analysis", xai_provider.id)
+
+    def _create_health_registry(self) -> ProviderHealthRegistry | None:
+        """Create the provider health registry if Redis is available."""
+        if not self._settings.ai_enabled:
+            return None
+        try:
+            from ai_news_digest.application.ai.provider_health import CircuitBreakerPolicy
+            from ai_news_digest.infrastructure.health.redis_provider_health_registry import (
+                RedisProviderHealthRegistry,
+            )
+
+            policy = CircuitBreakerPolicy(
+                failure_threshold=self._settings.ai_provider_failure_threshold,
+                cooldown_seconds=self._settings.ai_provider_circuit_cooldown_seconds,
+                half_open_probe_timeout_seconds=self._settings.ai_provider_half_open_probe_timeout_seconds,
+                success_threshold_to_close=self._settings.ai_provider_success_threshold_to_close,
+            )
+            return RedisProviderHealthRegistry(policy=policy)
+        except Exception as exc:
+            logger.warning(
+                "Failed to create Redis provider health registry",
+                error=str(exc),
+            )
+            return None
 
     #
     # Repositories
@@ -428,7 +457,12 @@ class Container:
             registry=self._provider_registry,
             capability_registry=self._capability_registry,
             decision_engine=self._decision_engine,
+            health_registry=self._health_registry,
         )
+
+    @property
+    def provider_health_registry(self) -> ProviderHealthRegistry | None:
+        return self._health_registry
 
     @property
     def rendering_factory(self) -> DigestRendererFactory:

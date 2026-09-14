@@ -384,6 +384,34 @@ class Settings(BaseSettings):
         description="Maximum delay in seconds for exponential backoff.",
     )
 
+    ai_provider_failure_threshold: int = Field(
+        default=3,
+        ge=1,
+        le=100,
+        description="Consecutive qualifying failures before a provider circuit opens.",
+    )
+
+    ai_provider_circuit_cooldown_seconds: float = Field(
+        default=60.0,
+        ge=0.0,
+        le=86400.0,
+        description="Cooldown duration in seconds before an open circuit can be probed.",
+    )
+
+    ai_provider_half_open_probe_timeout_seconds: float = Field(
+        default=30.0,
+        gt=0.0,
+        le=300.0,
+        description="Timeout in seconds for half-open probe requests.",
+    )
+
+    ai_provider_success_threshold_to_close: int = Field(
+        default=1,
+        ge=1,
+        le=10,
+        description="Consecutive successes required to close a half-open circuit.",
+    )
+
     # ======================================================================
     # RSS
     # ======================================================================

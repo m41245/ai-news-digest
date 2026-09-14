@@ -1,18 +1,24 @@
 from __future__ import annotations
 
 import time
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
-from ai_news_digest.core.config import settings
+from ai_news_digest.core.config import get_settings, settings
 from ai_news_digest.core.logging import get_logger
 from ai_news_digest.infrastructure.cache.redis_store import RedisStore
 from ai_news_digest.infrastructure.database.session import engine
 
 logger = get_logger(__name__)
+
+
+def _fmt(value: datetime | None) -> str | None:
+    return value.isoformat() if value else None
+
 
 router = APIRouter(
     prefix="/health",
@@ -149,6 +155,91 @@ async def notification_health() -> dict[str, Any]:
         return {
             "status": "degraded",
             "notification_system": "unhealthy",
+            "error": str(exc),
+        }
+
+
+@router.get(
+    "/ai",
+    summary="AI provider health check",
+)
+async def ai_health() -> dict[str, Any]:
+    try:
+        from ai_news_digest.bootstrap.container import Container
+        from ai_news_digest.infrastructure.database.session import SessionLocal
+
+        async with SessionLocal() as session:
+            container = Container(session)
+            providers = container.provider_registry.list_all()
+            provider_statuses: dict[str, Any] = {}
+            health_registry = container.provider_health_registry
+
+            for provider in providers:
+                status_info: dict[str, Any] = {
+                    "name": provider.name,
+                    "model": provider.model_name,
+                    "configured": provider.enabled,
+                }
+
+                if health_registry is not None:
+                    try:
+                        health_state = await health_registry.get_state(provider.id)
+                        is_eligible = await health_registry.is_eligible(provider.id)
+                        status_info.update(
+                            {
+                                "circuit_state": health_state.state.value,
+                                "available_for_routing": is_eligible,
+                                "consecutive_failures": health_state.consecutive_failures,
+                                "last_success": _fmt(health_state.last_success_at),
+                                "last_failure": _fmt(health_state.last_failure_at),
+                                "cooldown_until": _fmt(health_state.cooldown_until),
+                            }
+                        )
+                    except Exception as exc:
+                        try:
+                            available = await provider.available()
+                        except Exception:
+                            available = False
+                        status_info.update(
+                            {
+                                "circuit_state": "unknown",
+                                "available_for_routing": available,
+                                "error": str(exc),
+                            }
+                        )
+                else:
+                    try:
+                        available = await provider.available()
+                    except Exception as exc:
+                        available = False
+                        status_info.update(
+                            {
+                                "circuit_state": "unknown",
+                                "available_for_routing": False,
+                                "error": str(exc),
+                            }
+                        )
+                    else:
+                        status_info.update(
+                            {
+                                "circuit_state": "closed",
+                                "available_for_routing": available,
+                            }
+                        )
+
+                provider_statuses[provider.id] = status_info
+
+            any_available = any(s.get("available_for_routing") for s in provider_statuses.values())
+            return {
+                "status": "ok" if any_available else "degraded",
+                "ai_enabled": get_settings().ai_enabled,
+                "providers": provider_statuses,
+            }
+    except Exception as exc:
+        logger.error("AI health check failed", error=str(exc))
+        return {
+            "status": "degraded",
+            "ai_enabled": get_settings().ai_enabled,
             "error": str(exc),
         }
 

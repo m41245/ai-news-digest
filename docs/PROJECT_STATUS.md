@@ -1527,3 +1527,20 @@ The personalized feed now uses a scalable, story-level candidate query that pref
 - [x] Verified 660+ unit tests pass with no regressions
 - [x] Ruff clean, mypy clean, no new dependencies
 
+### Milestone 78 — Provider Health and Circuit Breakers
+
+- [x] Created `ProviderHealthState`, `CircuitState`, `FailureCategory`, and `CircuitBreakerPolicy` models
+- [x] Implemented `ProviderHealthRegistry` interface with in-memory and Redis-backed implementations
+- [x] Implemented Redis-backed circuit breaker with atomic Lua scripts for state transitions
+- [x] Added configurable failure threshold, cooldown, and success threshold settings
+- [x] Integrated health-aware routing into `ProviderManager._check_eligibility`
+- [x] Health registry updates after provider success/failure in `ProviderManager.generate`
+- [x] Half-open probe lease mechanism prevents concurrent recovery storms
+- [x] Updated `/health/ai` endpoint to report circuit state without calling providers
+- [x] Added failure classification policy using existing `application.ai.errors` hierarchy
+- [x] Added unit tests: health model (15), circuit breaker state machine (15), routing integration (3)
+- [x] Verified all 216 AI and health tests pass
+- [x] Ruff clean for changed files, mypy clean for changed files
+- [x] Documentation: `docs/MILESTONE_78_PROVIDER_HEALTH_AND_CIRCUIT_BREAKERS.md`
+- [x] No new dependencies; reuses existing Redis infrastructure
+
