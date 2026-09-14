@@ -12,15 +12,16 @@ from ai_news_digest.domain.models.company import Company
 from ai_news_digest.domain.models.topic import Topic
 from ai_news_digest.domain.ports.article_repository import ArticleRepository
 from ai_news_digest.domain.ports.category_repository import CategoryRepository
+from ai_news_digest.domain.ports.claim_repository import ClaimRepository
 from ai_news_digest.domain.ports.company_repository import CompanyRepository
 from ai_news_digest.domain.ports.topic_repository import TopicRepository
 
 
 class AnalyzeAndMaterializeUseCase:
-    """Analyze an article and materialize companies, topics, and categories.
+    """Analyze an article and materialize companies, topics, categories, and claims.
 
     This use case orchestrates AI analysis and persists the resulting
-    structured entities (companies, topics, categories) into the database.
+    structured entities (companies, topics, categories, claims) into the database.
     """
 
     def __init__(
@@ -30,14 +31,16 @@ class AnalyzeAndMaterializeUseCase:
         company_repository: CompanyRepository,
         topic_repository: TopicRepository,
         category_repository: CategoryRepository,
+        claim_repository: ClaimRepository | None = None,
     ) -> None:
         self._analyze_use_case = analyze_use_case
         self._article_repository = article_repository
         self._company_repository = company_repository
         self._topic_repository = topic_repository
         self._category_repository = category_repository
+        self._claim_repository = claim_repository
 
-    async def execute(self, article: Article) -> Article:
+    async def execute(self, article: Article, source_id: UUID | None = None) -> Article:
         """Analyze and materialize article metadata."""
         analyzed = await self._analyze_use_case.execute(article)
 
@@ -50,7 +53,32 @@ class AnalyzeAndMaterializeUseCase:
         analyzed.category_ids = category_ids
         analyzed.mark_analyzed()
 
-        return await self._article_repository.update(analyzed)
+        result = await self._article_repository.update(analyzed)
+
+        if self._claim_repository is not None and source_id is not None:
+            try:
+                from ai_news_digest.application.use_cases.article.extract_claims import (
+                    ExtractClaimsUseCase,
+                )
+                from ai_news_digest.application.ai.provider_manager import ProviderManager
+
+                provider_manager = None
+                for attr in ("_provider_manager",):
+                    pm = getattr(self._analyze_use_case, attr, None)
+                    if pm is not None:
+                        provider_manager = pm
+                        break
+
+                if provider_manager is not None:
+                    extract_claims = ExtractClaimsUseCase(
+                        provider_manager=provider_manager,
+                        claim_repository=self._claim_repository,
+                    )
+                    await extract_claims.execute(result, source_id)
+            except Exception:
+                pass
+
+        return result
 
     async def _materialize_companies(self, article: Article) -> tuple[UUID, ...]:
         """Create or resolve companies and return their IDs."""

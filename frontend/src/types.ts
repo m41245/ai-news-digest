@@ -75,6 +75,23 @@ export interface Article {
   ai_provider?: string | null;
   ai_model?: string | null;
   ai_processed_at?: string | null;
+  claims?: Claim[] | null;
+}
+
+export interface Evidence {
+  evidence_type: string;
+  excerpt?: string | null;
+  source_location?: string | null;
+  strength?: string | null;
+}
+
+export interface Claim {
+  claim: string;
+  type: string;
+  confidence?: number | null;
+  status: string;
+  evidence_support_score?: number | null;
+  evidence?: Evidence[] | null;
 }
 
 export interface Digest {

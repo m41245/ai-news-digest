@@ -16,6 +16,26 @@ from pydantic import BaseModel
 from ai_news_digest.api.v1.schemas.common import PaginatedResponse
 
 
+class PublicEvidenceResponse(BaseModel):
+    """Public view of a single evidence item."""
+
+    evidence_type: str
+    excerpt: str | None = None
+    source_location: str | None = None
+    strength: str | None = None
+
+
+class PublicClaimResponse(BaseModel):
+    """Public view of a single claim."""
+
+    claim: str
+    type: str
+    confidence: float | None = None
+    status: str
+    evidence_support_score: float | None = None
+    evidence: list[PublicEvidenceResponse] | None = None
+
+
 class PublicArticleResponse(BaseModel):
     """Public view of an article, enriched with source and category names."""
 
@@ -33,6 +53,7 @@ class PublicArticleResponse(BaseModel):
     why_it_matters: str | None = None
     importance_score: float | None = None
     confidence: float | None = None
+    claims: list[PublicClaimResponse] | None = None
 
 
 class PublicDigestResponse(BaseModel):

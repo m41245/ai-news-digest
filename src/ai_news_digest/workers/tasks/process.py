@@ -244,7 +244,10 @@ async def _analyze_article_impl(article_id: UUID) -> dict[str, str]:
             )
             return {"status": "no_provider"}
 
-        updated_article = await materialize_use_case.execute(article)
+        article = await article_repository.get_by_id(article_id)
+        source_id = article.source_id if article else None
+
+        updated_article = await materialize_use_case.execute(article, source_id=source_id)
 
         logger.info(
             "Article analysis completed",
@@ -475,11 +478,90 @@ async def _analyze_pending_articles_impl() -> dict[str, int]:
     return {"queued": 0}
 
 
+async def _extract_claims_impl(article_id: UUID) -> dict[str, str]:
+    """
+    Typed implementation function for claim extraction.
+    """
+    logger.info(
+        "Starting claim extraction",
+        article_id=str(article_id),
+    )
+
+    async for container in get_container():
+        article_repository = container.article_repository
+        article = await article_repository.get_by_id(article_id)
+
+        if article is None:
+            logger.warning(
+                "Article not found for claim extraction",
+                article_id=str(article_id),
+            )
+            return {"status": "not_found"}
+
+        if article.status != ArticleStatus.ANALYZED:
+            logger.info(
+                "Article not ready for claim extraction, skipping",
+                article_id=str(article_id),
+                status=article.status,
+            )
+            return {"status": "not_ready"}
+
+        extract_claims = container.extract_claims
+        if extract_claims is None:
+            logger.warning(
+                "No AI provider available for claim extraction",
+                article_id=str(article_id),
+            )
+            return {"status": "no_provider"}
+
+        source_id = article.source_id
+        if source_id is None:
+            logger.warning(
+                "Article has no source_id for claim extraction",
+                article_id=str(article_id),
+            )
+            return {"status": "no_source"}
+
+        claims = await extract_claims.execute(article, source_id=source_id)
+
+        logger.info(
+            "Claim extraction completed",
+            article_id=str(article_id),
+            claim_count=len(claims),
+        )
+
+        return {
+            "status": "completed",
+            "article_id": str(article.id),
+            "claim_count": len(claims),
+        }
+
+    return {"status": "not_found"}
+
+
+@celery_app.task(
+    name="workers.tasks.process.extract_claims",
+    max_retries=3,
+    default_retry_delay=60,
+)
+async def extract_claims(article_id: UUID) -> dict[str, str]:
+    """
+    Extract claims from an analyzed article.
+
+    This task is idempotent and can be safely retried.
+    """
+    return await _record_task_outcome(  # type: ignore[return-value]
+        "workers.tasks.process.extract_claims",
+        _extract_claims_impl(article_id),
+    )
+
+
 __all__ = [
     "analyze_article",
     "analyze_pending_articles",
     "categorize_article",
     "categorize_pending_articles",
+    "extract_claims",
     "process_article",
     "summarize_article",
     "summarize_pending_articles",

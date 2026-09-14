@@ -3,6 +3,8 @@ from .article_company_model import ArticleCompanyModel
 from .article_model import ArticleModel
 from .article_topic_model import ArticleTopicModel
 from .category_model import CategoryModel
+from .claim_evidence_model import ClaimEvidenceModel
+from .claim_model import ClaimModel
 from .company_model import CompanyModel
 from .digest_article_model import DigestArticleModel
 from .digest_delivery_model import DigestDeliveryModel
@@ -30,6 +32,8 @@ __all__ = [
     "ArticleModel",
     "ArticleTopicModel",
     "CategoryModel",
+    "ClaimEvidenceModel",
+    "ClaimModel",
     "CompanyModel",
     "DigestArticleModel",
     "DigestDeliveryModel",

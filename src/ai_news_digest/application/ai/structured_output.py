@@ -4,6 +4,12 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from ai_news_digest.application.ai.claim_schemas import (
+    ClaimSchema,
+    EvidenceSchema,
+    validate_claims_output,
+)
+
 
 class StructuredIntelligence(BaseModel):
     """Validated structured intelligence produced by an AI provider.
@@ -21,6 +27,7 @@ class StructuredIntelligence(BaseModel):
     topics: tuple[str, ...] = Field(default_factory=tuple)
     confidence: float | None = Field(default=None)
     importance: float | None = Field(default=None)
+    claims: tuple[ClaimSchema, ...] = Field(default_factory=tuple)
 
     @field_validator("summary", mode="before")
     @classmethod
@@ -90,6 +97,18 @@ class StructuredIntelligence(BaseModel):
         return max(0.0, min(1.0, float(value)))
 
 
+    @field_validator("claims", mode="before")
+    @classmethod
+    def _normalize_claims(cls, value: Any) -> tuple[ClaimSchema, ...]:
+        if value is None:
+            return ()
+        try:
+            result = validate_claims_output({"claims": value})
+            return result.claims
+        except Exception:
+            return ()
+
+
 def _dedupe_and_limit(values: Any, *, limit: int, max_len: int) -> tuple[str, ...]:
     """Deduplicate (case-insensitive), trim, and bound a tuple of strings."""
     seen: set[str] = set()
@@ -134,6 +153,7 @@ def validate_structured_output(data: dict[str, Any]) -> StructuredIntelligence:
             topics=data.get("topics", []) or [],
             confidence=data.get("confidence"),
             importance=raw_importance,
+            claims=data.get("claims", []) or [],
         )
     except Exception as exc:
         raise ValueError(f"Invalid structured analysis: {exc}") from exc

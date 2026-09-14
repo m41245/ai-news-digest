@@ -897,6 +897,43 @@ class Settings(BaseSettings):
     )
 
     # ======================================================================
+    # Claim Extraction (M81)
+    # ======================================================================
+
+    claim_extraction_enabled: bool = Field(
+        default=True,
+        description="Enable claim extraction during article analysis.",
+    )
+
+    claim_max_claims_per_article: int = Field(
+        default=15,
+        ge=1,
+        le=50,
+        description="Maximum number of claims to extract per article.",
+    )
+
+    claim_max_evidence_per_claim: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="Maximum number of evidence items per claim.",
+    )
+
+    claim_max_claim_length: int = Field(
+        default=500,
+        ge=50,
+        le=2000,
+        description="Maximum character length for a claim text.",
+    )
+
+    claim_max_excerpt_length: int = Field(
+        default=200,
+        ge=20,
+        le=1000,
+        description="Maximum character length for an evidence excerpt.",
+    )
+
+    # ======================================================================
     # Email / SMTP
     # ======================================================================
 

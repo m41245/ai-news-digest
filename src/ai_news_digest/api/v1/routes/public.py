@@ -27,8 +27,10 @@ from ai_news_digest.api.v1.schemas.common import (
 from ai_news_digest.api.v1.schemas.public import (
     PublicArticleResponse,
     PublicCategoryResponse,
+    PublicClaimResponse,
     PublicCompanyResponse,
     PublicDigestResponse,
+    PublicEvidenceResponse,
     PublicStoryClusterResponse,
     PublicStoryClusterSearchResponse,
     PublicTopicResponse,
@@ -86,7 +88,30 @@ def _to_public_article(
     article: Article,
     source_map: dict[str, str],
     category_map: dict[str, str],
+    claims: list[Any] | None = None,
 ) -> PublicArticleResponse:
+    claim_responses = None
+    if claims:
+        claim_responses = [
+            PublicClaimResponse(
+                claim=c.claim_text,
+                type=c.claim_type.value,
+                confidence=c.confidence,
+                status=c.status.value,
+                evidence_support_score=c.evidence_support_score,
+                evidence=[
+                    PublicEvidenceResponse(
+                        evidence_type=ev.evidence_type.value,
+                        excerpt=ev.excerpt,
+                        source_location=ev.source_location,
+                        strength=ev.strength.value if ev.strength else None,
+                    )
+                    for ev in (evidence_items or [])
+                ] if (evidence_items := getattr(c, 'evidence_items', None)) else None,
+            )
+            for c in claims
+        ]
+
     return PublicArticleResponse(
         id=str(article.id),
         title=article.title,
@@ -102,6 +127,7 @@ def _to_public_article(
         why_it_matters=article.why_it_matters,
         importance_score=article.importance_score,
         confidence=article.confidence,
+        claims=claim_responses,
     )
 
 
@@ -163,8 +189,18 @@ async def list_public_articles(
         search=search,
     )
 
+    claim_map: dict[str, list[Any]] = {}
+    article_ids = [a.id for a in articles]
+    if article_ids:
+        claim_repo = container.claim_repository
+        for aid in article_ids:
+            try:
+                claim_map[str(aid)] = await claim_repo.list_by_article_id(aid)
+            except Exception:
+                claim_map[str(aid)] = []
+
     return PaginatedResponse(
-        items=[_to_public_article(a, source_map, category_map) for a in articles],
+        items=[_to_public_article(a, source_map, category_map, claims=claim_map.get(str(a.id))) for a in articles],
         total=total,
         limit=limit,
         offset=offset,
@@ -188,7 +224,13 @@ async def get_public_article(
 
     source_map, category_map = await _build_source_and_category_maps(container)
 
-    return _to_public_article(article, source_map, category_map)
+    claims: list[Any] = []
+    try:
+        claims = await container.claim_repository.list_by_article_id(article_id)
+    except Exception:
+        claims = []
+
+    return _to_public_article(article, source_map, category_map, claims=claims)
 
 
 async def _build_top_story(

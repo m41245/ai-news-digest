@@ -37,6 +37,9 @@ from ai_news_digest.application.use_cases.article.create import (
 from ai_news_digest.application.use_cases.article.delete import (
     DeleteArticleUseCase,
 )
+from ai_news_digest.application.use_cases.article.extract_claims import (
+    ExtractClaimsUseCase,
+)
 from ai_news_digest.application.use_cases.article.extract_article import (
     ExtractArticleUseCase,
 )
@@ -145,6 +148,7 @@ from ai_news_digest.domain.models.url import CanonicalUrl
 from ai_news_digest.domain.ports.article_repository import ArticleRepository
 from ai_news_digest.domain.ports.cache_store import CacheStore
 from ai_news_digest.domain.ports.category_repository import CategoryRepository
+from ai_news_digest.domain.ports.claim_repository import ClaimRepository
 from ai_news_digest.domain.ports.company_repository import CompanyRepository
 from ai_news_digest.domain.ports.delivery_repository import DeliveryRepository
 from ai_news_digest.domain.ports.digest_repository import (
@@ -167,6 +171,9 @@ from ai_news_digest.infrastructure.database.repositories.article_repository impo
 )
 from ai_news_digest.infrastructure.database.repositories.category_repository import (
     CategoryRepository as SqlAlchemyCategoryRepository,
+)
+from ai_news_digest.infrastructure.database.repositories.claim_repository import (
+    SqlAlchemyClaimRepository,
 )
 from ai_news_digest.infrastructure.database.repositories.company_repository import (
     SqlAlchemyCompanyRepository,
@@ -424,6 +431,10 @@ class Container:
         return SqlAlchemyTopicRepository(self._session)
 
     @property
+    def claim_repository(self) -> ClaimRepository:
+        return SqlAlchemyClaimRepository(self._session)
+
+    @property
     def story_cluster_repository(self) -> StoryClusterRepository:
         return SqlAlchemyStoryClusterRepository(self._session)
 
@@ -581,6 +592,17 @@ class Container:
         )
 
     @property
+    def extract_claims(self) -> ExtractClaimsUseCase | None:
+        if not self._settings.ai_enabled:
+            return None
+        if not self._settings.claim_extraction_enabled:
+            return None
+        return ExtractClaimsUseCase(
+            provider_manager=self.provider_manager,
+            claim_repository=self.claim_repository,
+        )
+
+    @property
     def analyze_and_materialize(self) -> AnalyzeAndMaterializeUseCase | None:
         analyze_use_case = self.analyze_article
         if analyze_use_case is None:
@@ -591,6 +613,7 @@ class Container:
             company_repository=self.company_repository,
             topic_repository=self.topic_repository,
             category_repository=self.category_repository,
+            claim_repository=self.claim_repository,
         )
 
     @property
