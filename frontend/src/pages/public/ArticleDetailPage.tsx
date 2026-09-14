@@ -81,9 +81,6 @@ export function ArticleDetailPage() {
               </>
             )}
             Published {formatDateTime(article.published_at)}
-            {article.fetched_at && (
-              <> &middot; Fetched {formatDateTime(article.fetched_at)}</>
-            )}
           </p>
         </header>
 
@@ -96,11 +93,56 @@ export function ArticleDetailPage() {
           </div>
         )}
 
-        {article.content && (
+        {(article.key_takeaways && article.key_takeaways.length > 0) && (
           <div className="mt-8 max-w-3xl">
-            <h2 className="text-lg font-semibold text-slate-900">Full article</h2>
-            <div className="prose-body mt-3 whitespace-pre-wrap text-base">
-              {article.content}
+            <h2 className="text-lg font-semibold text-slate-900">Key Takeaways</h2>
+            <ul className="mt-3 list-inside list-disc space-y-1 text-slate-700">
+              {article.key_takeaways.map((takeaway, i) => (
+                <li key={i}>{takeaway}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {article.why_it_matters && (
+          <div className="mt-8 max-w-3xl">
+            <h2 className="text-lg font-semibold text-slate-900">Why It Matters</h2>
+            <p className="mt-2 text-slate-700 leading-relaxed">{article.why_it_matters}</p>
+          </div>
+        )}
+
+        {article.companies && article.companies.length > 0 && (
+          <div className="mt-8 max-w-3xl">
+            <h2 className="text-lg font-semibold text-slate-900">Companies</h2>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {article.companies.map((company) => (
+                <Badge key={company}>{company}</Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {article.topics && article.topics.length > 0 && (
+          <div className="mt-8 max-w-3xl">
+            <h2 className="text-lg font-semibold text-slate-900">Topics</h2>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {article.topics.map((topic) => (
+                <Badge key={topic} tone="success">{topic}</Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {(article.importance_score != null || article.confidence != null) && (
+          <div className="mt-8 max-w-3xl">
+            <h2 className="text-lg font-semibold text-slate-900">Intelligence Metrics</h2>
+            <div className="mt-3 flex flex-wrap gap-4 text-sm text-slate-600">
+              {article.importance_score != null && (
+                <span>Importance Score: {article.importance_score.toFixed(2)}</span>
+              )}
+              {article.confidence != null && (
+                <span>Confidence: {article.confidence.toFixed(2)}</span>
+              )}
             </div>
           </div>
         )}

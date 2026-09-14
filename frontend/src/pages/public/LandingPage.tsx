@@ -1,7 +1,38 @@
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { publicApi } from "../../api";
+import { TopStoryCard } from "../../components/TopStoryCard";
+import { DigestCard } from "../../components/DigestCard";
+import { Spinner } from "../../components/ui/Spinner";
+import { EmptyState } from "../../components/ui/EmptyState";
 
 export function LandingPage() {
+  const { data: topStoryData, isLoading: topStoryLoading } = useQuery({
+    queryKey: ["topStory"],
+    queryFn: () => publicApi.topStory(),
+  });
+
+  const { data: digestsData, isLoading: digestsLoading } = useQuery({
+    queryKey: ["digests", 1],
+    queryFn: () => publicApi.digests({ limit: 3, offset: 0 }),
+  });
+
+  const latestDigest = digestsData?.items?.[0];
+
+  const topStory = topStoryData?.top_story_cluster_id
+    ? {
+        cluster_id: topStoryData.top_story_cluster_id,
+        title: topStoryData.title || "Top Story",
+        slug: topStoryData.slug || "",
+        summary: topStoryData.summary,
+        importance_score: topStoryData.importance_score,
+        confidence: topStoryData.confidence,
+        ranking_score: topStoryData.top_story_score,
+        ranking_explanation: null,
+      }
+    : null;
+
   return (
     <>
       <Helmet>
@@ -41,46 +72,74 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className="border-t border-slate-200 bg-slate-50 py-16">
-        <div className="container-page">
-          <div className="mx-auto mb-10 max-w-2xl text-center">
-            <h2 className="text-2xl font-bold text-slate-900">How it works</h2>
-            <p className="mt-2 text-slate-600">
-              From raw feeds to a readable digest in four steps.
-            </p>
+      {topStoryLoading || digestsLoading ? (
+        <section className="border-t border-slate-200 bg-slate-50 py-16">
+          <div className="container-page">
+            <div className="mx-auto max-w-2xl text-center">
+              <Spinner label="Loading top story and latest digest" />
+            </div>
           </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              {
-                t: "Aggregate",
-                d: "Pulls articles from multiple trusted RSS sources.",
-              },
-              {
-                t: "Summarize",
-                d: "AI produces concise summaries for every article.",
-              },
-              {
-                t: "Categorize",
-                d: "Articles are organized into clear categories.",
-              },
-              {
-                t: "Digest",
-                d: "A daily digest delivers the signal, not the noise.",
-              },
-            ].map((step) => (
-              <div
-                key={step.t}
-                className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-              >
-                <h3 className="text-base font-semibold text-slate-900">
-                  {step.t}
-                </h3>
-                <p className="mt-1 text-sm text-slate-600">{step.d}</p>
+        </section>
+      ) : (
+        <>
+          {topStory && (
+            <section className="border-t border-slate-200 bg-slate-50 py-16">
+              <div className="container-page">
+                <div className="mx-auto mb-8 max-w-3xl">
+                  <h2 className="text-2xl font-bold text-slate-900">Top Story</h2>
+                  <p className="mt-2 text-slate-600">
+                    The most important AI story right now, ranked by our intelligence engine.
+                  </p>
+                </div>
+                <div className="mx-auto max-w-3xl">
+                  <TopStoryCard story={topStory} />
+                </div>
               </div>
-            ))}
+            </section>
+          )}
+
+          {latestDigest && (
+            <section className="border-t border-slate-200 py-16">
+              <div className="container-page">
+                <div className="mx-auto mb-8 flex items-end justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-900">Latest Digest</h2>
+                    <p className="mt-2 text-slate-600">
+                      The most recent AI-curated news summary.
+                    </p>
+                  </div>
+                  <Link
+                    to="/digests"
+                    className="text-sm font-medium text-brand-600 hover:underline"
+                  >
+                    View all digests
+                  </Link>
+                </div>
+                <div className="mx-auto max-w-3xl">
+                  <DigestCard digest={latestDigest} />
+                  {latestDigest.top_story && (
+                    <div className="mt-6">
+                      <h3 className="text-lg font-semibold text-slate-900 mb-3">Top Story in this Digest</h3>
+                      <TopStoryCard story={latestDigest.top_story} digestId={latestDigest.id} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
+        </>
+      )}
+
+      {!topStoryLoading && !digestsLoading && !topStory && !latestDigest && (
+        <section className="border-t border-slate-200 bg-slate-50 py-16">
+          <div className="container-page">
+            <EmptyState
+              title="No digests yet"
+              description="Digests appear here once the daily generation pipeline runs."
+            />
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       <section className="container-page py-16">
         <div className="mx-auto max-w-2xl text-center">

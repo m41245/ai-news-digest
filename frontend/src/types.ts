@@ -79,6 +79,23 @@ export interface PublicDigest {
   article_count: number;
   top_story_cluster_id: string | null;
   generation_method: string | null;
+  stories: Array<{
+    cluster_id?: string | null;
+    headline?: string | null;
+    summary?: string | null;
+    key_takeaways: string[];
+    why_it_matters?: string | null;
+  }> | null;
+  top_story?: {
+    cluster_id: string;
+    title: string;
+    slug: string;
+    summary?: string | null;
+    importance_score?: number | null;
+    confidence?: number | null;
+    ranking_score?: number | null;
+    ranking_explanation?: string | null;
+  } | null;
 }
 
 export interface User {

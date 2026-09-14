@@ -4,6 +4,7 @@ Unit tests for public, unauthenticated API routes.
 
 from __future__ import annotations
 
+import unittest.mock
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
@@ -15,11 +16,15 @@ from ai_news_digest.api.middleware.exception_handler import setup_exception_hand
 from ai_news_digest.api.v1.dependencies.dependencies import get_container
 from ai_news_digest.api.v1.routes.public import router
 from ai_news_digest.domain.enums.article_status import ArticleStatus
+from ai_news_digest.domain.enums.cluster_status import ClusterStatus
+from ai_news_digest.domain.enums.digest_format import DigestFormat
 from ai_news_digest.domain.enums.source_status import SourceStatus
 from ai_news_digest.domain.enums.source_type import SourceType
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.models.category import Category
+from ai_news_digest.domain.models.digest import Digest
 from ai_news_digest.domain.models.source import Source
+from ai_news_digest.domain.models.story_cluster import StoryCluster
 
 
 @pytest.fixture
@@ -173,3 +178,181 @@ def test_list_public_digests_returns_paginated_envelope(
     data = response.json()
     assert "items" in data
     assert "total" in data
+
+
+def test_public_article_includes_intelligence_fields(
+    client: TestClient,
+    mock_container: MagicMock,
+) -> None:
+    from ai_news_digest.domain.models.article import Article
+
+    article_with_intelligence = Article(
+        id=uuid4(),
+        title="Intelligence article",
+        url="https://example.com/intel",
+        summary="Summary with intelligence",
+        content=None,
+        source_id=mock_container.source_repository.list_all.return_value[0].id,
+        category_id=mock_container.category_repository.list_all.return_value[0].id,
+        published_at=datetime(2026, 8, 23, 12, 0, tzinfo=UTC),
+        fetched_at=datetime.now(UTC),
+        status=ArticleStatus.READY,
+        importance_score=0.85,
+        confidence=0.92,
+        key_takeaways=("Takeaway 1", "Takeaway 2"),
+        why_it_matters="This matters because...",
+        companies=("Acme Corp",),
+        topics=("AI", "Technology"),
+    )
+    mock_container.article_repository.list_public_articles = AsyncMock(return_value=[article_with_intelligence])
+    mock_container.article_repository.count_public_articles = AsyncMock(return_value=1)
+
+    response = client.get("/public/articles")
+    assert response.status_code == 200
+    data = response.json()
+    item = data["items"][0]
+    assert item["importance_score"] == 0.85
+    assert item["confidence"] == 0.92
+    assert item["key_takeaways"] == ["Takeaway 1", "Takeaway 2"]
+    assert item["why_it_matters"] == "This matters because..."
+    assert item["companies"] == ["Acme Corp"]
+    assert item["topics"] == ["AI", "Technology"]
+
+
+def test_public_digest_includes_stories_and_top_story(
+    client: TestClient,
+    mock_container: MagicMock,
+) -> None:
+    from ai_news_digest.domain.models.digest import Digest
+
+    digest = Digest(
+        id=uuid4(),
+        title="Test Digest",
+        content="Digest content",
+        generated_at=datetime.now(UTC),
+        format=DigestFormat.MARKDOWN,
+        article_ids=[uuid4()],
+        top_story_cluster_id=uuid4(),
+        stories=[
+            {
+                "cluster_id": str(uuid4()),
+                "headline": "Story headline",
+                "summary": "Story summary",
+                "key_takeaways": ["Takeaway"],
+                "why_it_matters": "Why it matters",
+            }
+        ],
+        generation_method="ai",
+    )
+    mock_cluster = MagicMock()
+    mock_cluster.id = digest.top_story_cluster_id
+    mock_cluster.title = "Top Story Cluster"
+    mock_cluster.slug = "top-story-cluster"
+    mock_cluster.summary = "Top story summary"
+    mock_cluster.importance_score = 0.9
+    mock_cluster.confidence = 0.95
+    mock_cluster.ranking_score = 0.88
+    mock_cluster.ranking_explanation = "High ranking"
+
+    mock_container.digest_repository.list_recent = AsyncMock(return_value=[digest])
+    mock_container.digest_repository.count = AsyncMock(return_value=1)
+    mock_container.digest_repository.get_by_id = AsyncMock(return_value=digest)
+    mock_container.story_cluster_repository.get_by_id = AsyncMock(return_value=mock_cluster)
+
+    response = client.get("/public/digests")
+    assert response.status_code == 200
+    data = response.json()
+    item = data["items"][0]
+    assert item["stories"] is not None
+    assert len(item["stories"]) == 1
+    assert item["top_story"] is not None
+    assert item["top_story"]["title"] == "Top Story Cluster"
+
+
+def test_public_top_story_endpoint(
+    client: TestClient,
+    mock_container: MagicMock,
+) -> None:
+    from ai_news_digest.domain.models.story_cluster import StoryCluster
+    from ai_news_digest.domain.enums.cluster_status import ClusterStatus
+
+    mock_cluster = StoryCluster(
+        id=uuid4(),
+        title="Top Story",
+        slug="top-story",
+        summary="Summary",
+        importance_score=0.9,
+        confidence=0.95,
+        ranking_score=0.88,
+        ranking_explanation="High ranking",
+        status=ClusterStatus.ACTIVE,
+    )
+
+    class FakeTopStoryResult:
+        top_story_cluster_id = str(mock_cluster.id)
+        top_story_score = 0.88
+        total_candidates = 1
+        eligible_candidates = 1
+        ranking_window_start = datetime(2026, 1, 1, tzinfo=UTC)
+        ranking_window_end = datetime(2026, 1, 2, tzinfo=UTC)
+        generated_at = datetime(2026, 1, 1, tzinfo=UTC)
+
+    mock_container.story_cluster_repository.find_recent_active_clusters = AsyncMock(return_value=[mock_cluster])
+    mock_container.story_cluster_repository.get_by_id = AsyncMock(return_value=mock_cluster)
+    mock_container.article_repository.list_by_cluster_id = AsyncMock(return_value=[])
+    mock_container.source_repository.list_all = AsyncMock(return_value=[])
+    mock_container.category_repository.list_all = AsyncMock(return_value=[])
+    mock_container.company_repository.list_all = AsyncMock(return_value=[])
+    mock_container.topic_repository.list_all = AsyncMock(return_value=[])
+
+    with unittest.mock.patch(
+        "ai_news_digest.api.v1.routes.public.TopStorySelector"
+    ) as MockSelector:
+        mock_selector = MockSelector.return_value
+        mock_selector.rank_and_select.return_value = ([], FakeTopStoryResult())
+
+        response = client.get("/public/story-ranking/top-story")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["title"] == "Top Story"
+        assert data["slug"] == "top-story"
+        assert data["importance_score"] == 0.9
+
+
+def test_public_story_cluster_endpoint(
+    client: TestClient,
+    mock_container: MagicMock,
+) -> None:
+    from ai_news_digest.domain.models.story_cluster import StoryCluster
+    from ai_news_digest.domain.enums.cluster_status import ClusterStatus
+
+    mock_cluster = StoryCluster(
+        id=uuid4(),
+        title="Test Cluster",
+        slug="test-cluster",
+        summary="Cluster summary",
+        importance_score=0.8,
+        confidence=0.85,
+        status=ClusterStatus.ACTIVE,
+    )
+    mock_container.story_cluster_repository.get_by_slug = AsyncMock(return_value=mock_cluster)
+    mock_container.article_repository.list_by_cluster_id = AsyncMock(return_value=[])
+    mock_container.source_repository.list_all = AsyncMock(return_value=[])
+
+    response = client.get("/public/story-clusters/test-cluster")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["title"] == "Test Cluster"
+    assert data["slug"] == "test-cluster"
+    assert data["article_count"] == 0
+
+
+def test_public_sources_endpoint(
+    client: TestClient,
+) -> None:
+    response = client.get("/public/sources")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "Test Source"

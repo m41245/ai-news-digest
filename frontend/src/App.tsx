@@ -9,6 +9,7 @@ import { NewsPage } from "./pages/public/NewsPage";
 import { ArticleDetailPage } from "./pages/public/ArticleDetailPage";
 import { DigestsPage } from "./pages/public/DigestsPage";
 import { DigestDetailPage } from "./pages/public/DigestDetailPage";
+import { StoryClusterPage } from "./pages/public/StoryClusterPage";
 import { CategoriesPage } from "./pages/public/CategoriesPage";
 import { PrivacyPolicyPage } from "./pages/public/PrivacyPolicyPage";
 import { TermsOfServicePage } from "./pages/public/TermsOfServicePage";
@@ -170,6 +171,14 @@ export function App() {
         element={
           <PublicLayout>
             <DigestDetailPage />
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/stories/:slug"
+        element={
+          <PublicLayout>
+            <StoryClusterPage />
           </PublicLayout>
         }
       />

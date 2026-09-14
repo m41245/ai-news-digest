@@ -39,9 +39,14 @@ const CATEGORIES = [
   { id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", name: "Technology", description: "Tech" },
 ];
 
+const SOURCES = [
+  { id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", name: "Test Source", feed_url: "https://example.com/feed", website_url: null, description: null, is_active: true, status: "verified" },
+];
+
 const server = setupServer(
   http.get("/api/v1/public/articles", () => HttpResponse.json(ARTICLES)),
   http.get("/api/v1/public/categories", () => HttpResponse.json(CATEGORIES)),
+  http.get("/api/v1/public/sources", () => HttpResponse.json(SOURCES)),
 );
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));

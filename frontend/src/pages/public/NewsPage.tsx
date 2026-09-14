@@ -10,7 +10,7 @@ import { ErrorState } from "../../components/ui/ErrorState";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Pagination } from "../../components/ui/Pagination";
 import { Button } from "../../components/ui/Button";
-import type { Category } from "../../types";
+import type { Category, Source } from "../../types";
 
 const PAGE_SIZE = 12;
 
@@ -21,27 +21,42 @@ export function NewsPage() {
   const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
   const categoryId = searchParams.get("category") || undefined;
   const sourceId = searchParams.get("source") || undefined;
+  const companyId = searchParams.get("company") || undefined;
+  const topicId = searchParams.get("topic") || undefined;
   const search = searchParams.get("search") || undefined;
+  const minImportance = searchParams.get("min_importance") || undefined;
+  const publishedFrom = searchParams.get("published_from") || undefined;
+  const publishedTo = searchParams.get("published_to") || undefined;
 
   useEffect(() => {
     setSearchInput(searchParams.get("search") ?? "");
   }, [searchParams]);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["articles", { page, categoryId, sourceId, search }],
+    queryKey: ["articles", { page, categoryId, sourceId, companyId, topicId, search, minImportance, publishedFrom, publishedTo }],
     queryFn: () =>
       publicApi.articles({
         limit: PAGE_SIZE,
         offset: (page - 1) * PAGE_SIZE,
         category_id: categoryId,
         source_id: sourceId,
+        company_id: companyId,
+        topic_id: topicId,
         search,
+        min_importance: minImportance ? Number(minImportance) : undefined,
+        published_from: publishedFrom || undefined,
+        published_to: publishedTo || undefined,
       }),
   });
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
     queryFn: () => publicApi.categories(),
+  });
+
+  const { data: sources } = useQuery({
+    queryKey: ["sources"],
+    queryFn: () => publicApi.sources(),
   });
 
   function updateParam(key: string, value: string | undefined) {
@@ -85,40 +100,71 @@ export function NewsPage() {
           </form>
         </div>
 
-        {categories && categories.length > 0 && (
-          <div className="mb-6 flex flex-wrap gap-2">
-            <span className="py-1 text-sm font-medium text-slate-600">
-              Category:
-            </span>
+        <div className="mb-6 flex flex-wrap gap-2">
+          <span className="py-1 text-sm font-medium text-slate-600">
+            Category:
+          </span>
+          <button
+            type="button"
+            onClick={() => updateParam("category", undefined)}
+            className={[
+              "rounded-full px-3 py-1 text-sm font-medium transition-colors",
+              !categoryId
+                ? "bg-brand-600 text-white"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200",
+            ].join(" ")}
+          >
+            All
+          </button>
+          {categories?.map((c: Category) => (
             <button
+              key={c.id}
               type="button"
-              onClick={() => updateParam("category", undefined)}
+              onClick={() => updateParam("category", c.id)}
               className={[
                 "rounded-full px-3 py-1 text-sm font-medium transition-colors",
-                !categoryId
+                categoryId === c.id
                   ? "bg-brand-600 text-white"
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200",
               ].join(" ")}
             >
-              All
+              {c.name}
             </button>
-            {categories.map((c: Category) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => updateParam("category", c.id)}
-                className={[
-                  "rounded-full px-3 py-1 text-sm font-medium transition-colors",
-                  categoryId === c.id
-                    ? "bg-brand-600 text-white"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200",
-                ].join(" ")}
-              >
-                {c.name}
-              </button>
-            ))}
-          </div>
-        )}
+          ))}
+        </div>
+
+        <div className="mb-6 flex flex-wrap gap-2">
+          <span className="py-1 text-sm font-medium text-slate-600">
+            Source:
+          </span>
+          <button
+            type="button"
+            onClick={() => updateParam("source", undefined)}
+            className={[
+              "rounded-full px-3 py-1 text-sm font-medium transition-colors",
+              !sourceId
+                ? "bg-brand-600 text-white"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200",
+            ].join(" ")}
+          >
+            All
+          </button>
+          {sources?.map((s: Source) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => updateParam("source", s.id)}
+              className={[
+                "rounded-full px-3 py-1 text-sm font-medium transition-colors",
+                sourceId === s.id
+                  ? "bg-brand-600 text-white"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200",
+              ].join(" ")}
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
 
         {isError && (
           <ErrorState

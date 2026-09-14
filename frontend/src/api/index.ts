@@ -46,6 +46,11 @@ export const publicApi = {
     offset?: number;
     category_id?: string;
     source_id?: string;
+    company_id?: string;
+    topic_id?: string;
+    min_importance?: number;
+    published_from?: string;
+    published_to?: string;
     search?: string;
   } = {}): Promise<PaginatedResponse<Article>> =>
     api.get("/api/v1/public/articles", { params }).then((r) => r.data),
@@ -58,6 +63,52 @@ export const publicApi = {
     api.get(`/api/v1/public/digests/${id}`).then((r) => r.data),
   categories: (): Promise<Category[]> =>
     api.get("/api/v1/public/categories").then((r) => r.data),
+  sources: (): Promise<Source[]> =>
+    api.get("/api/v1/public/sources").then((r) => r.data),
+  topStory: (): Promise<{
+    top_story_cluster_id: string | null;
+    top_story_score: number | null;
+    total_candidates: number;
+    eligible_candidates: number;
+    ranking_window_start: string | null;
+    ranking_window_end: string | null;
+    generated_at: string;
+    title: string | null;
+    slug: string | null;
+    summary: string | null;
+    importance_score: number | null;
+    confidence: number | null;
+  }> => api.get("/api/v1/public/story-ranking/top-story").then((r) => r.data),
+  storyCluster: (slug: string): Promise<{
+    id: string;
+    title: string;
+    slug: string;
+    summary?: string | null;
+    first_published_at?: string | null;
+    last_updated_at?: string | null;
+    importance_score?: number | null;
+    confidence?: number | null;
+    status: string;
+    article_count: number;
+    source_count: number;
+    recent_articles: Array<{
+      id: string;
+      title: string;
+      url: string;
+      summary: string;
+      published_at: string;
+      importance_score?: number | null;
+      confidence?: number | null;
+      source_name?: string | null;
+      source_type?: string | null;
+      source_role?: string | null;
+    }>;
+    timeline: Array<Record<string, unknown>>;
+    what_changed: string[];
+    contradictions: Array<Record<string, unknown>>;
+    needs_verification: boolean;
+    intelligence_confidence: string;
+  }> => api.get(`/api/v1/public/story-clusters/${encodeURIComponent(slug)}`).then((r) => r.data),
   search: (q: string, limit = 20): Promise<PaginatedResponse<Article>> =>
     api
       .get("/api/v1/public/articles", { params: { search: q, limit } })
