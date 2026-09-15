@@ -238,6 +238,48 @@ export function StoryClusterPage() {
           </div>
         )}
 
+        {(cluster.related_companies.length > 0 || cluster.related_topics.length > 0) && (
+          <div className="mt-8 max-w-3xl">
+            <h2 className="text-lg font-semibold text-slate-900">Knowledge Connections</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Entities connected to this story based on extracted relationships.
+            </p>
+            {cluster.related_companies.length > 0 && (
+              <div className="mt-3">
+                <h3 className="text-sm font-medium text-slate-700">Companies</h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {cluster.related_companies.map((name: string) => (
+                    <span
+                      key={name}
+                      className="rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-800"
+                    >
+                      {name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {cluster.related_topics.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-sm font-medium text-slate-700">Topics</h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {cluster.related_topics.map((name: string) => (
+                    <span
+                      key={name}
+                      className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-800"
+                    >
+                      {name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <p className="mt-2 text-xs text-slate-500">
+              {cluster.relationship_count} relationship{cluster.relationship_count === 1 ? "" : "s"} found
+            </p>
+          </div>
+        )}
+
         <div className="mt-8 max-w-3xl">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">Recent Articles</h2>
           {cluster.recent_articles.length > 0 ? (

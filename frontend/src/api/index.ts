@@ -119,6 +119,36 @@ export const publicApi = {
     min_importance?: number;
   } = {}): Promise<PaginatedResponse<PublicStoryClusterSearch>> =>
     api.get("/api/v1/public/story-clusters", { params }).then((r) => r.data),
+  entityRelationships: (entityType: string, entityId: string, limit = 50): Promise<{
+    entity_type: string;
+    entity_id: string;
+    relationships: Array<{
+      id: string;
+      subject_entity_type: string;
+      subject_entity_id: string;
+      relationship_type: string;
+      object_entity_type: string;
+      object_entity_id: string;
+      status: string;
+      confidence?: number | null;
+      provenance_source?: string | null;
+      observed_at?: string | null;
+    }>;
+  }> =>
+    api
+      .get(`/api/v1/public/relationships/entities/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}`, {
+        params: { limit },
+      })
+      .then((r) => r.data),
+  storyClusterRelationships: (clusterId: string): Promise<{
+    cluster_id: string;
+    related_companies: string[];
+    related_topics: string[];
+    relationship_count: number;
+  }> =>
+    api
+      .get(`/api/v1/public/relationships/story-clusters/${encodeURIComponent(clusterId)}`)
+      .then((r) => r.data),
   trends: (params: {
     limit?: number;
     offset?: number;

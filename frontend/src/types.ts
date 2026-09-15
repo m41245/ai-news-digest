@@ -62,6 +62,9 @@ export interface PublicStoryCluster extends PublicStoryClusterSearch {
   activity_status?: string | null;
   activity_score?: number | null;
   latest_activity_at?: string | null;
+  related_companies: string[];
+  related_topics: string[];
+  relationship_count: number;
 }
 
 export interface StoryEvent {

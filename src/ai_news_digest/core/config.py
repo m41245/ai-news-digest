@@ -1323,6 +1323,47 @@ class Settings(BaseSettings):
     )
 
     # ======================================================================
+    # Knowledge Graph (M89)
+    # ======================================================================
+
+    knowledge_graph_enabled: bool = Field(
+        default=False,
+        description=(
+            "Enable knowledge graph relationship extraction and APIs. "
+            "When false, relationship endpoints return empty results and "
+            "no AI-derived relationships are created."
+        ),
+    )
+
+    knowledge_graph_max_relationships_per_article: int = Field(
+        default=5,
+        ge=0,
+        le=50,
+        description="Maximum relationships to extract per article.",
+    )
+
+    knowledge_graph_max_relationships_per_story: int = Field(
+        default=20,
+        ge=0,
+        le=200,
+        description="Maximum relationships to extract per story cluster.",
+    )
+
+    knowledge_graph_max_nodes: int = Field(
+        default=500,
+        ge=1,
+        le=10000,
+        description="Maximum nodes to consider in graph traversal.",
+    )
+
+    knowledge_graph_max_edges: int = Field(
+        default=2000,
+        ge=1,
+        le=50000,
+        description="Maximum edges to return in graph traversal.",
+    )
+
+    # ======================================================================
     # Email / SMTP
     # ======================================================================
 

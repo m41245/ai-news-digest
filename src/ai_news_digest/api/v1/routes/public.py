@@ -721,6 +721,9 @@ async def get_public_story_cluster(
     activity_status = None
     activity_score = None
     latest_activity_at = None
+    related_companies: list[str] = []
+    related_topics: list[str] = []
+    relationship_count = 0
     try:
         activity = await container.story_activity_repository.get_by_story_cluster_id(cluster.id)
         if activity is not None:
@@ -729,6 +732,30 @@ async def get_public_story_cluster(
             latest_activity_at = activity.evaluated_at.isoformat()
     except Exception:
         activity_status = None
+
+    if get_settings().knowledge_graph_enabled:
+        try:
+            relationships = await container.relationship_repository.list_for_entity(
+                entity_type="story",
+                entity_id=cluster.id,
+                status="verified",
+                limit=200,
+            )
+            relationship_count = len(relationships)
+            company_ids = [
+                str(r.object_entity_id) for r in relationships if r.object_entity_type.value == "company"
+            ]
+            topic_ids = [
+                str(r.object_entity_id) for r in relationships if r.object_entity_type.value == "topic"
+            ]
+            if company_ids:
+                companies = await container.company_repository.list_by_ids(company_ids)
+                related_companies = [c.name for c in companies]
+            if topic_ids:
+                topics = await container.topic_repository.list_by_ids(topic_ids)
+                related_topics = [t.name for t in topics]
+        except Exception:
+            pass
 
     return PublicStoryClusterResponse(
         id=str(cluster.id),
@@ -752,6 +779,9 @@ async def get_public_story_cluster(
         activity_status=activity_status,
         activity_score=activity_score,
         latest_activity_at=latest_activity_at,
+        related_companies=related_companies,
+        related_topics=related_topics,
+        relationship_count=relationship_count,
     )
 
 

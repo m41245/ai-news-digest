@@ -119,6 +119,9 @@ class PublicStoryClusterResponse(BaseModel):
     activity_status: str | None = None
     activity_score: float | None = None
     latest_activity_at: str | None = None
+    related_companies: list[str] = []
+    related_topics: list[str] = []
+    relationship_count: int = 0
 
 
 class PublicTopStoryResponse(BaseModel):

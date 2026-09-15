@@ -87,6 +87,9 @@ from ai_news_digest.application.use_cases.digest.generate_intelligent_digest imp
 from ai_news_digest.application.use_cases.digest.update import (
     UpdateDigestUseCase,
 )
+from ai_news_digest.application.use_cases.knowledge_graph.extract_relationships import (
+    RelationshipExtractionUseCase,
+)
 from ai_news_digest.application.use_cases.recommendation.get_recommendations import (
     GetRecommendationsUseCase,
 )
@@ -516,6 +519,25 @@ class Container:
     @property
     def conflict_repository(self) -> ConflictRepository:
         return SqlAlchemyConflictRepository(self._session)
+
+    @property
+    def relationship_repository(self) -> RelationshipRepository:
+        from ai_news_digest.infrastructure.database.repositories.relationship_repository import (
+            SqlAlchemyRelationshipRepository,
+        )
+        return SqlAlchemyRelationshipRepository(self._session)
+
+    @property
+    def extract_relationships(self) -> RelationshipExtractionUseCase:
+        return RelationshipExtractionUseCase(
+            relationship_repository=self.relationship_repository,
+            article_repository=self.article_repository,
+            story_cluster_repository=self.story_cluster_repository,
+            company_repository=self.company_repository,
+            topic_repository=self.topic_repository,
+            provider_manager=self.provider_manager,
+        )
+
 
     @property
     def story_activity_repository(self) -> StoryActivityRepository:
