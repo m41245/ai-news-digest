@@ -2,27 +2,26 @@
 
 ## Current Phase
 
-Milestone 77 — Dynamic AI Provider Routing: **COMPLETE**.
+Milestone 87 — Advanced Recommendation Intelligence: **COMPLETE**.
 
-M77 additions:
-- Added dynamic provider routing with capability-aware candidate filtering
-- Added structured `RoutingDecision` and `RoutingContext` models
-- Refactored `ProviderManager` into a full routing gateway with eligibility, preference, exclusion, and bounded fallback
-- Integrated routing into `SummarizeArticleUseCase`, `CategorizeArticleUseCase`, `AnalyzeArticleUseCase`, and `DigestEditorialGenerator`
-- Added 23 new routing tests covering capability filtering, preference, exclusions, priority ordering, deterministic tie-breaking, and failure fallback
-- All quality gates pass: ruff clean, mypy clean, 660+ relevant unit tests passing
+M87 additions:
+- Added deterministic recommendation engine combining global importance, personal relevance, freshness, activity, trends, evolution, diversity, and novelty into a bounded 0-100 recommendation_score
+- Added authenticated `GET /api/v1/me/recommendations` endpoint
+- Added frontend RecommendationsPage at `/me/recommendations`
+- Reused M86 personalization architecture; kept global ranking_score separate
+- Added 23 new tests covering engine scoring, use case orchestration, and API routes
 
 ### Next Milestone
 
-Milestone 78 — Provider Health, Failure Tracking & Circuit Breakers
+TBD
 
 ---
 
 ## Current Focus
 
-Milestone 77 — Dynamic AI Provider Routing: **Complete**.
+Milestone 87 — Advanced Recommendation Intelligence: **Complete**.
 
-M77 completed. The platform now has a deterministic, capability-aware provider routing layer. Routing considers capability matching, provider eligibility (enabled, available, capable), explicit request preferences, excluded providers, and configured priority with deterministic tie-breaking. Bounded sequential fallback handles transient failures. AI remains disabled by default (`AI_ENABLED=false`).
+M87 completed. The platform now has a deterministic, explainable recommendation engine. Recommendations combine global importance, M86 personal relevance, freshness, story activity, trend momentum, story evolution, diversity, and novelty. All scoring is bounded 0-100, provider-independent, and privacy-conscious. No behavioral tracking, no collaborative filtering, no embeddings.
 
 ---
 

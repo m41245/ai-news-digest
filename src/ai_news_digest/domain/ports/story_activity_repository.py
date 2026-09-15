@@ -48,5 +48,13 @@ class StoryActivityRepository(ABC):
     async def count(self) -> int:
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_by_cluster_ids(
+        self,
+        cluster_ids: list[UUID],
+    ) -> list[StoryActivity]:
+        """Return story activities for the given cluster IDs."""
+        raise NotImplementedError
+
 
 __all__ = ["StoryActivityRepository"]

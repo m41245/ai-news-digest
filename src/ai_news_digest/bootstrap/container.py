@@ -82,6 +82,9 @@ from ai_news_digest.application.use_cases.digest.generate_intelligent_digest imp
 from ai_news_digest.application.use_cases.digest.update import (
     UpdateDigestUseCase,
 )
+from ai_news_digest.application.use_cases.recommendation.get_recommendations import (
+    GetRecommendationsUseCase,
+)
 from ai_news_digest.application.use_cases.source.update import (
     UpdateSourceUseCase,
 )
@@ -981,6 +984,20 @@ class Container:
     def get_personalized_trends(self) -> GetPersonalizedTrendsUseCase:
         return GetPersonalizedTrendsUseCase(
             preference_repository=self.user_preference_repository,
+            trend_repository=self.trend_repository,
+        )
+
+    @property
+    def get_recommendations(self) -> GetRecommendationsUseCase:
+        return GetRecommendationsUseCase(
+            preference_repository=self.user_preference_repository,
+            article_repository=self.article_repository,
+            story_cluster_repository=self.story_cluster_repository,
+            source_repository=self.source_repository,
+            category_repository=self.category_repository,
+            company_repository=self.company_repository,
+            story_activity_repository=self.story_activity_repository,
+            story_event_repository=self.story_event_repository,
             trend_repository=self.trend_repository,
         )
 

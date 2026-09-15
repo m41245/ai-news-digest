@@ -95,5 +95,30 @@ class StoryEventRepository(
         result = await self._session.execute(statement)
         return int(result.scalar_one())
 
+    async def list_by_cluster_ids(
+        self,
+        cluster_ids: list[UUID],
+        *,
+        limit: int = 10,
+    ) -> dict[UUID, list[StoryEvent]]:
+        if not cluster_ids:
+            return {}
+        statement = (
+            select(StoryEventModel)
+            .where(StoryEventModel.story_cluster_id.in_([str(cid) for cid in cluster_ids]))
+            .order_by(
+                StoryEventModel.sequence.asc(),
+                StoryEventModel.event_time.asc(),
+                StoryEventModel.created_at.asc(),
+            )
+            .limit(limit * len(cluster_ids))
+        )
+        result = await self._session.execute(statement)
+        events: dict[UUID, list[StoryEvent]] = {}
+        for model in result.scalars().all():
+            event = StoryEventMapper.to_domain(model)
+            events.setdefault(event.story_cluster_id, []).append(event)
+        return events
+
 
 __all__ = ["StoryEventRepository"]

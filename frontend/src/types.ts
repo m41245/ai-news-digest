@@ -509,3 +509,37 @@ export interface PersonalizedTrendResponse {
   last_detected_at?: string | null;
   trend_metadata?: Record<string, string> | null;
 }
+
+export interface RecommendationItemResponse {
+  item_type: "story" | "trend";
+  id: string;
+  title: string;
+  summary?: string | null;
+  source_name?: string | null;
+  source_type?: string | null;
+  published_at?: string | null;
+  latest_update_at?: string | null;
+  importance_score?: number | null;
+  confidence?: number | null;
+  activity_status?: string | null;
+  activity_score?: number | null;
+  trend_score?: number | null;
+  momentum_score?: number | null;
+  recommendation_score: number;
+  recommendation_reasons: string[];
+  companies: string[];
+  topics: string[];
+  categories: string[];
+  cluster_id?: string | null;
+  cluster_slug?: string | null;
+  article_count: number;
+  source_count: number;
+}
+
+export interface RecommendationResponse {
+  items: RecommendationItemResponse[];
+  total: number;
+  limit: number;
+  offset: number;
+  empty_reason?: string | null;
+}

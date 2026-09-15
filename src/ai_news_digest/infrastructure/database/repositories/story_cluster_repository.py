@@ -423,5 +423,17 @@ class StoryClusterRepository(
         await self._session.execute(statement)
         await self._commit()
 
+    async def get_by_ids(
+        self,
+        cluster_ids: list[UUID],
+    ) -> list[StoryCluster]:
+        if not cluster_ids:
+            return []
+        statement = select(StoryClusterModel).where(
+            StoryClusterModel.id.in_([str(cid) for cid in cluster_ids])
+        )
+        result = await self._session.execute(statement)
+        return [StoryClusterMapper.to_domain(model) for model in result.scalars().all()]
+
 
 __all__ = ["StoryClusterRepository"]

@@ -121,5 +121,13 @@ class StoryClusterRepository(ABC):
     async def detach_article(self, article_id: UUID) -> None:
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_by_ids(
+        self,
+        cluster_ids: list[UUID],
+    ) -> list[StoryCluster]:
+        """Return multiple story clusters by their IDs."""
+        raise NotImplementedError
+
 
 __all__ = ["StoryClusterRepository"]

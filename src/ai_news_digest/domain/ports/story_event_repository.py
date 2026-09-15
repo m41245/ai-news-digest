@@ -44,5 +44,15 @@ class StoryEventRepository(ABC):
     async def count_by_cluster_id(self, cluster_id: UUID) -> int:
         raise NotImplementedError
 
+    @abstractmethod
+    async def list_by_cluster_ids(
+        self,
+        cluster_ids: list[UUID],
+        *,
+        limit: int = 10,
+    ) -> dict[UUID, list[StoryEvent]]:
+        """Return events grouped by cluster ID for the given clusters."""
+        raise NotImplementedError
+
 
 __all__ = ["StoryEventRepository"]

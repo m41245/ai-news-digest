@@ -21,6 +21,7 @@ import type {
   PublicStoryCluster,
   PublicStoryClusterSearch,
   PublicTrendSearch,
+  RecommendationResponse,
   RegisterRequest,
   Source,
   SourceCreateRequest,
@@ -291,6 +292,12 @@ export const personalizedApi = {
     page_size?: number;
   } = {}): Promise<PersonalizedTrendResponse[]> =>
     api.get("/api/v1/me/trends", { params }).then((r) => r.data),
+  recommendations: (params: {
+    page?: number;
+    page_size?: number;
+    sort?: string;
+  } = {}): Promise<RecommendationResponse> =>
+    api.get("/api/v1/me/recommendations", { params }).then((r) => r.data),
 };
 
 export { setStoredToken };
