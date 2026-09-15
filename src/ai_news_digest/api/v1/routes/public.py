@@ -18,6 +18,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 
 from ai_news_digest.api.v1.dependencies.dependencies import get_container
+from ai_news_digest.api.v1.routes.timeline import router as timeline_router
 from ai_news_digest.api.v1.schemas.common import (
     DEFAULT_PAGE_LIMIT,
     MAX_OFFSET,
@@ -38,8 +39,8 @@ from ai_news_digest.api.v1.schemas.public import (
     PublicTopStoryResponse,
     PublicTrendResponse,
     PublicTrendSearchResponse,
+    RelatedStoryResponse,
 )
-from ai_news_digest.api.v1.routes.timeline import router as timeline_router
 from ai_news_digest.api.v1.schemas.source import SourceResponse
 from ai_news_digest.application.services.ranking.story_ranking_service import (
     StoryRankingEngine,
@@ -57,8 +58,11 @@ from ai_news_digest.application.use_cases.story_cluster.story_intelligence impor
 from ai_news_digest.bootstrap.container import Container
 from ai_news_digest.core.config import get_settings
 from ai_news_digest.core.exceptions import ResourceNotFoundError
+from ai_news_digest.core.logging import get_logger
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.models.digest import Digest
+
+logger = get_logger(__name__)
 
 router = APIRouter(
     prefix="/public",
@@ -152,8 +156,11 @@ async def list_public_articles(
     published_from: Annotated[str | None, Query()] = None,
     published_to: Annotated[str | None, Query()] = None,
     search: Annotated[str | None, Query(max_length=200)] = None,
+    mode: Annotated[str | None, Query(pattern="^(lexical|semantic|hybrid)$")] = None,
 ) -> PaginatedResponse[PublicArticleResponse]:
     """List publicly visible articles with optional filtering and search."""
+    settings = get_settings()
+    search_mode = mode or "lexical"
     cat_id = UUID(category_id) if category_id else None
     src_id = UUID(source_id) if source_id else None
     comp_id = UUID(company_id) if company_id else None
@@ -180,8 +187,9 @@ async def list_public_articles(
         min_importance=min_importance,
         published_from=published_from_dt,
         published_to=published_to_dt,
-        search=search,
+        search=search if search_mode != "semantic" else None,
     )
+
     total = await container.article_repository.count_public_articles(
         category_id=cat_id,
         source_id=src_id,
@@ -190,7 +198,7 @@ async def list_public_articles(
         min_importance=min_importance,
         published_from=published_from_dt,
         published_to=published_to_dt,
-        search=search,
+        search=search if search_mode != "semantic" else None,
     )
 
     claim_map: dict[str, list[Any]] = {}
@@ -202,6 +210,47 @@ async def list_public_articles(
                 claim_map[str(aid)] = await claim_repo.list_by_article_id(aid)
             except Exception:
                 claim_map[str(aid)] = []
+
+    if (
+        search_mode in ("semantic", "hybrid")
+        and search
+        and settings.semantic_search_enabled
+        and container.embedding_service.is_available
+    ):
+        try:
+            from ai_news_digest.domain.models.semantic_document import (
+                SemanticDocument,
+            )
+
+            query_doc = SemanticDocument(
+                id=UUID("00000000-0000-0000-0000-000000000000"),
+                title=search,
+            )
+            query_emb = await container.embedding_service.generate(query_doc)
+            semantic_service = container.semantic_search_service
+            scored = await semantic_service.search_articles(
+                query=search,
+                candidates=articles,
+                query_embedding=query_emb.embedding,
+            )
+            scored_map = {s.article.id: s for s in scored}
+
+            def _combined_score(article: Article) -> float:
+                scored_item = scored_map.get(article.id)
+                if scored_item is None:
+                    return 0.0
+                return float(scored_item.combined_score)
+
+            articles = sorted(
+                articles,
+                key=_combined_score,
+                reverse=True,
+            )
+        except Exception:
+            logger.warning(
+                "semantic_search.failed",
+                error="Semantic search enhancement failed",
+            )
 
     return PaginatedResponse(
         items=[
@@ -217,6 +266,53 @@ async def list_public_articles(
         limit=limit,
         offset=offset,
     )
+
+
+@router.get(
+    "/articles/{article_id}/related",
+    response_model=list[RelatedStoryResponse],
+    summary="Get related stories for an article",
+)
+async def get_related_stories(
+    article_id: UUID,
+    container: Annotated[Container, Depends(get_container)],
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+) -> list[RelatedStoryResponse]:
+    """Return semantically related story clusters for a given article."""
+    article = await container.article_repository.get_public_article(article_id)
+    if article is None:
+        from ai_news_digest.core.exceptions import ResourceNotFoundError
+        raise ResourceNotFoundError(f"Article {article_id} not found.")
+
+    cutoff = datetime.now(UTC) - timedelta(hours=72)
+    clusters = await container.story_cluster_repository.find_recent_active_clusters(
+        cutoff=cutoff,
+        limit=200,
+    )
+
+    existing_cluster_id = (
+        str(article.cluster_id) if article.cluster_id is not None else None
+    )
+
+    related = await container.related_story_finder.find_for_article(
+        article=article,
+        existing_cluster_id=existing_cluster_id,
+        clusters=clusters,
+        limit=limit,
+    )
+
+    return [
+        RelatedStoryResponse(
+            cluster_id=r.cluster_id,
+            title=r.title,
+            summary=r.summary,
+            similarity=r.similarity,
+            article_count=r.article_count,
+            source_count=r.source_count,
+            reason=r.reason,
+        )
+        for r in related
+    ]
 
 
 @router.get(
@@ -570,11 +666,11 @@ async def get_public_story_cluster(
         recent_conflicts = await conflict_repo.list_recent(limit=200)
         for conflict in recent_conflicts:
             if (
-                UUID(conflict.article_a_id) in article_conflict_ids
-                or UUID(conflict.article_b_id) in article_conflict_ids
+                conflict.article_a_id in article_conflict_ids
+                or conflict.article_b_id in article_conflict_ids
             ):
-                source_a_name = source_map.get(conflict.source_a_id)
-                source_b_name = source_map.get(conflict.source_b_id)
+                source_a_name = source_map.get(str(conflict.source_a_id))
+                source_b_name = source_map.get(str(conflict.source_b_id))
                 pub_a = None
                 pub_b = None
                 for article in articles:

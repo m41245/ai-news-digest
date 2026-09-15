@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_news_digest.application.ai.capability import Capability
@@ -15,6 +17,9 @@ from ai_news_digest.application.rendering.renderer_factory import (
 )
 from ai_news_digest.application.services.digest_editorial_generator import (
     DigestEditorialGenerator,
+)
+from ai_news_digest.application.services.related_story_finder import (
+    RelatedStoryFinder,
 )
 from ai_news_digest.application.services.semantic_candidate_finder import (
     SemanticCandidateFinder,
@@ -184,6 +189,7 @@ from ai_news_digest.domain.ports.digest_repository import (
     DigestRepository as DigestRepositoryPort,
 )
 from ai_news_digest.domain.ports.email_sender import EmailSender
+from ai_news_digest.domain.ports.embedding_provider import EmbeddingProvider
 from ai_news_digest.domain.ports.notification_repository import (
     NotificationDeliveryRepository,
     NotificationPreferenceRepository,
@@ -251,6 +257,12 @@ from ai_news_digest.infrastructure.llm.factory import LLMProviderFactory
 from ai_news_digest.infrastructure.rss.feedparser_fetcher import (
     FeedparserFetcher,
 )
+
+if TYPE_CHECKING:
+    from ai_news_digest.application.ai.embedding_service import EmbeddingService
+    from ai_news_digest.application.ai.semantic_search_service import (
+        SemanticSearchService,
+    )
 
 logger = get_logger(__name__)
 
@@ -833,6 +845,62 @@ class Container:
         return SemanticCandidateFinder(
             article_repository=self.article_repository,
             cluster_repository=self.story_cluster_repository,
+        )
+
+    @property
+    def _embedding_providers(self) -> list[EmbeddingProvider]:
+        providers: list[EmbeddingProvider] = []
+        if not self._settings.semantic_search_enabled:
+            return providers
+        if self._settings.openai_enabled and self._settings.openai_api_key:
+            try:
+                from ai_news_digest.infrastructure.embedding import (
+                    OpenAIEmbeddingProvider,
+                )
+                providers.append(
+                    OpenAIEmbeddingProvider(
+                        model=self._settings.embedding_model,
+                        dimension=self._settings.embedding_dimension,
+                    )
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to create OpenAI embedding provider",
+                    error=str(exc),
+                )
+        return providers
+
+    @property
+    def embedding_service(self) -> EmbeddingService:
+        from ai_news_digest.application.ai.embedding_service import EmbeddingService
+
+        return EmbeddingService(
+            providers=self._embedding_providers,
+            default_model=self._settings.embedding_model,
+            default_dimension=self._settings.embedding_dimension,
+        )
+
+    @property
+    def semantic_search_service(self) -> SemanticSearchService:
+        from ai_news_digest.application.ai.semantic_search_service import (
+            SemanticSearchService,
+        )
+
+        return SemanticSearchService(
+            embedding_service=self.embedding_service,
+            lexical_weight=self._settings.semantic_lexical_weight,
+            semantic_weight=self._settings.semantic_similarity_weight,
+            importance_weight=self._settings.semantic_importance_weight,
+            recency_weight=self._settings.semantic_recency_weight,
+        )
+
+    @property
+    def related_story_finder(self):
+        return RelatedStoryFinder(
+            embedding_service=self.embedding_service,
+            semantic_search=self.semantic_search_service,
+            duplicate_detector=self.semantic_duplicate_detector,
+            candidate_finder=self.semantic_candidate_finder,
         )
 
     @property

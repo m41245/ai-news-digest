@@ -557,6 +557,85 @@ class Settings(BaseSettings):
     )
 
     # ======================================================================
+    # Semantic Intelligence and Embedding (M88)
+    # ======================================================================
+
+    semantic_search_enabled: bool = Field(
+        default=False,
+        description=(
+            "Enable semantic search and related-story discovery. When false, "
+            "the platform falls back to lexical search and deterministic "
+            "ranking. Requires an embedding provider to be configured."
+        ),
+    )
+
+    embedding_provider: str = Field(
+        default="openai",
+        description="Default embedding provider identifier.",
+    )
+
+    embedding_model: str = Field(
+        default="text-embedding-3-small",
+        description="Default embedding model name.",
+    )
+
+    embedding_dimension: int = Field(
+        default=1536,
+        ge=1,
+        le=4096,
+        description="Expected embedding dimension for the configured model.",
+    )
+
+    semantic_search_query_max_length: int = Field(
+        default=500,
+        ge=1,
+        le=2000,
+        description="Maximum characters accepted for a semantic search query.",
+    )
+
+    semantic_candidate_limit: int = Field(
+        default=50,
+        ge=1,
+        le=500,
+        description="Maximum candidate articles/clusters for semantic processing.",
+    )
+
+    semantic_result_limit: int = Field(
+        default=20,
+        ge=1,
+        le=100,
+        description="Maximum results returned from semantic-enhanced endpoints.",
+    )
+
+    semantic_lexical_weight: float = Field(
+        default=0.4,
+        ge=0.0,
+        le=1.0,
+        description="Weight for lexical relevance in hybrid search ranking.",
+    )
+
+    semantic_similarity_weight: float = Field(
+        default=0.4,
+        ge=0.0,
+        le=1.0,
+        description="Weight for semantic similarity in hybrid search ranking.",
+    )
+
+    semantic_importance_weight: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=1.0,
+        description="Weight for article importance in hybrid search ranking.",
+    )
+
+    semantic_recency_weight: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=1.0,
+        description="Weight for recency in hybrid search ranking.",
+    )
+
+    # ======================================================================
     # AI Cost & Quota (M79)
     # ======================================================================
 
@@ -1181,7 +1260,10 @@ class Settings(BaseSettings):
         default=50,
         ge=1,
         le=500,
-        description="Maximum candidates to evaluate per trend type (company, topic, category, story).",
+        description=(
+            "Maximum candidates to evaluate per trend type "
+            "(company, topic, category, story)."
+        ),
     )
 
     trend_max_total_candidates: int = Field(

@@ -23,6 +23,7 @@ import type {
   PublicTrendSearch,
   RecommendationResponse,
   RegisterRequest,
+  RelatedStoryResponse,
   Source,
   SourceCreateRequest,
   SourceUpdateRequest,
@@ -64,10 +65,15 @@ export const publicApi = {
     published_from?: string;
     published_to?: string;
     search?: string;
+    mode?: "lexical" | "semantic" | "hybrid";
   } = {}): Promise<PaginatedResponse<Article>> =>
     api.get("/api/v1/public/articles", { params }).then((r) => r.data),
   article: (id: string): Promise<Article> =>
     api.get(`/api/v1/public/articles/${id}`).then((r) => r.data),
+  relatedStories: (id: string, limit = 10): Promise<RelatedStoryResponse[]> =>
+    api
+      .get(`/api/v1/public/articles/${id}/related`, { params: { limit } })
+      .then((r) => r.data),
   digests: (params: { limit?: number; offset?: number } = {}): Promise<
     PaginatedResponse<PublicDigest>
   > => api.get("/api/v1/public/digests", { params }).then((r) => r.data),

@@ -59,6 +59,9 @@ function FilterGroup({ label, activeValue, options, onSelect, getLabel }: {
 export function NewsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchInput, setSearchInput] = useState(searchParams.get("search") ?? "");
+  const [searchMode, setSearchMode] = useState<"lexical" | "semantic" | "hybrid">(
+    (searchParams.get("mode") as "lexical" | "semantic" | "hybrid") || "lexical",
+  );
   const [filtersOpen, setFiltersOpen] = useState(true);
 
   const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
@@ -67,16 +70,20 @@ export function NewsPage() {
   const companyId = searchParams.get("company") || undefined;
   const topicId = searchParams.get("topic") || undefined;
   const search = searchParams.get("search") || undefined;
+  const mode = (searchParams.get("mode") as "lexical" | "semantic" | "hybrid") || undefined;
   const minImportance = searchParams.get("min_importance") || undefined;
   const publishedFrom = searchParams.get("published_from") || undefined;
   const publishedTo = searchParams.get("published_to") || undefined;
 
   useEffect(() => {
     setSearchInput(searchParams.get("search") ?? "");
+    setSearchMode(
+      (searchParams.get("mode") as "lexical" | "semantic" | "hybrid") || "lexical",
+    );
   }, [searchParams]);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["articles", { page, categoryId, sourceId, companyId, topicId, search, minImportance, publishedFrom, publishedTo }],
+    queryKey: ["articles", { page, categoryId, sourceId, companyId, topicId, search, mode, minImportance, publishedFrom, publishedTo }],
     queryFn: () =>
       publicApi.articles({
         limit: PAGE_SIZE,
@@ -86,6 +93,7 @@ export function NewsPage() {
         company_id: companyId,
         topic_id: topicId,
         search,
+        mode: mode || undefined,
         min_importance: minImportance ? Number(minImportance) : undefined,
         published_from: publishedFrom || undefined,
         published_to: publishedTo || undefined,
@@ -150,6 +158,20 @@ export function NewsPage() {
             </p>
           </div>
           <form onSubmit={handleSearch} role="search" className="flex gap-2">
+            <select
+              value={searchMode}
+              onChange={(e) => {
+                const next = e.target.value as "lexical" | "semantic" | "hybrid";
+                setSearchMode(next);
+                updateParam("mode", next === "lexical" ? undefined : next);
+              }}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700"
+              aria-label="Search mode"
+            >
+              <option value="lexical">Keyword</option>
+              <option value="hybrid">Hybrid</option>
+              <option value="semantic">Semantic</option>
+            </select>
             <Input
               placeholder="Search articles…"
               value={searchInput}

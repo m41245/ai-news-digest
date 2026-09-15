@@ -6,6 +6,7 @@ import { Badge } from "../../components/ui/Badge";
 import { ErrorState } from "../../components/ui/ErrorState";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { formatDateTime } from "../../utils";
+import type { RelatedStoryResponse } from "../../types";
 
 export function ArticleDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -13,6 +14,12 @@ export function ArticleDetailPage() {
   const { data: article, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["article", id],
     queryFn: () => publicApi.article(id!),
+    enabled: !!id,
+  });
+
+  const { data: relatedStories } = useQuery({
+    queryKey: ["relatedStories", id],
+    queryFn: () => publicApi.relatedStories(id!),
     enabled: !!id,
   });
 
@@ -173,6 +180,37 @@ export function ArticleDetailPage() {
             <span className="sr-only"> {article.title}</span>
           </a>
         </div>
+
+        {relatedStories && relatedStories.length > 0 && (
+          <div className="mt-12 max-w-3xl">
+            <h2 className="text-lg font-semibold text-slate-900">Related Stories</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Stories that may be relevant based on semantic similarity.
+            </p>
+            <div className="mt-4 flex flex-col gap-4">
+              {relatedStories.map((story: RelatedStoryResponse) => (
+                <Link
+                  key={story.cluster_id}
+                  to={`/stories/${encodeURIComponent(story.cluster_id)}`}
+                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-brand-300"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-medium text-slate-900">{story.title}</span>
+                    <span className="text-xs text-slate-500">
+                      {(story.similarity * 100).toFixed(0)}% match
+                    </span>
+                  </div>
+                  {story.summary && (
+                    <p className="mt-1 text-sm text-slate-600 line-clamp-2">{story.summary}</p>
+                  )}
+                  <p className="mt-2 text-xs text-slate-500">
+                    {story.reason} · {story.article_count} articles · {story.source_count} sources
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </article>
     </>
   );

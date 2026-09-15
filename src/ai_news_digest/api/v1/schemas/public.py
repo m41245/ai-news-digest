@@ -222,6 +222,18 @@ class SearchResponse(BaseModel):
     stories: PaginatedResponse[PublicStoryClusterSearchResponse]
 
 
+class RelatedStoryResponse(BaseModel):
+    """Public view of a related story cluster."""
+
+    cluster_id: str
+    title: str
+    summary: str | None = None
+    similarity: float = 0.0
+    article_count: int = 0
+    source_count: int = 0
+    reason: str = "Semantically related"
+
+
 __all__ = [
     "PublicArticleResponse",
     "PublicCategoryResponse",
@@ -233,5 +245,6 @@ __all__ = [
     "PublicTopicResponse",
     "PublicTrendResponse",
     "PublicTrendSearchResponse",
+    "RelatedStoryResponse",
     "SearchResponse",
 ]

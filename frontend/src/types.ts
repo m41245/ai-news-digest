@@ -543,3 +543,13 @@ export interface RecommendationResponse {
   offset: number;
   empty_reason?: string | null;
 }
+
+export interface RelatedStoryResponse {
+  cluster_id: string;
+  title: string;
+  summary?: string | null;
+  similarity: number;
+  article_count: number;
+  source_count: number;
+  reason: string;
+}

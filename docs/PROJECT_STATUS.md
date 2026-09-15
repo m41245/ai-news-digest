@@ -2,14 +2,17 @@
 
 ## Current Phase
 
-Milestone 87 — Advanced Recommendation Intelligence: **COMPLETE**.
+Milestone 88 — Semantic Intelligence and Embedding-Ready Discovery: **COMPLETE**.
 
-M87 additions:
-- Added deterministic recommendation engine combining global importance, personal relevance, freshness, activity, trends, evolution, diversity, and novelty into a bounded 0-100 recommendation_score
-- Added authenticated `GET /api/v1/me/recommendations` endpoint
-- Added frontend RecommendationsPage at `/me/recommendations`
-- Reused M86 personalization architecture; kept global ranking_score separate
-- Added 23 new tests covering engine scoring, use case orchestration, and API routes
+M88 additions:
+- Added provider-independent embedding abstraction (`EmbeddingProvider` interface)
+- Added validated cosine similarity engine (`SimilarityEngine`)
+- Added hybrid search: lexical, semantic, and hybrid modes via `?mode=` query param
+- Added related story discovery endpoint: `GET /api/v1/public/articles/{id}/related`
+- Added OpenAI embedding provider implementation
+- Added frontend search mode selector and Related Stories section
+- Added 24 comprehensive unit tests (similarity, embedding, semantic search, related stories)
+- All quality gates pass: ruff, mypy, pytest, TypeScript, frontend build
 
 ### Next Milestone
 
@@ -19,9 +22,9 @@ TBD
 
 ## Current Focus
 
-Milestone 87 — Advanced Recommendation Intelligence: **Complete**.
+Milestone 88 — Semantic Intelligence and Embedding-Ready Discovery: **Complete**.
 
-M87 completed. The platform now has a deterministic, explainable recommendation engine. Recommendations combine global importance, M86 personal relevance, freshness, story activity, trend momentum, story evolution, diversity, and novelty. All scoring is bounded 0-100, provider-independent, and privacy-conscious. No behavioral tracking, no collaborative filtering, no embeddings.
+M88 completed. The platform now has provider-independent semantic intelligence with hybrid search and related story discovery. Embeddings are generated on-the-fly without persistence, maintaining zero new infrastructure dependencies. All semantic features degrade gracefully when AI is disabled. Raw embeddings are never exposed in public APIs.
 
 ---
 
