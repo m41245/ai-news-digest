@@ -52,6 +52,9 @@ from ai_news_digest.application.use_cases.story_activity.detect_story_activity i
 from ai_news_digest.application.use_cases.story_timeline.generate_story_timeline import (
     GenerateStoryTimelineUseCase,
 )
+from ai_news_digest.application.use_cases.trend.detect_trends import (
+    DetectTrendsUseCase,
+)
 from ai_news_digest.application.use_cases.article.get import (
     GetArticleUseCase,
 )
@@ -177,6 +180,7 @@ from ai_news_digest.domain.ports.story_activity_repository import (
 from ai_news_digest.domain.ports.story_cluster_repository import StoryClusterRepository
 from ai_news_digest.domain.ports.story_event_repository import StoryEventRepository
 from ai_news_digest.domain.ports.topic_repository import TopicRepository
+from ai_news_digest.domain.ports.trend_repository import TrendRepository
 from ai_news_digest.domain.ports.user_preference_repository import UserPreferenceRepository
 from ai_news_digest.domain.ports.user_repository import UserRepository
 from ai_news_digest.infrastructure.cache.redis_store import RedisStore
@@ -209,6 +213,9 @@ from ai_news_digest.infrastructure.database.repositories.story_cluster_repositor
 )
 from ai_news_digest.infrastructure.database.repositories.topic_repository import (
     SqlAlchemyTopicRepository,
+)
+from ai_news_digest.infrastructure.database.repositories.trend_repository import (
+    SqlAlchemyTrendRepository,
 )
 from ai_news_digest.infrastructure.database.repositories.user_preference_repository import (
     UserPreferenceRepository as SqlAlchemyUserPreferenceRepository,
@@ -446,6 +453,25 @@ class Container:
     @property
     def topic_repository(self) -> TopicRepository:
         return SqlAlchemyTopicRepository(self._session)
+
+    @property
+    def trend_repository(self) -> TrendRepository:
+        return SqlAlchemyTrendRepository(self._session)
+
+    @property
+    def detect_trends(self) -> DetectTrendsUseCase:
+        return DetectTrendsUseCase(
+            article_repository=self.article_repository,
+            source_repository=self.source_repository,
+            topic_repository=self.topic_repository,
+            company_repository=self.company_repository,
+            category_repository=self.category_repository,
+            story_cluster_repository=self.story_cluster_repository,
+            story_activity_repository=self.story_activity_repository,
+            story_event_repository=self.story_event_repository,
+            trend_repository=self.trend_repository,
+            provider_manager=self.provider_manager,
+        )
 
     @property
     def claim_repository(self) -> ClaimRepository:

@@ -10,6 +10,7 @@ import { ArticleDetailPage } from "./pages/public/ArticleDetailPage";
 import { DigestsPage } from "./pages/public/DigestsPage";
 import { DigestDetailPage } from "./pages/public/DigestDetailPage";
 import { StoryClusterPage } from "./pages/public/StoryClusterPage";
+import { TrendsPage } from "./pages/public/TrendsPage";
 import { CategoriesPage } from "./pages/public/CategoriesPage";
 import { CompaniesPage } from "./pages/public/CompaniesPage";
 import { TopicsPage } from "./pages/public/TopicsPage";
@@ -205,6 +206,14 @@ export function App() {
         element={
           <PublicLayout>
             <TopicsPage />
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/trends"
+        element={
+          <PublicLayout>
+            <TrendsPage />
           </PublicLayout>
         }
       />

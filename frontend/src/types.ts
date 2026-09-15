@@ -396,3 +396,38 @@ export interface TestNotificationRequest {
   channel?: NotificationChannel;
   severity?: string;
 }
+
+export interface Trend {
+  id: string;
+  trend_type: string;
+  display_name: string;
+  status: string;
+  trend_score: number;
+  momentum_score: number;
+  recent_activity: number;
+  baseline_activity: number;
+  source_count: number;
+  story_count: number;
+  event_count: number;
+  explanation: string;
+  first_detected_at?: string | null;
+  last_detected_at?: string | null;
+  trend_metadata?: Record<string, string> | null;
+}
+
+export interface PublicTrendSearch {
+  id: string;
+  trend_type: string;
+  display_name: string;
+  status: string;
+  trend_score: number;
+  momentum_score: number;
+  recent_activity: number;
+  baseline_activity: number;
+  source_count: number;
+  story_count: number;
+  event_count: number;
+  explanation: string;
+  first_detected_at?: string | null;
+  last_detected_at?: string | null;
+}

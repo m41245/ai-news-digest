@@ -117,6 +117,7 @@ celery_app = Celery(
         "ai_news_digest.workers.tasks.conflict",
         "ai_news_digest.workers.tasks.story_activity",
         "ai_news_digest.workers.tasks.timeline",
+        "ai_news_digest.workers.tasks.trend",
     ],
     task_cls=AwaitableTask,
 )
@@ -288,6 +289,14 @@ celery_app.conf.update(
         "daily-story-activity-detection": {
             "task": "workers.tasks.story_activity.detect_story_activity",
             "schedule": crontab(hour=8, minute=10),
+            "options": {
+                "expires": 3600,
+                "send_events": True,
+            },
+        },
+        "daily-trend-detection": {
+            "task": "workers.tasks.trend.detect_trends",
+            "schedule": crontab(hour=8, minute=12),
             "options": {
                 "expires": 3600,
                 "send_events": True,

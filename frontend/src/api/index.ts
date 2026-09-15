@@ -13,18 +13,24 @@ import type {
   NotificationDeliveryHistoryResponse,
   NotificationDeliveryResponse,
   NotificationDeliveryStatus,
+  NotificationPreferenceResponse,
+  NotificationPreferenceUpdateRequest,
   NotificationResponse,
+  NotificationStatsResponse,
   PaginatedResponse,
   PublicDigest,
   PublicStoryCluster,
   PublicStoryClusterSearch,
+  PublicTrendSearch,
   RegisterRequest,
+  SchedulePreviewResponse,
   Source,
   SourceCreateRequest,
   SourceUpdateRequest,
   StoryTimelineResponse,
   SystemStats,
   Topic,
+  Trend,
   User,
   UserUpdateRequest,
 } from "../types";
@@ -106,6 +112,16 @@ export const publicApi = {
     min_importance?: number;
   } = {}): Promise<PaginatedResponse<PublicStoryClusterSearch>> =>
     api.get("/api/v1/public/story-clusters", { params }).then((r) => r.data),
+  trends: (params: {
+    limit?: number;
+    offset?: number;
+    trend_type?: string;
+    status?: string;
+    min_score?: number;
+  } = {}): Promise<PaginatedResponse<PublicTrendSearch>> =>
+    api.get("/api/v1/public/trends", { params }).then((r) => r.data),
+  trend: (id: string): Promise<Trend> =>
+    api.get(`/api/v1/public/trends/${id}`).then((r) => r.data),
   search: (q: string, limit = 20): Promise<PaginatedResponse<Article>> =>
     api
       .get("/api/v1/public/articles", { params: { search: q, limit } })

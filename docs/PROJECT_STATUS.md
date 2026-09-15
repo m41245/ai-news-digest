@@ -1544,3 +1544,19 @@ The personalized feed now uses a scalable, story-level candidate query that pref
 - [x] Documentation: `docs/MILESTONE_78_PROVIDER_HEALTH_AND_CIRCUIT_BREAKERS.md`
 - [x] No new dependencies; reuses existing Redis infrastructure
 
+### Milestone 85 — Trend Detection and Emerging Story Intelligence
+
+- [x] Added `Trend` domain model with `TrendType` and `TrendStatus` enums
+- [x] Implemented deterministic `DetectTrendsUseCase` with configurable scoring weights
+- [x] Added trend status thresholds: EMERGING >= 65, RISING >= 50, SUSTAINED >= 35, COOLING >= 20, STALE < 20
+- [x] Integrated source diversity, StoryActivity (M83), StoryEvent (M84), and story cluster signals
+- [x] Added idempotent persistence with unique `canonical_key` and migration 026
+- [x] Added Celery task `detect_trends` with bounded retries and metrics
+- [x] Exposed public API endpoints: `GET /api/v1/public/trends` and `GET /api/v1/public/trends/{id}`
+- [x] Built frontend `/trends` page with filtering and `TrendCard`
+- [x] 15 M85-specific unit tests pass
+- [x] Verified M83/M84 regression tests pass
+- [x] Ruff clean and mypy clean for new files
+- [x] Documentation: `docs/MILESTONE_85_TREND_INTELLIGENCE.md`, `docs/MILESTONE_85_ENGINEERING_REPORT.md`
+- [x] No new external dependencies; deterministic-first with optional AI via ProviderManager
+

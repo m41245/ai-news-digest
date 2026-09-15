@@ -176,6 +176,45 @@ class PublicStoryClusterSearchResponse(BaseModel):
     latest_activity_at: str | None = None
 
 
+class PublicTrendSearchResponse(BaseModel):
+    """Lightweight search result for a trend."""
+
+    id: str
+    trend_type: str
+    display_name: str
+    status: str
+    trend_score: float
+    momentum_score: float
+    recent_activity: int = 0
+    baseline_activity: int = 0
+    source_count: int = 0
+    story_count: int = 0
+    event_count: int = 0
+    explanation: str
+    first_detected_at: str | None = None
+    last_detected_at: str | None = None
+
+
+class PublicTrendResponse(BaseModel):
+    """Public view of a trend."""
+
+    id: str
+    trend_type: str
+    display_name: str
+    status: str
+    trend_score: float
+    momentum_score: float
+    recent_activity: int = 0
+    baseline_activity: int = 0
+    source_count: int = 0
+    story_count: int = 0
+    event_count: int = 0
+    explanation: str
+    first_detected_at: str | None = None
+    last_detected_at: str | None = None
+    trend_metadata: dict[str, str] | None = None
+
+
 class SearchResponse(BaseModel):
     """Combined search results across articles and story clusters."""
 
@@ -192,5 +231,7 @@ __all__ = [
     "PublicStoryClusterSearchResponse",
     "PublicTopStoryResponse",
     "PublicTopicResponse",
+    "PublicTrendResponse",
+    "PublicTrendSearchResponse",
     "SearchResponse",
 ]

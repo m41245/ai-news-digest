@@ -36,6 +36,8 @@ from ai_news_digest.api.v1.schemas.public import (
     PublicStoryClusterSearchResponse,
     PublicTopicResponse,
     PublicTopStoryResponse,
+    PublicTrendResponse,
+    PublicTrendSearchResponse,
 )
 from ai_news_digest.api.v1.routes.timeline import router as timeline_router
 from ai_news_digest.api.v1.schemas.source import SourceResponse
@@ -836,6 +838,91 @@ async def list_public_topics(
         )
         for topic in topics
     ]
+
+
+@router.get(
+    "/trends",
+    response_model=PaginatedResponse[PublicTrendSearchResponse],
+    summary="List public trends",
+)
+async def list_public_trends(
+    container: Annotated[Container, Depends(get_container)],
+    limit: Annotated[int, Query(ge=1, le=MAX_PAGE_LIMIT)] = DEFAULT_PAGE_LIMIT,
+    offset: Annotated[int, Query(ge=0, le=MAX_OFFSET)] = 0,
+    trend_type: Annotated[str | None, Query()] = None,
+    status: Annotated[str | None, Query()] = None,
+    min_score: Annotated[float | None, Query(ge=0)] = None,
+) -> PaginatedResponse[PublicTrendSearchResponse]:
+    """List publicly visible trends with optional filtering."""
+    trends = await container.trend_repository.list_public(
+        trend_type=trend_type,
+        status=status,
+        min_score=min_score,
+        limit=limit,
+        offset=offset,
+    )
+    total = await container.trend_repository.count_public(
+        trend_type=trend_type,
+        status=status,
+        min_score=min_score,
+    )
+    return PaginatedResponse(
+        items=[
+            PublicTrendSearchResponse(
+                id=str(trend.id),
+                trend_type=trend.trend_type.value,
+                display_name=trend.display_name,
+                status=trend.status.value,
+                trend_score=trend.trend_score,
+                momentum_score=trend.momentum_score,
+                recent_activity=trend.recent_activity,
+                baseline_activity=trend.baseline_activity,
+                source_count=trend.source_count,
+                story_count=trend.story_count,
+                event_count=trend.event_count,
+                explanation=trend.explanation,
+                first_detected_at=trend.first_detected_at.isoformat(),
+                last_detected_at=trend.last_detected_at.isoformat(),
+            )
+            for trend in trends
+        ],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get(
+    "/trends/{trend_id}",
+    response_model=PublicTrendResponse,
+    summary="Get a public trend",
+)
+async def get_public_trend(
+    trend_id: UUID,
+    container: Annotated[Container, Depends(get_container)],
+) -> PublicTrendResponse:
+    """Retrieve a single public trend by ID."""
+    trend = await container.trend_repository.get_by_id(trend_id)
+    if trend is None:
+        from ai_news_digest.core.exceptions import ResourceNotFoundError
+        raise ResourceNotFoundError(f"Trend {trend_id} not found.")
+    return PublicTrendResponse(
+        id=str(trend.id),
+        trend_type=trend.trend_type.value,
+        display_name=trend.display_name,
+        status=trend.status.value,
+        trend_score=trend.trend_score,
+        momentum_score=trend.momentum_score,
+        recent_activity=trend.recent_activity,
+        baseline_activity=trend.baseline_activity,
+        source_count=trend.source_count,
+        story_count=trend.story_count,
+        event_count=trend.event_count,
+        explanation=trend.explanation,
+        first_detected_at=trend.first_detected_at.isoformat(),
+        last_detected_at=trend.last_detected_at.isoformat(),
+        trend_metadata=trend.trend_metadata if trend.trend_metadata else None,
+    )
 
 
 router.include_router(timeline_router)

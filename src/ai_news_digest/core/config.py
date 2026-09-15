@@ -1141,6 +1141,106 @@ class Settings(BaseSettings):
     )
 
     # ======================================================================
+    # Trend Detection and Emerging Story Intelligence (M85)
+    # ======================================================================
+
+    trend_detection_enabled: bool = Field(
+        default=True,
+        description="Enable deterministic trend detection and emerging story intelligence.",
+    )
+
+    trend_recent_window_hours: int = Field(
+        default=24,
+        ge=1,
+        le=720,
+        description="Lookback window in hours for recent trend activity.",
+    )
+
+    trend_baseline_window_hours: int = Field(
+        default=168,
+        ge=1,
+        le=720,
+        description="Lookback window in hours for historical baseline activity.",
+    )
+
+    trend_min_recent_activity: int = Field(
+        default=3,
+        ge=1,
+        le=100,
+        description="Minimum recent article count required to consider a candidate.",
+    )
+
+    trend_min_sources: int = Field(
+        default=2,
+        ge=1,
+        le=50,
+        description="Minimum unique trusted sources required to consider a candidate.",
+    )
+
+    trend_max_candidates_per_type: int = Field(
+        default=50,
+        ge=1,
+        le=500,
+        description="Maximum candidates to evaluate per trend type (company, topic, category, story).",
+    )
+
+    trend_max_total_candidates: int = Field(
+        default=200,
+        ge=1,
+        le=1000,
+        description="Maximum total candidates evaluated per trend detection run.",
+    )
+
+    trend_activity_weight: float = Field(
+        default=0.25,
+        ge=0.0,
+        le=1.0,
+        description="Weight for recent article activity in trend scoring.",
+    )
+
+    trend_growth_weight: float = Field(
+        default=0.25,
+        ge=0.0,
+        le=1.0,
+        description="Weight for activity growth vs baseline in trend scoring.",
+    )
+
+    trend_source_diversity_weight: float = Field(
+        default=0.20,
+        ge=0.0,
+        le=1.0,
+        description="Weight for source diversity in trend scoring.",
+    )
+
+    trend_story_growth_weight: float = Field(
+        default=0.10,
+        ge=0.0,
+        le=1.0,
+        description="Weight for story cluster growth in trend scoring.",
+    )
+
+    trend_recency_weight: float = Field(
+        default=0.10,
+        ge=0.0,
+        le=1.0,
+        description="Weight for recency of latest activity in trend scoring.",
+    )
+
+    trend_event_weight: float = Field(
+        default=0.05,
+        ge=0.0,
+        le=1.0,
+        description="Weight for story event activity in trend scoring.",
+    )
+
+    trend_activity_boost_weight: float = Field(
+        default=0.05,
+        ge=0.0,
+        le=1.0,
+        description="Weight for M83 story activity status boost in trend scoring.",
+    )
+
+    # ======================================================================
     # Email / SMTP
     # ======================================================================
 
