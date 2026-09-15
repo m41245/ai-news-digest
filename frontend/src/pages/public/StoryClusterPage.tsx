@@ -8,14 +8,6 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { Skeleton, StoryCardSkeleton } from "../../components/ui/Skeleton";
 import { formatDateTime } from "../../utils";
 import type { Conflict } from "../../types";
-import { useQuery } from "@tanstack/react-query";
-import { Seo } from "../../components/Seo";
-import { publicApi } from "../../api";
-import { ErrorState } from "../../components/ui/ErrorState";
-import { Badge } from "../../components/ui/Badge";
-import { EmptyState } from "../../components/ui/EmptyState";
-import { Skeleton, StoryCardSkeleton } from "../../components/ui/Skeleton";
-import { formatDateTime } from "../../utils";
 
 export function StoryClusterPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -85,6 +77,11 @@ export function StoryClusterPage() {
         <header className="mt-4 max-w-3xl">
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone="brand">{cluster.status}</Badge>
+            {cluster.activity_status && (
+              <Badge tone={cluster.activity_status === "breaking" ? "danger" : cluster.activity_status === "developing" ? "warning" : "neutral"}>
+                {cluster.activity_status}
+              </Badge>
+            )}
             {cluster.importance_score != null && (
               <span className="text-sm text-slate-500">
                 Importance: {cluster.importance_score.toFixed(2)}

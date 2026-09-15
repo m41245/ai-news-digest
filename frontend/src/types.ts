@@ -34,6 +34,34 @@ export interface PublicStoryClusterSearch {
   status: string;
   article_count: number;
   source_count: number;
+  activity_status?: string | null;
+  activity_score?: number | null;
+  latest_activity_at?: string | null;
+}
+
+export interface PublicStoryCluster extends PublicStoryClusterSearch {
+  last_updated_at?: string | null;
+  recent_articles: Array<{
+    id: string;
+    title: string;
+    url: string;
+    summary?: string | null;
+    published_at?: string | null;
+    importance_score?: number | null;
+    confidence?: number | null;
+    source_name?: string | null;
+    source_type?: string | null;
+    source_role?: string | null;
+  }>;
+  timeline: Array<Record<string, unknown>>;
+  what_changed: string[];
+  contradictions: Array<Record<string, unknown>>;
+  conflicts: Conflict[];
+  needs_verification: boolean;
+  intelligence_confidence: string;
+  activity_status?: string | null;
+  activity_score?: number | null;
+  latest_activity_at?: string | null;
 }
 
 export interface Conflict {

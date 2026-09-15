@@ -19,29 +19,32 @@ from ai_news_digest.workers.celery_app import celery_app
 logger = get_logger(__name__)
 
 
-async def _detect_claim_conflicts_impl() -> dict[str, int | str | float]:
+async def _detect_story_activity_impl() -> dict[str, int | str | float]:
     """
-    Typed implementation function for claim conflict detection.
+    Typed implementation function for story activity detection.
     """
-    logger.info("Starting claim conflict detection")
+    logger.info("Starting story activity detection")
     settings = get_settings()
 
     async for container in get_container():
-        if not settings.conflict_detection_enabled:
-            logger.info("Conflict detection is disabled")
-            return {"status": "disabled"}
+        if not settings.breaking_detection_enabled:
+            logger.info("Story activity detection is disabled")
+            return {"status": "disabled" }
 
-        detect_use_case = container.detect_claim_conflicts
+        detect_use_case = container.detect_story_activity
         if detect_use_case is None:
-            logger.warning("Conflict detection use case is unavailable")
+            logger.warning("Story activity detection use case is unavailable")
             return {"status": "unavailable"}
 
         raw_result = await detect_use_case.execute()
         result = cast("dict[str, int | str | float]", raw_result)
         logger.info(
-            "Claim conflict detection completed",
-            candidates=result.get("candidates", 0),
-            conflicts=result.get("conflicts", 0),
+            "Story activity detection completed",
+            evaluated=result.get("evaluated", 0),
+            breaking=result.get("breaking", 0),
+            developing=result.get("developing", 0),
+            ongoing=result.get("ongoing", 0),
+            stale=result.get("stale", 0),
         )
         return result
 
@@ -49,19 +52,19 @@ async def _detect_claim_conflicts_impl() -> dict[str, int | str | float]:
 
 
 @celery_app.task(
-    name="workers.tasks.conflict.detect_claim_conflicts",
+    name="workers.tasks.story_activity.detect_story_activity",
     max_retries=2,
     default_retry_delay=120,
 )
-def detect_claim_conflicts() -> dict[str, int | str | float]:
+def detect_story_activity() -> dict[str, int | str | float]:
     """
-    Detect potential conflicts between claims from different sources.
+    Detect breaking and developing story activity.
 
     This task is idempotent and can be safely retried.
     """
     return record_task_outcome(
-        "workers.tasks.conflict.detect_claim_conflicts",
-        _detect_claim_conflicts_impl(),
+        "workers.tasks.story_activity.detect_story_activity",
+        _detect_story_activity_impl(),
     )
 
 
@@ -103,4 +106,4 @@ def record_task_outcome(
             _run(record_celery_task_duration(task_name, elapsed))
 
 
-__all__ = ["detect_claim_conflicts"]
+__all__ = ["detect_story_activity"]

@@ -116,6 +116,9 @@ class PublicStoryClusterResponse(BaseModel):
     conflicts: list[PublicConflictResponse] = []
     needs_verification: bool = False
     intelligence_confidence: str = "low"
+    activity_status: str | None = None
+    activity_score: float | None = None
+    latest_activity_at: str | None = None
 
 
 class PublicTopStoryResponse(BaseModel):
@@ -133,6 +136,8 @@ class PublicTopStoryResponse(BaseModel):
     summary: str | None = None
     importance_score: float | None = None
     confidence: float | None = None
+    activity_status: str | None = None
+    activity_score: float | None = None
 
 
 class PublicCompanyResponse(BaseModel):
@@ -166,6 +171,9 @@ class PublicStoryClusterSearchResponse(BaseModel):
     status: str
     article_count: int = 0
     source_count: int = 0
+    activity_status: str | None = None
+    activity_score: float | None = None
+    latest_activity_at: str | None = None
 
 
 class SearchResponse(BaseModel):

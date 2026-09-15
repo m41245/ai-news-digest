@@ -60,36 +60,33 @@ def upgrade() -> None:
         ),
     )
     op.create_index(
-        "ix_conflicts_claim_a_id",
-        "conflicts",
-        ["claim_a_id"],
-        unique=False,
-    )
-    op.create_index(
-        "ix_conflicts_claim_b_id",
-        "conflicts",
-        ["claim_b_id"],
-        unique=False,
-    )
-    op.create_index(
         "ix_conflicts_created_at",
         "conflicts",
         ["created_at"],
         unique=False,
+        if_not_exists=True,
     )
     op.create_index(
         "ix_conflicts_unique_pair",
         "conflicts",
         ["claim_a_id", "claim_b_id", "detection_version"],
         unique=True,
+        if_not_exists=True,
     )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_conflicts_unique_pair", table_name="conflicts")
-    op.drop_index("ix_conflicts_created_at", table_name="conflicts")
+    op.drop_index("ix_conflicts_story_cluster_id", table_name="conflicts")
+    op.drop_index("ix_conflicts_detection_version", table_name="conflicts")
+    op.drop_index("ix_conflicts_status", table_name="conflicts")
+    op.drop_index("ix_conflicts_source_b_id", table_name="conflicts")
+    op.drop_index("ix_conflicts_source_a_id", table_name="conflicts")
+    op.drop_index("ix_conflicts_article_b_id", table_name="conflicts")
+    op.drop_index("ix_conflicts_article_a_id", table_name="conflicts")
     op.drop_index("ix_conflicts_claim_b_id", table_name="conflicts")
     op.drop_index("ix_conflicts_claim_a_id", table_name="conflicts")
+    op.drop_index("ix_conflicts_unique_pair", table_name="conflicts")
+    op.drop_index("ix_conflicts_created_at", table_name="conflicts")
     op.drop_table("conflicts")
 
 

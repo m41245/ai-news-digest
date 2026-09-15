@@ -46,6 +46,9 @@ from ai_news_digest.application.use_cases.article.extract_article import (
 from ai_news_digest.application.use_cases.claim.detect_conflicts import (
     DetectClaimConflictsUseCase,
 )
+from ai_news_digest.application.use_cases.story_activity.detect_story_activity import (
+    DetectStoryActivityUseCase,
+)
 from ai_news_digest.application.use_cases.article.get import (
     GetArticleUseCase,
 )
@@ -165,6 +168,9 @@ from ai_news_digest.domain.ports.notification_repository import (
     NotificationRepository,
 )
 from ai_news_digest.domain.ports.source_repository import SourceRepository
+from ai_news_digest.domain.ports.story_activity_repository import (
+    StoryActivityRepository,
+)
 from ai_news_digest.domain.ports.story_cluster_repository import StoryClusterRepository
 from ai_news_digest.domain.ports.topic_repository import TopicRepository
 from ai_news_digest.domain.ports.user_preference_repository import UserPreferenceRepository
@@ -446,10 +452,30 @@ class Container:
         return SqlAlchemyConflictRepository(self._session)
 
     @property
+    def story_activity_repository(self) -> StoryActivityRepository:
+        from ai_news_digest.infrastructure.database.repositories.story_activity_repository import (
+            StoryActivityRepository as SqlAlchemyStoryActivityRepository,
+        )
+
+        return SqlAlchemyStoryActivityRepository(self._session)
+
+    @property
     def detect_claim_conflicts(self) -> DetectClaimConflictsUseCase | None:
         return DetectClaimConflictsUseCase(
             claim_repository=self.claim_repository,
             conflict_repository=self.conflict_repository,
+            provider_manager=self.provider_manager,
+        )
+
+    @property
+    def detect_story_activity(self) -> DetectStoryActivityUseCase | None:
+        return DetectStoryActivityUseCase(
+            article_repository=self.article_repository,
+            source_repository=self.source_repository,
+            claim_repository=self.claim_repository,
+            conflict_repository=self.conflict_repository,
+            story_activity_repository=self.story_activity_repository,
+            story_cluster_repository=self.story_cluster_repository,
             provider_manager=self.provider_manager,
         )
 

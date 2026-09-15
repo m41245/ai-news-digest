@@ -5,7 +5,6 @@ import type {
   Article,
   Category,
   Company,
-  Conflict,
   Digest,
   DigestCreateRequest,
   IngestionResponse,
@@ -17,6 +16,7 @@ import type {
   NotificationResponse,
   PaginatedResponse,
   PublicDigest,
+  PublicStoryCluster,
   PublicStoryClusterSearch,
   RegisterRequest,
   Source,
@@ -86,38 +86,11 @@ export const publicApi = {
     summary: string | null;
     importance_score: number | null;
     confidence: number | null;
+    activity_status?: string | null;
+    activity_score?: number | null;
   }> => api.get("/api/v1/public/story-ranking/top-story").then((r) => r.data),
-  storyCluster: (slug: string): Promise<{
-    id: string;
-    title: string;
-    slug: string;
-    summary?: string | null;
-    first_published_at?: string | null;
-    last_updated_at?: string | null;
-    importance_score?: number | null;
-    confidence?: number | null;
-    status: string;
-    article_count: number;
-    source_count: number;
-    recent_articles: Array<{
-      id: string;
-      title: string;
-      url: string;
-      summary: string;
-      published_at: string;
-      importance_score?: number | null;
-      confidence?: number | null;
-      source_name?: string | null;
-      source_type?: string | null;
-      source_role?: string | null;
-    }>;
-    timeline: Array<Record<string, unknown>>;
-    what_changed: string[];
-    contradictions: Array<Record<string, unknown>>;
-    conflicts: Conflict[];
-    needs_verification: boolean;
-    intelligence_confidence: string;
-  }> => api.get(`/api/v1/public/story-clusters/${encodeURIComponent(slug)}`).then((r) => r.data),
+  storyCluster: (slug: string): Promise<PublicStoryCluster> =>
+    api.get(`/api/v1/public/story-clusters/${encodeURIComponent(slug)}`).then((r) => r.data),
   storyClusters: (params: {
     limit?: number;
     offset?: number;

@@ -9,6 +9,7 @@ interface StoryCardProps {
     summary?: string | null;
     key_takeaways: string[];
     why_it_matters?: string | null;
+    activity_status?: string | null;
   };
   index: number;
   digestId?: string;
@@ -23,6 +24,11 @@ export function StoryCard({ story, index, digestId }: StoryCardProps) {
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
           {isTopStory && <Badge tone="brand">Top Story</Badge>}
+          {story.activity_status && (
+            <Badge tone={story.activity_status === "breaking" ? "danger" : story.activity_status === "developing" ? "warning" : "neutral"}>
+              {story.activity_status}
+            </Badge>
+          )}
           {story.cluster_id && (
             <Link
               to={`/stories/${story.cluster_id}`}

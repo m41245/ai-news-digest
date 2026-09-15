@@ -115,6 +115,7 @@ celery_app = Celery(
         "ai_news_digest.workers.tasks.notifications",
         "ai_news_digest.workers.tasks.ranking",
         "ai_news_digest.workers.tasks.conflict",
+        "ai_news_digest.workers.tasks.story_activity",
     ],
     task_cls=AwaitableTask,
 )
@@ -270,6 +271,14 @@ celery_app.conf.update(
         "daily-conflict-detection": {
             "task": "workers.tasks.conflict.detect_claim_conflicts",
             "schedule": crontab(hour=9, minute=0),
+            "options": {
+                "expires": 3600,
+                "send_events": True,
+            },
+        },
+        "daily-story-activity-detection": {
+            "task": "workers.tasks.story_activity.detect_story_activity",
+            "schedule": crontab(hour=8, minute=10),
             "options": {
                 "expires": 3600,
                 "send_events": True,

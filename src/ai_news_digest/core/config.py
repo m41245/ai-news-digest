@@ -988,6 +988,115 @@ class Settings(BaseSettings):
     )
 
     # ======================================================================
+    # Breaking & Developing Story Detection (M83)
+    # ======================================================================
+
+    breaking_detection_enabled: bool = Field(
+        default=True,
+        description="Enable breaking and developing story activity detection.",
+    )
+
+    breaking_window_hours: int = Field(
+        default=6,
+        ge=1,
+        le=72,
+        description=(
+            "Lookback window in hours for breaking story detection. "
+            "Articles published within this window are considered for breaking status."
+        ),
+    )
+
+    developing_window_hours: int = Field(
+        default=24,
+        ge=1,
+        le=168,
+        description=(
+            "Lookback window in hours for developing story detection. "
+            "Articles published within this window are considered for developing status."
+        ),
+    )
+
+    stale_window_hours: int = Field(
+        default=72,
+        ge=1,
+        le=720,
+        description=(
+            "Lookback window in hours for stale story detection. "
+            "Stories with no articles within this window are marked stale."
+        ),
+    )
+
+    max_story_candidates: int = Field(
+        default=200,
+        ge=1,
+        le=1000,
+        description="Maximum number of story clusters to evaluate per run.",
+    )
+
+    max_articles_per_story: int = Field(
+        default=50,
+        ge=1,
+        le=200,
+        description="Maximum number of recent articles to load per story cluster.",
+    )
+
+    max_claims_per_story: int = Field(
+        default=50,
+        ge=1,
+        le=200,
+        description="Maximum number of recent claims to consider per story cluster.",
+    )
+
+    max_llm_evaluations: int = Field(
+        default=10,
+        ge=0,
+        le=100,
+        description="Maximum LLM ambiguity checks per breaking detection run.",
+    )
+
+    breaking_threshold: float = Field(
+        default=0.75,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Minimum activity score for BREAKING classification. "
+            "Conservative default to reduce false positives."
+        ),
+    )
+
+    developing_threshold: float = Field(
+        default=0.45,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Minimum activity score for DEVELOPING classification. "
+            "Must be lower than breaking_threshold."
+        ),
+    )
+
+    minimum_independent_sources: int = Field(
+        default=3,
+        ge=1,
+        le=20,
+        description=(
+            "Minimum number of independent trusted sources required "
+            "for authoritative breaking/developing classification."
+        ),
+    )
+
+    @field_validator("developing_threshold")
+    @classmethod
+    def validate_developing_threshold(
+        cls, value: float, info: ValidationInfo
+    ) -> float:
+        breaking = info.data.get("breaking_threshold")
+        if breaking is not None and value >= breaking:
+            raise ValueError(
+                "developing_threshold must be lower than breaking_threshold."
+            )
+        return value
+
+    # ======================================================================
     # Email / SMTP
     # ======================================================================
 

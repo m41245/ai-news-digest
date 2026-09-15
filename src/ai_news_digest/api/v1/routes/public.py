@@ -201,7 +201,15 @@ async def list_public_articles(
                 claim_map[str(aid)] = []
 
     return PaginatedResponse(
-        items=[_to_public_article(a, source_map, category_map, claims=claim_map.get(str(a.id))) for a in articles],
+        items=[
+            _to_public_article(
+                a,
+                source_map,
+                category_map,
+                claims=claim_map.get(str(a.id)),
+            )
+            for a in articles
+        ],
         total=total,
         limit=limit,
         offset=offset,
@@ -429,6 +437,19 @@ async def get_public_top_story(
             UUID(top_story.top_story_cluster_id)
         )
 
+    activity_status = None
+    activity_score = None
+    if top_cluster is not None:
+        try:
+            activity = await container.story_activity_repository.get_by_story_cluster_id(
+                top_cluster.id
+            )
+            if activity is not None:
+                activity_status = activity.status.value
+                activity_score = activity.activity_score
+        except Exception:  # noqa: S110
+            pass
+
     return PublicTopStoryResponse(
         top_story_cluster_id=top_story.top_story_cluster_id,
         top_story_score=top_story.top_story_score,
@@ -442,6 +463,8 @@ async def get_public_top_story(
         summary=top_cluster.summary if top_cluster else None,
         importance_score=top_cluster.importance_score if top_cluster else None,
         confidence=top_cluster.confidence if top_cluster else None,
+        activity_status=activity_status,
+        activity_score=activity_score,
     )
 
 
@@ -592,6 +615,18 @@ async def get_public_story_cluster(
     except Exception:
         intelligence_confidence = "low"
 
+    activity_status = None
+    activity_score = None
+    latest_activity_at = None
+    try:
+        activity = await container.story_activity_repository.get_by_story_cluster_id(cluster.id)
+        if activity is not None:
+            activity_status = activity.status.value
+            activity_score = activity.activity_score
+            latest_activity_at = activity.evaluated_at.isoformat()
+    except Exception:
+        activity_status = None
+
     return PublicStoryClusterResponse(
         id=str(cluster.id),
         title=cluster.title,
@@ -611,6 +646,9 @@ async def get_public_story_cluster(
         conflicts=public_conflicts,
         needs_verification=needs_verification,
         intelligence_confidence=intelligence_confidence,
+        activity_status=activity_status,
+        activity_score=activity_score,
+        latest_activity_at=latest_activity_at,
     )
 
 
@@ -712,6 +750,8 @@ async def list_public_story_clusters(
         min_importance=min_importance,
     )
 
+    activity_map = await _enrich_cluster_activity(container, [c.id for c in clusters])
+
     return PaginatedResponse(
         items=[
             PublicStoryClusterSearchResponse(
@@ -725,6 +765,7 @@ async def list_public_story_clusters(
                 status=cluster.status.value,
                 article_count=getattr(cluster, "article_count", 0),
                 source_count=getattr(cluster, "source_count", 0),
+                **activity_map.get(str(cluster.id), {}),
             )
             for cluster in clusters
         ],
@@ -732,6 +773,26 @@ async def list_public_story_clusters(
         limit=limit,
         offset=offset,
     )
+
+
+async def _enrich_cluster_activity(
+    container: Container,
+    cluster_ids: list[Any],
+) -> dict[str, dict[str, Any]]:
+    """Return activity metadata keyed by cluster ID for public responses."""
+    activity_map: dict[str, dict[str, Any]] = {}
+    for cid in cluster_ids:
+        try:
+            activity = await container.story_activity_repository.get_by_story_cluster_id(cid)
+            if activity is not None:
+                activity_map[str(cid)] = {
+                    "activity_status": activity.status.value,
+                    "activity_score": activity.activity_score,
+                    "latest_activity_at": activity.evaluated_at.isoformat(),
+                }
+        except Exception:  # noqa: S110
+            pass
+    return activity_map
 
 
 @router.get(
