@@ -13,17 +13,15 @@ import type {
   NotificationDeliveryHistoryResponse,
   NotificationDeliveryResponse,
   NotificationDeliveryStatus,
-  NotificationPreferenceResponse,
-  NotificationPreferenceUpdateRequest,
   NotificationResponse,
-  NotificationStatsResponse,
   PaginatedResponse,
+  PersonalizedFeedResponse,
+  PersonalizedTrendResponse,
   PublicDigest,
   PublicStoryCluster,
   PublicStoryClusterSearch,
   PublicTrendSearch,
   RegisterRequest,
-  SchedulePreviewResponse,
   Source,
   SourceCreateRequest,
   SourceUpdateRequest,
@@ -32,6 +30,8 @@ import type {
   Topic,
   Trend,
   User,
+  UserPreferenceResponse,
+  UserPreferenceUpdateRequest,
   UserUpdateRequest,
 } from "../types";
 
@@ -235,5 +235,62 @@ export const adminApi = {
 export function bootstrapAuthFromStorage(): string | null {
   return getStoredToken();
 }
+
+export const userPreferenceApi = {
+  get: (): Promise<UserPreferenceResponse> =>
+    api.get("/api/v1/me/preferences").then((r) => r.data),
+  update: (data: UserPreferenceUpdateRequest): Promise<UserPreferenceResponse> =>
+    api.put("/api/v1/me/preferences", data).then((r) => r.data),
+  reset: (): Promise<void> =>
+    api.post("/api/v1/me/preferences/reset").then((r) => r.data),
+  followCompany: (slug: string): Promise<void> =>
+    api.post(`/api/v1/me/preferences/companies/${encodeURIComponent(slug)}`).then((r) => r.data),
+  unfollowCompany: (slug: string): Promise<void> =>
+    api.delete(`/api/v1/me/preferences/companies/${encodeURIComponent(slug)}`).then((r) => r.data),
+  followTopic: (slug: string): Promise<void> =>
+    api.post(`/api/v1/me/preferences/topics/${encodeURIComponent(slug)}`).then((r) => r.data),
+  unfollowTopic: (slug: string): Promise<void> =>
+    api.delete(`/api/v1/me/preferences/topics/${encodeURIComponent(slug)}`).then((r) => r.data),
+  followCategory: (id: string): Promise<void> =>
+    api.post(`/api/v1/me/preferences/categories/${encodeURIComponent(id)}`).then((r) => r.data),
+  unfollowCategory: (id: string): Promise<void> =>
+    api.delete(`/api/v1/me/preferences/categories/${encodeURIComponent(id)}`).then((r) => r.data),
+  followSource: (id: string): Promise<void> =>
+    api.post(`/api/v1/me/preferences/sources/${encodeURIComponent(id)}`).then((r) => r.data),
+  unfollowSource: (id: string): Promise<void> =>
+    api.delete(`/api/v1/me/preferences/sources/${encodeURIComponent(id)}`).then((r) => r.data),
+  muteCompany: (slug: string): Promise<void> =>
+    api.post(`/api/v1/me/preferences/muted/companies/${encodeURIComponent(slug)}`).then((r) => r.data),
+  unmuteCompany: (slug: string): Promise<void> =>
+    api.delete(`/api/v1/me/preferences/muted/companies/${encodeURIComponent(slug)}`).then((r) => r.data),
+  muteTopic: (slug: string): Promise<void> =>
+    api.post(`/api/v1/me/preferences/muted/topics/${encodeURIComponent(slug)}`).then((r) => r.data),
+  unmuteTopic: (slug: string): Promise<void> =>
+    api.delete(`/api/v1/me/preferences/muted/topics/${encodeURIComponent(slug)}`).then((r) => r.data),
+  muteCategory: (id: string): Promise<void> =>
+    api.post(`/api/v1/me/preferences/muted/categories/${encodeURIComponent(id)}`).then((r) => r.data),
+  unmuteCategory: (id: string): Promise<void> =>
+    api.delete(`/api/v1/me/preferences/muted/categories/${encodeURIComponent(id)}`).then((r) => r.data),
+  muteSource: (id: string): Promise<void> =>
+    api.post(`/api/v1/me/preferences/muted/sources/${encodeURIComponent(id)}`).then((r) => r.data),
+  unmuteSource: (id: string): Promise<void> =>
+    api.delete(`/api/v1/me/preferences/muted/sources/${encodeURIComponent(id)}`).then((r) => r.data),
+};
+
+export const personalizedApi = {
+  feed: (params: {
+    page?: number;
+    page_size?: number;
+    sort?: string;
+    min_importance?: number;
+    min_confidence?: number;
+  } = {}): Promise<PersonalizedFeedResponse> =>
+    api.get("/api/v1/me/feed", { params }).then((r) => r.data),
+  trends: (params: {
+    page?: number;
+    page_size?: number;
+  } = {}): Promise<PersonalizedTrendResponse[]> =>
+    api.get("/api/v1/me/trends", { params }).then((r) => r.data),
+};
 
 export { setStoredToken };

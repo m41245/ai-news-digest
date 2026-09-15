@@ -130,6 +130,38 @@ class UserPreferenceRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def add_followed_source(
+        self,
+        user_id: UUID,
+        source_id: UUID,
+    ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def remove_followed_source(
+        self,
+        user_id: UUID,
+        source_id: UUID,
+    ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def add_muted_source(
+        self,
+        user_id: UUID,
+        source_id: UUID,
+    ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def remove_muted_source(
+        self,
+        user_id: UUID,
+        source_id: UUID,
+    ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     async def delete_by_user_id(
         self,
         user_id: UUID,

@@ -40,8 +40,11 @@ export function TrendsPage() {
     loadTrends();
   }, [offset, trendType, status]);
 
-  const handlePageChange = (newOffset: number) => {
-    setOffset(newOffset);
+  const currentPage = Math.floor(offset / DEFAULT_LIMIT) + 1;
+  const totalPages = Math.max(1, Math.ceil(total / DEFAULT_LIMIT));
+
+  const handlePageChange = (page: number) => {
+    setOffset((page - 1) * DEFAULT_LIMIT);
   };
 
   return (
@@ -109,10 +112,9 @@ export function TrendsPage() {
           </div>
           <div className="mt-8">
             <Pagination
-              limit={DEFAULT_LIMIT}
-              offset={offset}
-              total={total}
-              onPageChange={handlePageChange}
+              page={currentPage}
+              totalPages={totalPages}
+              onChange={handlePageChange}
             />
           </div>
         </>

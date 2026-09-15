@@ -34,6 +34,9 @@ class Trend:
     event_count: int
     explanation: str
     trend_metadata: dict[str, str] = field(default_factory=dict)
+    related_company_ids: frozenset[UUID] = frozenset()
+    related_topic_ids: frozenset[UUID] = frozenset()
+    related_category_ids: frozenset[UUID] = frozenset()
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
@@ -56,6 +59,9 @@ class Trend:
         event_count: int,
         explanation: str,
         trend_metadata: dict[str, str] | None = None,
+        related_company_ids: frozenset[UUID] | None = None,
+        related_topic_ids: frozenset[UUID] | None = None,
+        related_category_ids: frozenset[UUID] | None = None,
     ) -> Trend:
         now = datetime.now(UTC)
         return cls(
@@ -75,6 +81,9 @@ class Trend:
             event_count=max(0, event_count),
             explanation=explanation,
             trend_metadata=trend_metadata or {},
+            related_company_ids=related_company_ids or frozenset(),
+            related_topic_ids=related_topic_ids or frozenset(),
+            related_category_ids=related_category_ids or frozenset(),
             created_at=now,
             updated_at=now,
         )

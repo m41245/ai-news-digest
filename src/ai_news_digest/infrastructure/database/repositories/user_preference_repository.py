@@ -21,6 +21,9 @@ from ai_news_digest.infrastructure.database.models.user_followed_category_model 
 from ai_news_digest.infrastructure.database.models.user_followed_company_model import (
     UserFollowedCompanyModel,
 )
+from ai_news_digest.infrastructure.database.models.user_followed_source_model import (
+    UserFollowedSourceModel,
+)
 from ai_news_digest.infrastructure.database.models.user_followed_topic_model import (
     UserFollowedTopicModel,
 )
@@ -30,6 +33,9 @@ from ai_news_digest.infrastructure.database.models.user_muted_category_model imp
 )
 from ai_news_digest.infrastructure.database.models.user_muted_company_model import (
     UserMutedCompanyModel,
+)
+from ai_news_digest.infrastructure.database.models.user_muted_source_model import (
+    UserMutedSourceModel,
 )
 from ai_news_digest.infrastructure.database.models.user_muted_topic_model import (
     UserMutedTopicModel,
@@ -62,9 +68,11 @@ class UserPreferenceRepository(
                 selectinload(UserModel.followed_companies),
                 selectinload(UserModel.followed_topics),
                 selectinload(UserModel.followed_categories),
+                selectinload(UserModel.followed_sources),
                 selectinload(UserModel.muted_companies),
                 selectinload(UserModel.muted_topics),
                 selectinload(UserModel.muted_categories),
+                selectinload(UserModel.muted_sources),
             )
             .where(UserModel.id == str(user_id))
         )
@@ -91,6 +99,8 @@ class UserPreferenceRepository(
             muted_companies=user.muted_companies,
             muted_topics=user.muted_topics,
             muted_categories=user.muted_categories,
+            followed_sources=user.followed_sources,
+            muted_sources=user.muted_sources,
         )
 
     async def create(
@@ -309,6 +319,62 @@ class UserPreferenceRepository(
         model.updated_at = datetime.now(UTC)
         await self._commit()
 
+    async def add_followed_source(
+        self,
+        user_id: UUID,
+        source_id: UUID,
+    ) -> None:
+        model = await self._ensure_profile(user_id)
+        link = UserFollowedSourceModel(
+            user_id=str(user_id),
+            source_id=str(source_id),
+        )
+        self._session.add(link)
+        model.updated_at = datetime.now(UTC)
+        await self._commit()
+
+    async def remove_followed_source(
+        self,
+        user_id: UUID,
+        source_id: UUID,
+    ) -> None:
+        statement = delete(UserFollowedSourceModel).where(
+            UserFollowedSourceModel.user_id == str(user_id),
+            UserFollowedSourceModel.source_id == str(source_id),
+        )
+        await self._session.execute(statement)
+        model = await self._ensure_profile(user_id)
+        model.updated_at = datetime.now(UTC)
+        await self._commit()
+
+    async def add_muted_source(
+        self,
+        user_id: UUID,
+        source_id: UUID,
+    ) -> None:
+        model = await self._ensure_profile(user_id)
+        link = UserMutedSourceModel(
+            user_id=str(user_id),
+            source_id=str(source_id),
+        )
+        self._session.add(link)
+        model.updated_at = datetime.now(UTC)
+        await self._commit()
+
+    async def remove_muted_source(
+        self,
+        user_id: UUID,
+        source_id: UUID,
+    ) -> None:
+        statement = delete(UserMutedSourceModel).where(
+            UserMutedSourceModel.user_id == str(user_id),
+            UserMutedSourceModel.source_id == str(source_id),
+        )
+        await self._session.execute(statement)
+        model = await self._ensure_profile(user_id)
+        model.updated_at = datetime.now(UTC)
+        await self._commit()
+
     async def delete_by_user_id(
         self,
         user_id: UUID,
@@ -341,6 +407,16 @@ class UserPreferenceRepository(
         await self._session.execute(
             delete(UserMutedCategoryModel).where(
                 UserMutedCategoryModel.user_id == str(user_id),
+            )
+        )
+        await self._session.execute(
+            delete(UserFollowedSourceModel).where(
+                UserFollowedSourceModel.user_id == str(user_id),
+            )
+        )
+        await self._session.execute(
+            delete(UserMutedSourceModel).where(
+                UserMutedSourceModel.user_id == str(user_id),
             )
         )
         await self._session.execute(

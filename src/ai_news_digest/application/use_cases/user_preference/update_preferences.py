@@ -80,7 +80,7 @@ class UpdatePreferencesUseCase:
 
         if request.preferred_source_types is not None:
             normalized = SourceTypePreferenceBehavior.normalize(request.preferred_source_types)
-            profile.preferred_source_types = normalized
+            profile.preferred_source_types = tuple(normalized)
 
         profile.touch()
 

@@ -9,6 +9,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_news_digest.domain.enums.source_type import SourceType
 from ai_news_digest.infrastructure.database.base import Base
+from ai_news_digest.infrastructure.database.models.user_followed_source_model import (
+    UserFollowedSourceModel,
+)
+from ai_news_digest.infrastructure.database.models.user_muted_source_model import (
+    UserMutedSourceModel,
+)
 
 if TYPE_CHECKING:
     from ai_news_digest.infrastructure.database.models.article_model import (
@@ -105,6 +111,16 @@ class SourceModel(Base):
         "ArticleModel",
         back_populates="source",
         cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    followed_by_users: Mapped[list[UserFollowedSourceModel]] = relationship(
+        back_populates="source",
+        lazy="selectin",
+    )
+
+    muted_by_users: Mapped[list[UserMutedSourceModel]] = relationship(
+        back_populates="source",
         lazy="selectin",
     )
 

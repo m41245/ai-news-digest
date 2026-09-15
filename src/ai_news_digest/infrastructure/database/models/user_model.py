@@ -1,36 +1,39 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from sqlalchemy import Boolean, DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_news_digest.infrastructure.database.base import Base
-
-if TYPE_CHECKING:
-    from ai_news_digest.infrastructure.database.models.user_followed_category_model import (
-        UserFollowedCategoryModel,
-    )
-    from ai_news_digest.infrastructure.database.models.user_followed_company_model import (
-        UserFollowedCompanyModel,
-    )
-    from ai_news_digest.infrastructure.database.models.user_followed_topic_model import (
-        UserFollowedTopicModel,
-    )
-    from ai_news_digest.infrastructure.database.models.user_muted_category_model import (
-        UserMutedCategoryModel,
-    )
-    from ai_news_digest.infrastructure.database.models.user_muted_company_model import (
-        UserMutedCompanyModel,
-    )
-    from ai_news_digest.infrastructure.database.models.user_muted_topic_model import (
-        UserMutedTopicModel,
-    )
-    from ai_news_digest.infrastructure.database.models.user_preference_model import (
-        UserPreferenceProfileModel,
-    )
+from ai_news_digest.infrastructure.database.models.user_followed_category_model import (
+    UserFollowedCategoryModel,
+)
+from ai_news_digest.infrastructure.database.models.user_followed_company_model import (
+    UserFollowedCompanyModel,
+)
+from ai_news_digest.infrastructure.database.models.user_followed_source_model import (
+    UserFollowedSourceModel,
+)
+from ai_news_digest.infrastructure.database.models.user_followed_topic_model import (
+    UserFollowedTopicModel,
+)
+from ai_news_digest.infrastructure.database.models.user_muted_category_model import (
+    UserMutedCategoryModel,
+)
+from ai_news_digest.infrastructure.database.models.user_muted_company_model import (
+    UserMutedCompanyModel,
+)
+from ai_news_digest.infrastructure.database.models.user_muted_source_model import (
+    UserMutedSourceModel,
+)
+from ai_news_digest.infrastructure.database.models.user_muted_topic_model import (
+    UserMutedTopicModel,
+)
+from ai_news_digest.infrastructure.database.models.user_preference_model import (
+    UserPreferenceProfileModel,
+)
 
 
 class UserModel(Base):
@@ -112,6 +115,18 @@ class UserModel(Base):
     )
 
     muted_categories: Mapped[list[UserMutedCategoryModel]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    followed_sources: Mapped[list[UserFollowedSourceModel]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    muted_sources: Mapped[list[UserMutedSourceModel]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
         lazy="selectin",

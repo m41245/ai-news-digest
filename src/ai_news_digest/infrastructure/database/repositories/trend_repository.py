@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select, update
@@ -8,7 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_news_digest.domain.models.trend import Trend
 from ai_news_digest.domain.ports.trend_repository import TrendRepository
-from ai_news_digest.infrastructure.database.mappers.trend_mapper import TrendMapper, _serialize_metadata
+from ai_news_digest.infrastructure.database.mappers.trend_mapper import (
+    TrendMapper,
+    _serialize_ids,
+    _serialize_metadata,
+)
 from ai_news_digest.infrastructure.database.models.trend_model import TrendModel
 from ai_news_digest.infrastructure.database.repositories.base_repository import (
     BaseRepository,
@@ -111,6 +116,9 @@ class SqlAlchemyTrendRepository(BaseRepository[TrendModel], TrendRepository):
                 event_count=trend.event_count,
                 explanation=trend.explanation,
                 trend_metadata=_serialize_metadata(trend.trend_metadata),
+                related_company_ids=_serialize_ids(trend.related_company_ids),
+                related_topic_ids=_serialize_ids(trend.related_topic_ids),
+                related_category_ids=_serialize_ids(trend.related_category_ids),
                 updated_at=datetime.now(UTC),
             )
         )
@@ -133,6 +141,31 @@ class SqlAlchemyTrendRepository(BaseRepository[TrendModel], TrendRepository):
         )
         result = await self._session.execute(statement)
         return [TrendMapper.to_domain(model) for model in result.scalars().all()]
+
+    async def list_personalized(
+        self,
+        *,
+        user_preference_profile: Any,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[Trend]:
+        statement = select(TrendModel).order_by(TrendModel.trend_score.desc()).limit(limit * 4)
+        result = await self._session.execute(statement)
+        trends = [TrendMapper.to_domain(model) for model in result.scalars().all()]
+
+        muted_company_ids = user_preference_profile.muted_company_ids
+        muted_topic_ids = user_preference_profile.muted_topic_ids
+        muted_category_ids = user_preference_profile.muted_category_ids
+
+        def is_not_muted(trend: Trend) -> bool:
+            return not (
+                (muted_company_ids and trend.related_company_ids & muted_company_ids)
+                or (muted_topic_ids and trend.related_topic_ids & muted_topic_ids)
+                or (muted_category_ids and trend.related_category_ids & muted_category_ids)
+            )
+
+        filtered = [t for t in trends if is_not_muted(t)]
+        return filtered[offset : offset + limit]
 
 
 __all__ = ["SqlAlchemyTrendRepository"]

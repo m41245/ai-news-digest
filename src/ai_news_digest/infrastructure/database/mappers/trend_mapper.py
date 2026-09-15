@@ -31,6 +31,9 @@ class TrendMapper:
             event_count=trend.event_count,
             explanation=trend.explanation,
             trend_metadata=_serialize_metadata(trend.trend_metadata),
+            related_company_ids=_serialize_ids(trend.related_company_ids),
+            related_topic_ids=_serialize_ids(trend.related_topic_ids),
+            related_category_ids=_serialize_ids(trend.related_category_ids),
             created_at=trend.created_at,
             updated_at=trend.updated_at,
         )
@@ -54,6 +57,9 @@ class TrendMapper:
             event_count=int(model.event_count),
             explanation=model.explanation,
             trend_metadata=_deserialize_metadata(model.trend_metadata),
+            related_company_ids=_deserialize_ids(model.related_company_ids),
+            related_topic_ids=_deserialize_ids(model.related_topic_ids),
+            related_category_ids=_deserialize_ids(model.related_category_ids),
             created_at=model.created_at,
             updated_at=model.updated_at,
         )
@@ -74,7 +80,30 @@ class TrendMapper:
         model.event_count = trend.event_count
         model.explanation = trend.explanation
         model.trend_metadata = _serialize_metadata(trend.trend_metadata)
+        model.related_company_ids = _serialize_ids(trend.related_company_ids)
+        model.related_topic_ids = _serialize_ids(trend.related_topic_ids)
+        model.related_category_ids = _serialize_ids(trend.related_category_ids)
         model.updated_at = datetime.now(UTC)
+
+
+def _serialize_ids(ids: frozenset[UUID]) -> str | None:
+    if not ids:
+        return None
+    return ",".join(str(i) for i in sorted(ids))
+
+
+def _deserialize_ids(raw: str | None) -> frozenset[UUID]:
+    if not raw:
+        return frozenset()
+    ids: list[UUID] = []
+    for part in raw.split(","):
+        part = part.strip()
+        if part:
+            try:
+                ids.append(UUID(part))
+            except ValueError:
+                continue
+    return frozenset(ids)
 
 
 def _serialize_metadata(metadata: dict[str, str]) -> str | None:
@@ -103,3 +132,4 @@ def _deserialize_metadata(raw: str | None) -> dict[str, str]:
 
 
 __all__ = ["TrendMapper"]
+

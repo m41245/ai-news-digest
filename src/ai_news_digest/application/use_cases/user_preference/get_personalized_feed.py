@@ -50,7 +50,7 @@ class GetPersonalizedFeedUseCase:
         current_user: User,
         page: int = 1,
         page_size: int = FeedDefaults.DEFAULT_PAGE_SIZE,
-        sort: FeedSort = FeedDefaults.DEFAULT_SORT,
+        sort: FeedSort = "published_at",
         min_importance: float | None = None,
         min_confidence: float | None = None,
     ) -> PersonalizedFeedResponse:
@@ -89,6 +89,7 @@ class GetPersonalizedFeedUseCase:
             muted_company_ids=list(profile.muted_company_ids),
             muted_topic_ids=list(profile.muted_topic_ids),
             muted_category_ids=list(profile.muted_category_ids),
+            muted_source_ids=list(profile.muted_source_ids),
             followed_company_ids=list(profile.followed_company_ids),
             followed_topic_ids=list(profile.followed_topic_ids),
             followed_category_ids=list(profile.followed_category_ids),
@@ -281,6 +282,10 @@ class GetPersonalizedFeedUseCase:
             explanation.add_personalization("Matches followed category")
             explanation.score += RankingWeights.FOLLOWED_CATEGORY
 
+        if profile.followed_source_ids and representative.source_id in profile.followed_source_ids:
+            explanation.add_personalization("Matches followed source")
+            explanation.score += RankingWeights.FOLLOWED_SOURCE
+
         if (cluster.importance_score or 0) >= RankingWeights.HIGH_IMPORTANCE_THRESHOLD:
             explanation.add_quality("High importance", RankingWeights.HIGH_IMPORTANCE)
 
@@ -338,6 +343,10 @@ class GetPersonalizedFeedUseCase:
         if article_category_ids & profile.followed_category_ids:
             explanation.add_personalization("Matches followed category")
             explanation.score += RankingWeights.FOLLOWED_CATEGORY
+
+        if profile.followed_source_ids and article.source_id in profile.followed_source_ids:
+            explanation.add_personalization("Matches followed source")
+            explanation.score += RankingWeights.FOLLOWED_SOURCE
 
         if (article.importance_score or 0) >= RankingWeights.HIGH_IMPORTANCE_THRESHOLD:
             explanation.add_quality("High importance", RankingWeights.HIGH_IMPORTANCE)

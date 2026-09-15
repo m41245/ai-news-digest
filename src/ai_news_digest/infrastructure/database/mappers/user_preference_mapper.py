@@ -10,6 +10,9 @@ from ai_news_digest.infrastructure.database.models.user_followed_category_model 
 from ai_news_digest.infrastructure.database.models.user_followed_company_model import (
     UserFollowedCompanyModel,
 )
+from ai_news_digest.infrastructure.database.models.user_followed_source_model import (
+    UserFollowedSourceModel,
+)
 from ai_news_digest.infrastructure.database.models.user_followed_topic_model import (
     UserFollowedTopicModel,
 )
@@ -18,6 +21,9 @@ from ai_news_digest.infrastructure.database.models.user_muted_category_model imp
 )
 from ai_news_digest.infrastructure.database.models.user_muted_company_model import (
     UserMutedCompanyModel,
+)
+from ai_news_digest.infrastructure.database.models.user_muted_source_model import (
+    UserMutedSourceModel,
 )
 from ai_news_digest.infrastructure.database.models.user_muted_topic_model import (
     UserMutedTopicModel,
@@ -72,6 +78,8 @@ class UserPreferenceMapper:
         muted_companies: list[UserMutedCompanyModel] | None = None,
         muted_topics: list[UserMutedTopicModel] | None = None,
         muted_categories: list[UserMutedCategoryModel] | None = None,
+        followed_sources: list[UserFollowedSourceModel] | None = None,
+        muted_sources: list[UserMutedSourceModel] | None = None,
     ) -> UserPreferenceProfile:
         preferred_source_types: tuple[str, ...] = ()
         if model.preferred_source_types_json:
@@ -95,6 +103,12 @@ class UserPreferenceMapper:
             muted_topic_ids=frozenset(UUID(link.topic_id) for link in (muted_topics or [])),
             muted_category_ids=frozenset(
                 UUID(link.category_id) for link in (muted_categories or [])
+            ),
+            followed_source_ids=frozenset(
+                UUID(link.source_id) for link in (followed_sources or [])
+            ),
+            muted_source_ids=frozenset(
+                UUID(link.source_id) for link in (muted_sources or [])
             ),
             min_importance=model.min_importance,
             min_confidence=model.min_confidence,

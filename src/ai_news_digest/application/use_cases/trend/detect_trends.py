@@ -264,6 +264,7 @@ class DetectTrendsUseCase:
                 "source_count": len(unique_sources),
                 "story_count": len(cluster_ids),
                 "cluster_ids": cluster_ids,
+                "related_company_ids": frozenset([company.id]),
             })
         return candidates[: settings.trend_max_candidates_per_type]
 
@@ -300,6 +301,7 @@ class DetectTrendsUseCase:
                 "source_count": len(unique_sources),
                 "story_count": len(cluster_ids),
                 "cluster_ids": cluster_ids,
+                "related_topic_ids": frozenset([topic.id]),
             })
         return candidates[: settings.trend_max_candidates_per_type]
 
@@ -340,6 +342,7 @@ class DetectTrendsUseCase:
                 "source_count": len(unique_sources),
                 "story_count": len(cluster_ids),
                 "cluster_ids": cluster_ids,
+                "related_category_ids": frozenset([category.id]),
             })
         return candidates[: settings.trend_max_candidates_per_type]
 
@@ -528,6 +531,9 @@ class DetectTrendsUseCase:
             event_count=event_count,
             explanation=explanation,
             trend_metadata=trend_metadata,
+            related_company_ids=candidate.get("related_company_ids"),
+            related_topic_ids=candidate.get("related_topic_ids"),
+            related_category_ids=candidate.get("related_category_ids"),
         )
 
 

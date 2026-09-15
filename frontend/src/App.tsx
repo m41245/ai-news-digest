@@ -20,6 +20,8 @@ import { NotFoundPage } from "./pages/public/NotFoundPage";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
+import { PreferencesPage } from "./pages/dashboard/PreferencesPage";
+import { PersonalizedFeedPage } from "./pages/dashboard/PersonalizedFeedPage";
 
 const AdminDashboardPage = lazy(() =>
   import("./pages/admin/AdminDashboardPage").then((m) => ({ default: m.AdminDashboardPage })),
@@ -71,6 +73,28 @@ export function App() {
           <ProtectedRoute>
             <PublicLayout>
               <DashboardPage />
+            </PublicLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/me/preferences"
+        element={
+          <ProtectedRoute>
+            <PublicLayout>
+              <PreferencesPage />
+            </PublicLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/me/feed"
+        element={
+          <ProtectedRoute>
+            <PublicLayout>
+              <PersonalizedFeedPage />
             </PublicLayout>
           </ProtectedRoute>
         }

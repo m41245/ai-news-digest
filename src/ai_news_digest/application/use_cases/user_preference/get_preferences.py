@@ -39,9 +39,11 @@ def _to_response(profile: UserPreferenceProfile) -> UserPreferenceResponse:
         followed_companies=[str(cid) for cid in sorted(profile.followed_company_ids)],
         followed_topics=[str(tid) for tid in sorted(profile.followed_topic_ids)],
         followed_categories=[str(cid) for cid in sorted(profile.followed_category_ids)],
+        followed_sources=[str(sid) for sid in sorted(profile.followed_source_ids)],
         muted_companies=[str(cid) for cid in sorted(profile.muted_company_ids)],
         muted_topics=[str(tid) for tid in sorted(profile.muted_topic_ids)],
         muted_categories=[str(cid) for cid in sorted(profile.muted_category_ids)],
+        muted_sources=[str(sid) for sid in sorted(profile.muted_source_ids)],
         created_at=profile.created_at.isoformat() if profile.created_at else None,
         updated_at=profile.updated_at.isoformat() if profile.updated_at else None,
     )

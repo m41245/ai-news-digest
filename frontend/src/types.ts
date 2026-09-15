@@ -431,3 +431,81 @@ export interface PublicTrendSearch {
   first_detected_at?: string | null;
   last_detected_at?: string | null;
 }
+
+export interface UserPreferenceResponse {
+  user_id: string;
+  min_importance: number;
+  min_confidence: number;
+  feed_sort: string;
+  freshness_window_days: number | null;
+  preferred_source_types: string[];
+  followed_companies: string[];
+  followed_topics: string[];
+  followed_categories: string[];
+  followed_sources: string[];
+  muted_companies: string[];
+  muted_topics: string[];
+  muted_categories: string[];
+  muted_sources: string[];
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface UserPreferenceUpdateRequest {
+  min_importance?: number;
+  min_confidence?: number;
+  feed_sort?: string;
+  freshness_window_days?: number;
+  preferred_source_types?: string[];
+}
+
+export interface PersonalizedFeedItemResponse {
+  id: string;
+  title: string;
+  source_name?: string | null;
+  source_type?: string | null;
+  published_at?: string | null;
+  latest_update_at?: string | null;
+  importance_score?: number | null;
+  confidence?: number | null;
+  companies: string[];
+  topics: string[];
+  categories: string[];
+  cluster_id?: string | null;
+  cluster_slug?: string | null;
+  article_count: number;
+  source_count: number;
+  relevance_reasons: string[];
+  relevance_score: number;
+  is_fallback: boolean;
+  correction_signals: boolean;
+  contradiction_signals: boolean;
+}
+
+export interface PersonalizedFeedResponse {
+  items: PersonalizedFeedItemResponse[];
+  total: number;
+  limit: number;
+  offset: number;
+  empty_reason?: string | null;
+}
+
+export interface PersonalizedTrendResponse {
+  id: string;
+  trend_type: string;
+  display_name: string;
+  status: string;
+  trend_score: number;
+  momentum_score: number;
+  recent_activity: number;
+  baseline_activity: number;
+  source_count: number;
+  story_count: number;
+  event_count: number;
+  explanation: string;
+  personalized_relevance_score: number;
+  relevance_reasons: string[];
+  first_detected_at?: string | null;
+  last_detected_at?: string | null;
+  trend_metadata?: Record<string, string> | null;
+}

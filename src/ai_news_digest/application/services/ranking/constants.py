@@ -133,6 +133,7 @@ class RankingWeights:
     FOLLOWED_COMPANY: float = 0.5
     FOLLOWED_TOPIC: float = 0.3
     FOLLOWED_CATEGORY: float = 0.2
+    FOLLOWED_SOURCE: float = 0.15
     HIGH_IMPORTANCE_THRESHOLD: float = 0.8
     HIGH_IMPORTANCE: float = 0.4
     MULTIPLE_SOURCES_MIN: int = 3

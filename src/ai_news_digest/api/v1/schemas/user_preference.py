@@ -4,7 +4,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field
 
-from ai_news_digest.application.services.ranking.constants import (  # type: ignore[import-untyped]
+from ai_news_digest.application.services.ranking.constants import (
     SourceTypePreferenceBehavior,
 )
 
@@ -24,6 +24,8 @@ class UserPreferenceResponse(BaseModel):
     muted_companies: list[str] = Field(default_factory=list)
     muted_topics: list[str] = Field(default_factory=list)
     muted_categories: list[str] = Field(default_factory=list)
+    followed_sources: list[str] = Field(default_factory=list)
+    muted_sources: list[str] = Field(default_factory=list)
     created_at: str | None = None
     updated_at: str | None = None
 
@@ -47,7 +49,7 @@ class UserPreferenceUpdateRequest(BaseModel):
         if self.preferred_source_types is None:
             return None
         valid = SourceTypePreferenceBehavior.normalize(self.preferred_source_types)
-        return valid if valid else None
+        return tuple(valid) if valid else None
 
 
 __all__ = [

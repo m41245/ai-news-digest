@@ -1069,9 +1069,9 @@ Security hardening verified and applied: timing-attack-resistant login, strength
 
 ## Current Focus
 
-Milestone 39 — Personalized Intelligence Feed Hardening: **Complete**.
+Milestone 86 — Personalized Intelligence Foundation: **Complete**.
 
-The personalized feed now uses a scalable, story-level candidate query that prefers the latest article per cluster and falls back to standalone articles. `RankingExplanation` provides structured, categorized relevance reasons with deterministic tie-breaking. Muted entities and thresholds are pushed to the database. Contradiction signals are surfaced when cluster titles have low word-overlap. Preferred source types are positive ranking signals (+5 points), not strict filters. The 500-article scan limitation has been eliminated via database-backed candidate queries. Migration 015 adds composite indexes for personalized feed performance. All quality gates pass.
+M86 adds user-specific follow/mute preferences for companies, topics, categories, and sources. The personalized feed and trends endpoints re-rank content deterministically while preserving existing global ranking weights. All personalization is additive, authenticated, and scoped per-user.
 
 ---
 
@@ -1544,19 +1544,27 @@ The personalized feed now uses a scalable, story-level candidate query that pref
 - [x] Documentation: `docs/MILESTONE_78_PROVIDER_HEALTH_AND_CIRCUIT_BREAKERS.md`
 - [x] No new dependencies; reuses existing Redis infrastructure
 
-### Milestone 85 — Trend Detection and Emerging Story Intelligence
+### Milestone 86 — Personalized Intelligence Foundation
 
-- [x] Added `Trend` domain model with `TrendType` and `TrendStatus` enums
-- [x] Implemented deterministic `DetectTrendsUseCase` with configurable scoring weights
-- [x] Added trend status thresholds: EMERGING >= 65, RISING >= 50, SUSTAINED >= 35, COOLING >= 20, STALE < 20
-- [x] Integrated source diversity, StoryActivity (M83), StoryEvent (M84), and story cluster signals
-- [x] Added idempotent persistence with unique `canonical_key` and migration 026
-- [x] Added Celery task `detect_trends` with bounded retries and metrics
-- [x] Exposed public API endpoints: `GET /api/v1/public/trends` and `GET /api/v1/public/trends/{id}`
-- [x] Built frontend `/trends` page with filtering and `TrendCard`
-- [x] 15 M85-specific unit tests pass
-- [x] Verified M83/M84 regression tests pass
-- [x] Ruff clean and mypy clean for new files
-- [x] Documentation: `docs/MILESTONE_85_TREND_INTELLIGENCE.md`, `docs/MILESTONE_85_ENGINEERING_REPORT.md`
-- [x] No new external dependencies; deterministic-first with optional AI via ProviderManager
+- [x] Added user preference model with followed/muted entity lists (companies, topics, categories, sources)
+- [x] Added source-level follow/mute with dedicated junction tables and migrations 027/028
+- [x] Added `UserPreferenceRepository` source follow/mute CRUD and entity follow/mute methods
+- [x] Added personalized feed use case with story-level candidates, `RankingExplanation`, and deterministic tie-breaking
+- [x] Added personalized trends use case with mute-before-score filtering
+- [x] Added `PersonalizedRelevanceEngine` deterministic scoring service with bounded score accumulation
+- [x] Added frontend `/me/preferences` and `/me/feed` pages with authenticated routing
+- [x] Added TypeScript API contracts for preferences, feed, and trend responses
+- [x] All `/me/*` routes require authentication; no unauthenticated personalized data exposure
+- [x] Mute precedence verified: muted entities excluded before scoring in feed and trend queries
+- [x] Cold start verified: default empty preferences; no fabricated behavioral history
+- [x] Global ranking (`RankingWeights`/`RankingExplanation`) remains untouched; personalization is additive
+- [x] Bounded candidate limits enforced; no N+1 query patterns
+- [x] No IDOR: personalized endpoints scoped to authenticated user ID
+- [x] M86-specific tests: 97/97 pass
+- [x] Full backend unit test suite: 2188/2188 pass
+- [x] Migration tests: 10/10 pass
+- [x] Frontend: typecheck pass, lint pass, build pass
+- [x] MyPy clean on changed M86 backend files
+- [x] Ruff clean on changed M86 files
+- [x] Documentation: `docs/MILESTONE_86_PERSONALIZATION.md`, `docs/MILESTONE_86_ENGINEERING_REPORT.md`
 

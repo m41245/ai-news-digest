@@ -16,6 +16,8 @@ class UserPreferenceProfile:
     muted_company_ids: frozenset[UUID] = frozenset()
     muted_topic_ids: frozenset[UUID] = frozenset()
     muted_category_ids: frozenset[UUID] = frozenset()
+    muted_source_ids: frozenset[UUID] = frozenset()
+    followed_source_ids: frozenset[UUID] = frozenset()
     min_importance: float = 0.0
     min_confidence: float = 0.0
     feed_sort: str = "published_at"

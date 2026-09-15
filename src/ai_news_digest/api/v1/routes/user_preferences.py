@@ -4,7 +4,7 @@ Authenticated user preference endpoints.
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
@@ -173,6 +173,44 @@ async def unfollow_category(
 
 
 @router.post(
+    "/preferences/sources/{source_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    summary="Follow a source",
+)
+async def follow_source(
+    source_id: UUID,
+    container: Annotated[Container, Depends(get_container)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+) -> None:
+    source = await container.source_repository.get_by_id(source_id)
+    if source is None:
+        from ai_news_digest.core.exceptions import ResourceNotFoundError
+
+        raise ResourceNotFoundError(f"Source '{source_id}' not found.")
+    await container.follow_source.execute(current_user, source.id)
+
+
+@router.delete(
+    "/preferences/sources/{source_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    summary="Unfollow a source",
+)
+async def unfollow_source(
+    source_id: UUID,
+    container: Annotated[Container, Depends(get_container)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+) -> None:
+    source = await container.source_repository.get_by_id(source_id)
+    if source is None:
+        from ai_news_digest.core.exceptions import ResourceNotFoundError
+
+        raise ResourceNotFoundError(f"Source '{source_id}' not found.")
+    await container.unfollow_source.execute(current_user, source.id)
+
+
+@router.post(
     "/preferences/muted/companies/{slug}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
@@ -287,6 +325,44 @@ async def unmute_category(
 
 
 @router.post(
+    "/preferences/muted/sources/{source_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    summary="Mute a source",
+)
+async def mute_source(
+    source_id: UUID,
+    container: Annotated[Container, Depends(get_container)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+) -> None:
+    source = await container.source_repository.get_by_id(source_id)
+    if source is None:
+        from ai_news_digest.core.exceptions import ResourceNotFoundError
+
+        raise ResourceNotFoundError(f"Source '{source_id}' not found.")
+    await container.mute_source.execute(current_user, source.id)
+
+
+@router.delete(
+    "/preferences/muted/sources/{source_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    summary="Unmute a source",
+)
+async def unmute_source(
+    source_id: UUID,
+    container: Annotated[Container, Depends(get_container)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+) -> None:
+    source = await container.source_repository.get_by_id(source_id)
+    if source is None:
+        from ai_news_digest.core.exceptions import ResourceNotFoundError
+
+        raise ResourceNotFoundError(f"Source '{source_id}' not found.")
+    await container.unmute_source.execute(current_user, source.id)
+
+
+@router.post(
     "/preferences/reset",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
@@ -320,6 +396,23 @@ async def get_feed(
         sort=sort,
         min_importance=min_importance,
         min_confidence=min_confidence,
+    )
+
+
+@router.get(
+    "/trends",
+    summary="Get personalized trends",
+)
+async def get_personalized_trends(
+    container: Annotated[Container, Depends(get_container)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=MAX_PAGE_LIMIT)] = DEFAULT_PAGE_LIMIT,
+) -> list[dict[str, Any]]:
+    return await container.get_personalized_trends.execute(
+        current_user=current_user,
+        page=page,
+        page_size=page_size,
     )
 
 

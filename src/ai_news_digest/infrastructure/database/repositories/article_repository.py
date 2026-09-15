@@ -568,6 +568,7 @@ class ArticleRepository(
         muted_company_ids: list[UUID] | None = None,
         muted_topic_ids: list[UUID] | None = None,
         muted_category_ids: list[UUID] | None = None,
+        muted_source_ids: list[UUID] | None = None,
         followed_company_ids: list[UUID] | None = None,
         followed_topic_ids: list[UUID] | None = None,
         followed_category_ids: list[UUID] | None = None,
@@ -683,6 +684,12 @@ class ArticleRepository(
                 ),
             )
 
+        if muted_source_ids:
+            source_strs = [str(sid) for sid in muted_source_ids]
+            statement = statement.where(
+                ArticleModel.source_id.not_in(source_strs),
+            )
+
         statement = statement.order_by(ArticleModel.published_at.desc()).limit(limit).offset(offset)
 
         result = await self._session.execute(statement)
@@ -700,6 +707,7 @@ class ArticleRepository(
         muted_company_ids: list[UUID] | None = None,
         muted_topic_ids: list[UUID] | None = None,
         muted_category_ids: list[UUID] | None = None,
+        muted_source_ids: list[UUID] | None = None,
         followed_company_ids: list[UUID] | None = None,
         followed_topic_ids: list[UUID] | None = None,
         followed_category_ids: list[UUID] | None = None,
@@ -779,6 +787,7 @@ class ArticleRepository(
         muted_company_ids: list[UUID] | None = None,
         muted_topic_ids: list[UUID] | None = None,
         muted_category_ids: list[UUID] | None = None,
+        muted_source_ids: list[UUID] | None = None,
         followed_company_ids: list[UUID] | None = None,
         followed_topic_ids: list[UUID] | None = None,
         followed_category_ids: list[UUID] | None = None,
@@ -834,6 +843,12 @@ class ArticleRepository(
                         ArticleCategoryModel.category_id.in_(muted_strs),
                     ),
                 ),
+            )
+
+        if muted_source_ids:
+            source_strs = [str(sid) for sid in muted_source_ids]
+            statement = statement.where(
+                ArticleModel.source_id.not_in(source_strs),
             )
 
         result = await self._session.execute(statement)

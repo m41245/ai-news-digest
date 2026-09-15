@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -59,6 +59,16 @@ class TrendRepository(ABC):
         *,
         since: datetime,
         limit: int = 100,
+    ) -> list[Trend]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def list_personalized(
+        self,
+        *,
+        user_preference_profile: Any,
+        limit: int = 20,
+        offset: int = 0,
     ) -> list[Trend]:
         raise NotImplementedError
 

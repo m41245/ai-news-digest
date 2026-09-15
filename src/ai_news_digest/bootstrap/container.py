@@ -37,23 +37,11 @@ from ai_news_digest.application.use_cases.article.create import (
 from ai_news_digest.application.use_cases.article.delete import (
     DeleteArticleUseCase,
 )
-from ai_news_digest.application.use_cases.article.extract_claims import (
-    ExtractClaimsUseCase,
-)
 from ai_news_digest.application.use_cases.article.extract_article import (
     ExtractArticleUseCase,
 )
-from ai_news_digest.application.use_cases.claim.detect_conflicts import (
-    DetectClaimConflictsUseCase,
-)
-from ai_news_digest.application.use_cases.story_activity.detect_story_activity import (
-    DetectStoryActivityUseCase,
-)
-from ai_news_digest.application.use_cases.story_timeline.generate_story_timeline import (
-    GenerateStoryTimelineUseCase,
-)
-from ai_news_digest.application.use_cases.trend.detect_trends import (
-    DetectTrendsUseCase,
+from ai_news_digest.application.use_cases.article.extract_claims import (
+    ExtractClaimsUseCase,
 )
 from ai_news_digest.application.use_cases.article.get import (
     GetArticleUseCase,
@@ -79,6 +67,9 @@ from ai_news_digest.application.use_cases.article.update import (
 from ai_news_digest.application.use_cases.category.update import (
     UpdateCategoryUseCase,
 )
+from ai_news_digest.application.use_cases.claim.detect_conflicts import (
+    DetectClaimConflictsUseCase,
+)
 from ai_news_digest.application.use_cases.delivery.deliver_digest import (
     DeliverDigestUseCase,
 )
@@ -94,6 +85,9 @@ from ai_news_digest.application.use_cases.digest.update import (
 from ai_news_digest.application.use_cases.source.update import (
     UpdateSourceUseCase,
 )
+from ai_news_digest.application.use_cases.story_activity.detect_story_activity import (
+    DetectStoryActivityUseCase,
+)
 from ai_news_digest.application.use_cases.story_cluster.cluster_articles import (
     ClusterArticlesUseCase,
 )
@@ -106,11 +100,24 @@ from ai_news_digest.application.use_cases.story_cluster.get_story_cluster import
 from ai_news_digest.application.use_cases.story_cluster.list_story_clusters import (
     ListStoryClustersUseCase,
 )
+from ai_news_digest.application.use_cases.story_timeline.generate_story_timeline import (
+    GenerateStoryTimelineUseCase,
+)
+from ai_news_digest.application.use_cases.trend.detect_trends import (
+    DetectTrendsUseCase,
+)
+from ai_news_digest.application.use_cases.trend.get_personalized_trends import (
+    GetPersonalizedTrendsUseCase,
+)
 from ai_news_digest.application.use_cases.user_preference.follow_category import (
     FollowCategoryUseCase,
 )
 from ai_news_digest.application.use_cases.user_preference.follow_company import (
     FollowCompanyUseCase,
+)
+from ai_news_digest.application.use_cases.user_preference.follow_source import (
+    FollowSourceUseCase,
+    UnfollowSourceUseCase,
 )
 from ai_news_digest.application.use_cases.user_preference.follow_topic import (
     FollowTopicUseCase,
@@ -126,6 +133,9 @@ from ai_news_digest.application.use_cases.user_preference.mute_category import (
 )
 from ai_news_digest.application.use_cases.user_preference.mute_company import (
     MuteCompanyUseCase,
+)
+from ai_news_digest.application.use_cases.user_preference.mute_source import (
+    MuteSourceUseCase,
 )
 from ai_news_digest.application.use_cases.user_preference.mute_topic import (
     MuteTopicUseCase,
@@ -147,6 +157,9 @@ from ai_news_digest.application.use_cases.user_preference.unmute_category import
 )
 from ai_news_digest.application.use_cases.user_preference.unmute_company import (
     UnmuteCompanyUseCase,
+)
+from ai_news_digest.application.use_cases.user_preference.unmute_source import (
+    UnmuteSourceUseCase,
 )
 from ai_news_digest.application.use_cases.user_preference.unmute_topic import (
     UnmuteTopicUseCase,
@@ -193,11 +206,11 @@ from ai_news_digest.infrastructure.database.repositories.category_repository imp
 from ai_news_digest.infrastructure.database.repositories.claim_repository import (
     SqlAlchemyClaimRepository,
 )
-from ai_news_digest.infrastructure.database.repositories.conflict_repository import (
-    SqlAlchemyConflictRepository,
-)
 from ai_news_digest.infrastructure.database.repositories.company_repository import (
     SqlAlchemyCompanyRepository,
+)
+from ai_news_digest.infrastructure.database.repositories.conflict_repository import (
+    SqlAlchemyConflictRepository,
 )
 from ai_news_digest.infrastructure.database.repositories.delivery_repository import (
     DeliveryRepository as SqlAlchemyDeliveryRepository,
@@ -864,8 +877,20 @@ class Container:
         )
 
     @property
+    def follow_source(self) -> FollowSourceUseCase:
+        return FollowSourceUseCase(
+            preference_repository=self.user_preference_repository,
+        )
+
+    @property
     def unfollow_company(self) -> UnfollowCompanyUseCase:
         return UnfollowCompanyUseCase(
+            preference_repository=self.user_preference_repository,
+        )
+
+    @property
+    def unfollow_source(self) -> UnfollowSourceUseCase:
+        return UnfollowSourceUseCase(
             preference_repository=self.user_preference_repository,
         )
 
@@ -906,14 +931,20 @@ class Container:
         )
 
     @property
+    def mute_source(self) -> MuteSourceUseCase:
+        return MuteSourceUseCase(
+            preference_repository=self.user_preference_repository,
+        )
+
+    @property
     def mute_topic(self) -> MuteTopicUseCase:
         return MuteTopicUseCase(
             preference_repository=self.user_preference_repository,
         )
 
     @property
-    def unmute_topic(self) -> UnmuteTopicUseCase:
-        return UnmuteTopicUseCase(
+    def unmute_category(self) -> UnmuteCategoryUseCase:
+        return UnmuteCategoryUseCase(
             preference_repository=self.user_preference_repository,
         )
 
@@ -924,8 +955,14 @@ class Container:
         )
 
     @property
-    def unmute_category(self) -> UnmuteCategoryUseCase:
-        return UnmuteCategoryUseCase(
+    def unmute_topic(self) -> UnmuteTopicUseCase:
+        return UnmuteTopicUseCase(
+            preference_repository=self.user_preference_repository,
+        )
+
+    @property
+    def unmute_source(self) -> UnmuteSourceUseCase:
+        return UnmuteSourceUseCase(
             preference_repository=self.user_preference_repository,
         )
 
@@ -938,6 +975,13 @@ class Container:
             source_repository=self.source_repository,
             category_repository=self.category_repository,
             company_repository=self.company_repository,
+        )
+
+    @property
+    def get_personalized_trends(self) -> GetPersonalizedTrendsUseCase:
+        return GetPersonalizedTrendsUseCase(
+            preference_repository=self.user_preference_repository,
+            trend_repository=self.trend_repository,
         )
 
     @property

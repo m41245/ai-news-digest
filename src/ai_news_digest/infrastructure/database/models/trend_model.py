@@ -111,6 +111,21 @@ class TrendModel(Base):
         nullable=True,
     )
 
+    related_company_ids: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    related_topic_ids: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    related_category_ids: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
