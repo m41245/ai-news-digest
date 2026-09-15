@@ -15,66 +15,17 @@ depends_on: str | None = None
 
 
 def upgrade() -> None:
-    entity_type_enum = sa.Enum(
-        "company",
-        "topic",
-        "story",
-        "article",
-        name="entity_type",
-    )
-    relationship_type_enum = sa.Enum(
-        "related_to",
-        "competes_with",
-        "partners_with",
-        "collaborates_with",
-        "uses_technology",
-        "provides_technology_to",
-        "announced",
-        "mentioned_with",
-        "acquired",
-        "acquired_by",
-        "invests_in",
-        name="relationship_type",
-    )
-    relationship_status_enum = sa.Enum(
-        "candidate",
-        "verified",
-        "disputed",
-        "retracted",
-        "inactive",
-        name="relationship_status",
-    )
-
-    entity_type_enum.create(op.get_bind(), checkfirst=True)
-    relationship_type_enum.create(op.get_bind(), checkfirst=True)
-    relationship_status_enum.create(op.get_bind(), checkfirst=True)
-
     op.create_table(
         "relationships",
         sa.Column("id", sa.String(36), primary_key=True, nullable=False),
-        sa.Column(
-            "subject_entity_type",
-            entity_type_enum,
-            nullable=False,
-            index=True,
-        ),
+        sa.Column("subject_entity_type", sa.String(16), nullable=False, index=True),
         sa.Column("subject_entity_id", sa.String(36), nullable=False, index=True),
-        sa.Column(
-            "relationship_type",
-            relationship_type_enum,
-            nullable=False,
-            index=True,
-        ),
-        sa.Column(
-            "object_entity_type",
-            entity_type_enum,
-            nullable=False,
-            index=True,
-        ),
+        sa.Column("relationship_type", sa.String(32), nullable=False, index=True),
+        sa.Column("object_entity_type", sa.String(16), nullable=False, index=True),
         sa.Column("object_entity_id", sa.String(36), nullable=False, index=True),
         sa.Column(
             "status",
-            relationship_status_enum,
+            sa.String(32),
             nullable=False,
             server_default="candidate",
             index=True,
@@ -141,6 +92,3 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("relationships")
-    sa.Enum(name="relationship_status").drop(op.get_bind(), checkfirst=True)
-    sa.Enum(name="relationship_type").drop(op.get_bind(), checkfirst=True)
-    sa.Enum(name="entity_type").drop(op.get_bind(), checkfirst=True)
