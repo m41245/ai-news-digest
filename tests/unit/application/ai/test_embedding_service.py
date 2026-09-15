@@ -1,6 +1,7 @@
 """Unit tests for EmbeddingService."""
 from __future__ import annotations
 
+from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -155,6 +156,123 @@ class TestEmbeddingService:
             mock_settings.return_value.semantic_search_enabled = True
             svc = EmbeddingService(providers=[_make_provider("p1")])
             assert svc.is_available is True
+
+    @pytest.mark.asyncio
+    async def test_fallback_on_provider_failure(self) -> None:
+        with patch(
+            "ai_news_digest.application.ai.embedding_service.get_settings"
+        ) as mock_settings:
+            mock_settings.return_value.semantic_search_enabled = True
+            failing = _make_provider("failing", priority=1)
+            failing.embed = AsyncMock(side_effect=RuntimeError("provider down"))
+            healthy = _make_provider("healthy", priority=2)
+            svc = EmbeddingService(providers=[failing, healthy])
+            doc = SemanticDocument(id=_make_doc_id(), title="Test")
+            result = await svc.generate(doc)
+            assert result.provider == "healthy"
+            healthy.embed.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_skips_unhealthy_provider(self) -> None:
+        with patch(
+            "ai_news_digest.application.ai.embedding_service.get_settings"
+        ) as mock_settings:
+            mock_settings.return_value.semantic_search_enabled = True
+            unhealthy = _make_provider("unhealthy", priority=1)
+            healthy = _make_provider("healthy", priority=2)
+            health_registry = MagicMock()
+            health_registry.is_eligible = AsyncMock(
+                side_effect=lambda pid: pid == "healthy"
+            )
+            svc = EmbeddingService(
+                providers=[unhealthy, healthy],
+                health_registry=health_registry,
+            )
+            doc = SemanticDocument(id=_make_doc_id(), title="Test")
+            result = await svc.generate(doc)
+            assert result.provider == "healthy"
+            unhealthy.embed.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_skips_quota_exhausted_provider(self) -> None:
+        with patch(
+            "ai_news_digest.application.ai.embedding_service.get_settings"
+        ) as mock_settings:
+            mock_settings.return_value.semantic_search_enabled = True
+            exhausted = _make_provider("exhausted", priority=1)
+            available = _make_provider("available", priority=2)
+            quota_registry = MagicMock()
+            quota_registry.check_quota_eligibility = AsyncMock(
+                side_effect=lambda pid, **kwargs: MagicMock(
+                    eligible=pid == "available"
+                )
+            )
+            svc = EmbeddingService(
+                providers=[exhausted, available],
+                quota_registry=quota_registry,
+            )
+            doc = SemanticDocument(id=_make_doc_id(), title="Test")
+            result = await svc.generate(doc)
+            assert result.provider == "available"
+            exhausted.embed.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_records_success_in_health_registry(self) -> None:
+        with patch(
+            "ai_news_digest.application.ai.embedding_service.get_settings"
+        ) as mock_settings:
+            mock_settings.return_value.semantic_search_enabled = True
+            provider = _make_provider("p1")
+            health_registry = MagicMock()
+            health_registry.is_eligible = AsyncMock(return_value=True)
+            health_registry.record_success = AsyncMock()
+            svc = EmbeddingService(
+                providers=[provider],
+                health_registry=health_registry,
+            )
+            doc = SemanticDocument(id=_make_doc_id(), title="Test")
+            await svc.generate(doc)
+            health_registry.record_success.assert_awaited_once_with("p1")
+
+    @pytest.mark.asyncio
+    async def test_records_failure_in_health_registry(self) -> None:
+        with patch(
+            "ai_news_digest.application.ai.embedding_service.get_settings"
+        ) as mock_settings:
+            mock_settings.return_value.semantic_search_enabled = True
+            provider = _make_provider("p1")
+            provider.embed = AsyncMock(side_effect=RuntimeError("down"))
+            health_registry = MagicMock()
+            health_registry.is_eligible = AsyncMock(return_value=True)
+            health_registry.record_failure = AsyncMock()
+            svc = EmbeddingService(
+                providers=[provider],
+                health_registry=health_registry,
+            )
+            doc = SemanticDocument(id=_make_doc_id(), title="Test")
+            with pytest.raises(NoEmbeddingProviderError):
+                await svc.generate(doc)
+            health_registry.record_failure.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_records_usage_in_quota_registry(self) -> None:
+        with patch(
+            "ai_news_digest.application.ai.embedding_service.get_settings"
+        ) as mock_settings:
+            mock_settings.return_value.semantic_search_enabled = True
+            provider = _make_provider("p1")
+            quota_registry = MagicMock()
+            quota_registry.check_quota_eligibility = AsyncMock(
+                return_value=MagicMock(eligible=True)
+            )
+            quota_registry.record_usage = AsyncMock()
+            svc = EmbeddingService(
+                providers=[provider],
+                quota_registry=quota_registry,
+            )
+            doc = SemanticDocument(id=_make_doc_id(), title="Test")
+            await svc.generate(doc)
+            quota_registry.record_usage.assert_awaited_once()
 
 
 def _make_doc_id() -> str:

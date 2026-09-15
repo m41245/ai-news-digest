@@ -4,9 +4,27 @@
 
 Milestone 88 introduces provider-independent semantic intelligence to the AI News Digest platform. The implementation adds an embedding abstraction layer, cosine similarity engine, hybrid search (lexical + semantic), and related story discovery—all while maintaining graceful degradation when AI is disabled (`AI_ENABLED=false`) and without adding new infrastructure dependencies like pgvector.
 
-**Commit:** pending  
+**Commit:** 8afacbbb6347c389abbd75e377a3f4780b7ab180  
 **Branch:** main  
-**Status:** COMPLETE
+**Status:** COMPLETE (M88.1 audited and hardened)
+
+## M88.1 Audit Summary
+
+M88.1 identified and corrected critical architectural bypasses in the original M88 implementation:
+
+### Corrected Defects (P1)
+
+1. **M78 Circuit Breaker Bypass** — `EmbeddingService._select_provider()` did not check `ProviderHealthRegistry`. Fixed: health eligibility is now checked before provider selection; failures are recorded in the health registry.
+
+2. **M79 Quota/Cost Bypass** — `EmbeddingService._select_provider()` did not check `ProviderQuotaRegistry`. Fixed: quota eligibility is checked before provider selection; usage is recorded in the quota registry.
+
+3. **No Provider Fallback** — When the selected provider failed, the exception propagated without trying alternative providers. Fixed: `generate()` and `generate_batch()` now try the selected provider first, then fall back to other available providers.
+
+4. **No Capability Registration** — `EMBEDDING` capability was not registered in `CapabilityRegistry`. Fixed: capability is registered and associated with embedding providers.
+
+5. **Related Stories Fallback to Arbitrary Candidates** — When semantic search returned no results, arbitrary input clusters were returned as "related stories". Fixed: empty list is returned when no semantic signal exists.
+
+6. **Query Length Not Enforced** — `semantic_search_query_max_length` was configured but not enforced in the API. Fixed: queries are truncated to the configured limit in the semantic search path.
 
 ## What Was Done
 
@@ -81,11 +99,26 @@ Total: 24 new tests, all passing.
 
 The `EmbeddingProvider` interface is completely independent from `AIProvider`. A provider may implement both, but they are registered and selected independently. This allows future embedding providers (Cohere, HuggingFace, local models) without touching the generation provider layer.
 
+### M78/M79 Integration
+
+Embedding providers participate in the existing provider health and quota infrastructure:
+- `ProviderHealthRegistry` tracks embedding provider success/failure and circuit breaker state
+- `ProviderQuotaRegistry` tracks embedding usage and enforces quota limits
+- `EmbeddingService` selects providers based on health eligibility, quota eligibility, and priority
+- Failed providers trigger circuit breaker state transitions
+- Quota exhaustion prevents further embedding requests
+
+### Provider Fallback
+
+When the primary embedding provider fails (timeout, rate limit, circuit open, quota exhausted), `EmbeddingService` falls back to the next available healthy provider. This follows the same bounded fallback pattern used by `ProviderManager` for generation requests.
+
 ### Graceful Degradation
 
 - `AI_ENABLED=false` → semantic features are no-ops, lexical search continues normally
 - No embedding provider available → `SemanticSearchService` returns zero-similarity fallbacks
 - Embedding generation fails → logged and re-raised, caller handles gracefully
+- Circuit breaker OPEN → provider is skipped, fallback provider is tried
+- Quota exhausted → provider is skipped, fallback provider is tried
 
 ### No New Infrastructure
 
@@ -99,9 +132,9 @@ Public API responses never include raw embedding vectors. Only similarity scores
 
 - **Ruff**: All checks passed on M88 files
 - **MyPy**: No issues found in M88 modules
-- **Pytest**: 25/25 M88 tests passed; 384/384 affected regression tests passed
+- **Pytest**: 31/31 M88 tests passed (including 7 new M88.1 failure-mode tests); 384/384 affected regression tests passed
 - **TypeScript**: Compilation clean
-- **Frontend Build**: Successful (191 modules, 25.75s)
+- **Frontend Build**: Successful (191 modules, 4.52s)
 
 ## Known Limitations
 

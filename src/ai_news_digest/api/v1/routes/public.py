@@ -217,6 +217,9 @@ async def list_public_articles(
         and settings.semantic_search_enabled
         and container.embedding_service.is_available
     ):
+        if len(search) > settings.semantic_search_query_max_length:
+            search = search[: settings.semantic_search_query_max_length]
+
         try:
             from ai_news_digest.domain.models.semantic_document import (
                 SemanticDocument,
@@ -228,9 +231,10 @@ async def list_public_articles(
             )
             query_emb = await container.embedding_service.generate(query_doc)
             semantic_service = container.semantic_search_service
+            candidates = articles[: settings.semantic_candidate_limit]
             scored = await semantic_service.search_articles(
                 query=search,
-                candidates=articles,
+                candidates=candidates,
                 query_embedding=query_emb.embedding,
             )
             scored_map = {s.article.id: s for s in scored}

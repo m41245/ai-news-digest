@@ -139,19 +139,8 @@ class RelatedStoryFinder:
             if len(results) >= limit:
                 break
 
-        if not results and candidates:
-            results = [
-                RelatedStory(
-                    cluster_id=str(c.id),
-                    title=c.title,
-                    summary=c.summary,
-                    similarity=0.0,
-                    article_count=getattr(c, "article_count", 0),
-                    source_count=getattr(c, "source_count", 0),
-                    reason="Related story",
-                )
-                for c in candidates[:limit]
-            ]
+        if not results:
+            return []
 
         return results
 

@@ -320,6 +320,14 @@ class Container:
                 category="intelligence",
             )
         )
+        self._capability_registry.register_capability(
+            Capability(
+                id="embedding",
+                name="Embedding",
+                description="Generate semantic embeddings for text documents.",
+                category="retrieval",
+            )
+        )
 
     def _configure_providers(self) -> None:
         """Configure and register AI providers."""
@@ -857,11 +865,13 @@ class Container:
                 from ai_news_digest.infrastructure.embedding import (
                     OpenAIEmbeddingProvider,
                 )
-                providers.append(
-                    OpenAIEmbeddingProvider(
-                        model=self._settings.embedding_model,
-                        dimension=self._settings.embedding_dimension,
-                    )
+                provider = OpenAIEmbeddingProvider(
+                    model=self._settings.embedding_model,
+                    dimension=self._settings.embedding_dimension,
+                )
+                providers.append(provider)
+                self._capability_registry.register_provider(
+                    "embedding", provider.id
                 )
             except Exception as exc:
                 logger.warning(
@@ -878,6 +888,8 @@ class Container:
             providers=self._embedding_providers,
             default_model=self._settings.embedding_model,
             default_dimension=self._settings.embedding_dimension,
+            health_registry=self._health_registry,
+            quota_registry=self._quota_registry,
         )
 
     @property
