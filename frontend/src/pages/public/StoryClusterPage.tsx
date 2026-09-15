@@ -7,7 +7,7 @@ import { Badge } from "../../components/ui/Badge";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Skeleton, StoryCardSkeleton } from "../../components/ui/Skeleton";
 import { formatDateTime } from "../../utils";
-import type { Conflict } from "../../types";
+import type { Conflict, StoryEvent } from "../../types";
 
 export function StoryClusterPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -16,6 +16,12 @@ export function StoryClusterPage() {
     queryKey: ["storyCluster", slug],
     queryFn: () => publicApi.storyCluster(slug!),
     enabled: !!slug,
+  });
+
+  const { data: timeline } = useQuery({
+    queryKey: ["storyTimeline", cluster?.id],
+    queryFn: () => publicApi.storyTimeline(cluster!.id),
+    enabled: !!cluster?.id,
   });
 
   if (isLoading) {
@@ -194,6 +200,40 @@ export function StoryClusterPage() {
           <div className="mt-8 max-w-3xl">
             <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800">
               This story may need verification due to detected contradictions.
+            </div>
+          </div>
+        )}
+
+        {timeline && timeline.events.length > 0 && (
+          <div className="mt-8 max-w-3xl">
+            <h2 className="text-lg font-semibold text-slate-900">Story Evolution</h2>
+            <div className="mt-4 space-y-4">
+              {timeline.events.map((event: StoryEvent) => (
+                <div
+                  key={event.id}
+                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone="brand">{event.event_type}</Badge>
+                    <span className="text-xs text-slate-500">
+                      {event.event_time ? formatDateTime(event.event_time) : "Unknown date"}
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      Confidence: {(event.confidence * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  <h3 className="mt-2 text-base font-semibold text-slate-900">
+                    {event.title}
+                  </h3>
+                  {event.description && (
+                    <p className="mt-1 text-sm text-slate-600">{event.description}</p>
+                  )}
+                  <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
+                    <span>{event.article_count} articles</span>
+                    <span>{event.claim_count} claims</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

@@ -64,6 +64,27 @@ export interface PublicStoryCluster extends PublicStoryClusterSearch {
   latest_activity_at?: string | null;
 }
 
+export interface StoryEvent {
+  id: string;
+  event_type: string;
+  title: string;
+  description: string;
+  confidence: number;
+  event_time?: string | null;
+  representative_article_id?: string | null;
+  sequence: number;
+  article_count: number;
+  claim_count: number;
+  processing_metadata?: Record<string, string> | null;
+}
+
+export interface StoryTimelineResponse {
+  cluster_id: string;
+  events: StoryEvent[];
+  generated_at: string;
+  generation_method: string;
+}
+
 export interface Conflict {
   conflict_type: string;
   status: string;

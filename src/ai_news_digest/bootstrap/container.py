@@ -49,6 +49,9 @@ from ai_news_digest.application.use_cases.claim.detect_conflicts import (
 from ai_news_digest.application.use_cases.story_activity.detect_story_activity import (
     DetectStoryActivityUseCase,
 )
+from ai_news_digest.application.use_cases.story_timeline.generate_story_timeline import (
+    GenerateStoryTimelineUseCase,
+)
 from ai_news_digest.application.use_cases.article.get import (
     GetArticleUseCase,
 )
@@ -172,6 +175,7 @@ from ai_news_digest.domain.ports.story_activity_repository import (
     StoryActivityRepository,
 )
 from ai_news_digest.domain.ports.story_cluster_repository import StoryClusterRepository
+from ai_news_digest.domain.ports.story_event_repository import StoryEventRepository
 from ai_news_digest.domain.ports.topic_repository import TopicRepository
 from ai_news_digest.domain.ports.user_preference_repository import UserPreferenceRepository
 from ai_news_digest.domain.ports.user_repository import UserRepository
@@ -460,6 +464,14 @@ class Container:
         return SqlAlchemyStoryActivityRepository(self._session)
 
     @property
+    def story_event_repository(self) -> StoryEventRepository:
+        from ai_news_digest.infrastructure.database.repositories.story_event_repository import (
+            StoryEventRepository as SqlAlchemyStoryEventRepository,
+        )
+
+        return SqlAlchemyStoryEventRepository(self._session)
+
+    @property
     def detect_claim_conflicts(self) -> DetectClaimConflictsUseCase | None:
         return DetectClaimConflictsUseCase(
             claim_repository=self.claim_repository,
@@ -476,6 +488,18 @@ class Container:
             conflict_repository=self.conflict_repository,
             story_activity_repository=self.story_activity_repository,
             story_cluster_repository=self.story_cluster_repository,
+            provider_manager=self.provider_manager,
+        )
+
+    @property
+    def generate_story_timeline(self) -> GenerateStoryTimelineUseCase:
+        return GenerateStoryTimelineUseCase(
+            story_cluster_repository=self.story_cluster_repository,
+            article_repository=self.article_repository,
+            claim_repository=self.claim_repository,
+            conflict_repository=self.conflict_repository,
+            story_activity_repository=self.story_activity_repository,
+            story_event_repository=self.story_event_repository,
             provider_manager=self.provider_manager,
         )
 

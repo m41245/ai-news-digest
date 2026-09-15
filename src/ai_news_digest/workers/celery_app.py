@@ -116,6 +116,7 @@ celery_app = Celery(
         "ai_news_digest.workers.tasks.ranking",
         "ai_news_digest.workers.tasks.conflict",
         "ai_news_digest.workers.tasks.story_activity",
+        "ai_news_digest.workers.tasks.timeline",
     ],
     task_cls=AwaitableTask,
 )
@@ -180,6 +181,14 @@ celery_app.conf.update(
         "daily-story-clustering": {
             "task": "workers.tasks.cluster.cluster_pending_articles",
             "schedule": crontab(hour=8, minute=0),
+            "options": {
+                "expires": 3600,
+                "send_events": True,
+            },
+        },
+        "daily-story-timeline-generation": {
+            "task": "workers.tasks.timeline.generate_story_timeline",
+            "schedule": crontab(hour=8, minute=7),
             "options": {
                 "expires": 3600,
                 "send_events": True,

@@ -1097,6 +1097,50 @@ class Settings(BaseSettings):
         return value
 
     # ======================================================================
+    # Story Evolution / Event Timeline (M84)
+    # ======================================================================
+
+    timeline_generation_enabled: bool = Field(
+        default=True,
+        description="Enable story evolution timeline generation.",
+    )
+
+    timeline_max_articles_per_event: int = Field(
+        default=10,
+        ge=1,
+        le=50,
+        description="Maximum articles to associate with a single timeline event.",
+    )
+
+    timeline_max_claims_per_event: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="Maximum claims to associate with a single timeline event.",
+    )
+
+    timeline_max_events_per_cluster: int = Field(
+        default=20,
+        ge=1,
+        le=100,
+        description="Maximum timeline events per story cluster.",
+    )
+
+    timeline_lookback_days: int = Field(
+        default=30,
+        ge=1,
+        le=365,
+        description="Lookback window in days for timeline candidate articles.",
+    )
+
+    timeline_max_llm_evaluations: int = Field(
+        default=10,
+        ge=0,
+        le=100,
+        description="Maximum LLM-assisted event extractions per run.",
+    )
+
+    # ======================================================================
     # Email / SMTP
     # ======================================================================
 

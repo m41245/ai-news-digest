@@ -22,6 +22,7 @@ import type {
   Source,
   SourceCreateRequest,
   SourceUpdateRequest,
+  StoryTimelineResponse,
   SystemStats,
   Topic,
   User,
@@ -91,6 +92,8 @@ export const publicApi = {
   }> => api.get("/api/v1/public/story-ranking/top-story").then((r) => r.data),
   storyCluster: (slug: string): Promise<PublicStoryCluster> =>
     api.get(`/api/v1/public/story-clusters/${encodeURIComponent(slug)}`).then((r) => r.data),
+  storyTimeline: (clusterId: string): Promise<StoryTimelineResponse> =>
+    api.get(`/api/v1/public/story-clusters/${clusterId}/timeline`).then((r) => r.data),
   storyClusters: (params: {
     limit?: number;
     offset?: number;

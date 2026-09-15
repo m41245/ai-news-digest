@@ -37,6 +37,7 @@ from ai_news_digest.api.v1.schemas.public import (
     PublicTopicResponse,
     PublicTopStoryResponse,
 )
+from ai_news_digest.api.v1.routes.timeline import router as timeline_router
 from ai_news_digest.api.v1.schemas.source import SourceResponse
 from ai_news_digest.application.services.ranking.story_ranking_service import (
     StoryRankingEngine,
@@ -835,6 +836,9 @@ async def list_public_topics(
         )
         for topic in topics
     ]
+
+
+router.include_router(timeline_router)
 
 
 __all__ = ["router"]
