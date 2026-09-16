@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -85,6 +86,113 @@ class SqlAlchemyRelationshipRepository(RelationshipRepository):
         await self._session.flush()
         return [self._to_domain(m) for m in models]
 
+    async def update_observation(
+        self,
+        relationship_id: UUID,
+        *,
+        observed_at: datetime,
+        source_id: UUID | None = None,
+    ) -> Relationship | None:
+        result = await self._session.execute(
+            select(RelationshipModel).where(
+                RelationshipModel.id == str(relationship_id)
+            )
+        )
+        model = result.scalar_one_or_none()
+        if model is None:
+            return None
+        model.last_observed_at = observed_at
+        model.observation_count = (model.observation_count or 0) + 1
+        if source_id is not None:
+            model.source_count = (model.source_count or 0) + 1
+        if model.first_observed_at is None:
+            model.first_observed_at = observed_at
+        model.updated_at = observed_at
+        await self._session.flush()
+        return self._to_domain(model)
+
+    async def list_for_entity_with_temporal(
+        self,
+        *,
+        entity_type: str,
+        entity_id: UUID,
+        status: str | None = None,
+        observed_from: datetime | None = None,
+        observed_to: datetime | None = None,
+        active_at: datetime | None = None,
+        changed_since: datetime | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[Relationship]:
+        statement = select(RelationshipModel).where(
+            (RelationshipModel.subject_entity_type == entity_type)
+            & (RelationshipModel.subject_entity_id == str(entity_id))
+        )
+        if status:
+            statement = statement.where(RelationshipModel.status == status)
+        if observed_from is not None:
+            statement = statement.where(
+                RelationshipModel.last_observed_at >= observed_from
+            )
+        if observed_to is not None:
+            statement = statement.where(
+                RelationshipModel.last_observed_at <= observed_to
+            )
+        if active_at is not None:
+            statement = statement.where(
+                (RelationshipModel.valid_to.is_(None) | (RelationshipModel.valid_to >= active_at))
+                & (RelationshipModel.first_observed_at <= active_at)
+            )
+        if changed_since is not None:
+            statement = statement.where(
+                RelationshipModel.updated_at >= changed_since
+            )
+        statement = statement.limit(limit).offset(offset).order_by(
+            RelationshipModel.last_observed_at.desc()
+        )
+        result = await self._session.execute(statement)
+        return [self._to_domain(m) for m in result.scalars().all()]
+
+    async def get_entity_relationship_history(
+        self,
+        *,
+        entity_type: str,
+        entity_id: UUID,
+        limit: int = 50,
+    ) -> list[dict[str, object]]:
+        statement = (
+            select(
+                RelationshipModel.relationship_type,
+                RelationshipModel.status,
+                RelationshipModel.first_observed_at,
+                RelationshipModel.last_observed_at,
+                RelationshipModel.observation_count,
+                RelationshipModel.source_count,
+                RelationshipModel.activity_status,
+                RelationshipModel.activity_score,
+                func.count().label("change_count"),
+            )
+            .where(
+                (RelationshipModel.subject_entity_type == entity_type)
+                & (RelationshipModel.subject_entity_id == str(entity_id))
+            )
+            .group_by(
+                RelationshipModel.relationship_type,
+                RelationshipModel.status,
+                RelationshipModel.first_observed_at,
+                RelationshipModel.last_observed_at,
+                RelationshipModel.observation_count,
+                RelationshipModel.source_count,
+                RelationshipModel.activity_status,
+                RelationshipModel.activity_score,
+            )
+            .order_by(RelationshipModel.last_observed_at.desc())
+            .limit(limit)
+        )
+        result = await self._session.execute(statement)
+        rows = result.mappings().all()
+        return [dict(row) for row in rows]
+
     async def update_status(
         self,
         relationship_id: UUID,
@@ -156,6 +264,9 @@ class SqlAlchemyRelationshipRepository(RelationshipRepository):
     @staticmethod
     def _to_domain(model: RelationshipModel) -> Relationship:
         from ai_news_digest.domain.enums.entity_type import EntityType
+        from ai_news_digest.domain.enums.relationship_activity_status import (
+            RelationshipActivityStatus,
+        )
         from ai_news_digest.domain.enums.relationship_status import RelationshipStatus
         from ai_news_digest.domain.enums.relationship_type import RelationshipType
 
@@ -183,6 +294,16 @@ class SqlAlchemyRelationshipRepository(RelationshipRepository):
             created_at=model.created_at,
             updated_at=model.updated_at,
             observed_at=model.observed_at,
+            first_observed_at=model.first_observed_at,
+            last_observed_at=model.last_observed_at,
+            valid_from=model.valid_from,
+            valid_to=model.valid_to,
+            observation_count=model.observation_count or 1,
+            source_count=model.source_count or 1,
+            activity_score=model.activity_score or 0.0,
+            activity_status=RelationshipActivityStatus(model.activity_status)
+            if model.activity_status
+            else RelationshipActivityStatus.STABLE,
         )
 
     @staticmethod
@@ -217,4 +338,12 @@ class SqlAlchemyRelationshipRepository(RelationshipRepository):
             created_at=relationship.created_at,
             updated_at=relationship.updated_at,
             observed_at=relationship.observed_at,
+            first_observed_at=relationship.first_observed_at,
+            last_observed_at=relationship.last_observed_at,
+            valid_from=relationship.valid_from,
+            valid_to=relationship.valid_to,
+            observation_count=relationship.observation_count,
+            source_count=relationship.source_count,
+            activity_score=relationship.activity_score,
+            activity_status=relationship.activity_status,
         )

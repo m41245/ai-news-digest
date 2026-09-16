@@ -1,5 +1,5 @@
 """
-Graph intelligence API schemas for M90.
+Graph intelligence API schemas for M90/M91.
 """
 
 from __future__ import annotations
@@ -57,9 +57,84 @@ class PublicRelatedStoryGraphResponse(BaseModel):
     relationship_count: int = 0
 
 
+class PublicTemporalGraphConnectionResponse(BaseModel):
+    """A graph connection enriched with temporal intelligence."""
+
+    entity_type: str
+    entity_id: str
+    name: str
+    relationship_type: str | None = None
+    status: str | None = None
+    score: float = 0.0
+    signals: list[str] = []
+    explanation: str = ""
+    source_count: int = 0
+    is_disputed: bool = False
+    is_retracted: bool = False
+    first_observed_at: str | None = None
+    last_observed_at: str | None = None
+    observation_count: int = 0
+    activity_status: str | None = None
+    activity_score: float = 0.0
+
+
+class PublicEntityEvolutionResponse(BaseModel):
+    """Temporal evolution view for an entity."""
+
+    entity_type: str
+    entity_id: str
+    new_connections: list[dict[str, object]] = []
+    recently_active: list[dict[str, object]] = []
+    recently_changed: list[dict[str, object]] = []
+    historical_connections: list[dict[str, object]] = []
+    total_connections: int = 0
+    generated_at: str = ""
+
+
+class PublicRelationshipChangeEventResponse(BaseModel):
+    """A detected relationship change event."""
+
+    change_type: str
+    relationship_type: str
+    object_entity_type: str
+    object_entity_id: str
+    object_name: str
+    observed_at: str | None = None
+    explanation: str = ""
+
+
+class PublicEntityRelationshipHistoryResponse(BaseModel):
+    """Bounded relationship history for an entity."""
+
+    entity_type: str
+    entity_id: str
+    history: list[dict[str, object]] = []
+    total: int = 0
+    limit: int = 50
+
+
+class PublicRelationshipActivityResponse(BaseModel):
+    """Activity summary for a relationship."""
+
+    relationship_type: str
+    status: str
+    first_observed_at: str | None = None
+    last_observed_at: str | None = None
+    observation_count: int = 0
+    source_count: int = 0
+    activity_score: float = 0.0
+    activity_status: str = ""
+    explanation: str = ""
+
+
 __all__ = [
     "PublicEntityConnectionsResponse",
+    "PublicEntityEvolutionResponse",
+    "PublicEntityRelationshipHistoryResponse",
     "PublicGraphConnectionResponse",
     "PublicGraphPathResponse",
     "PublicRelatedStoryGraphResponse",
+    "PublicRelationshipActivityResponse",
+    "PublicRelationshipChangeEventResponse",
+    "PublicTemporalGraphConnectionResponse",
 ]

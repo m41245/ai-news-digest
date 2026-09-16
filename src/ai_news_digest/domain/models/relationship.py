@@ -6,6 +6,9 @@ from enum import StrEnum
 from uuid import UUID, uuid4
 
 from ai_news_digest.domain.enums.entity_type import EntityType
+from ai_news_digest.domain.enums.relationship_activity_status import (
+    RelationshipActivityStatus,
+)
 from ai_news_digest.domain.enums.relationship_status import RelationshipStatus
 from ai_news_digest.domain.enums.relationship_type import RelationshipType
 
@@ -48,6 +51,14 @@ class Relationship:
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     observed_at: datetime | None = None
+    first_observed_at: datetime | None = None
+    last_observed_at: datetime | None = None
+    valid_from: datetime | None = None
+    valid_to: datetime | None = None
+    observation_count: int = 1
+    source_count: int = 1
+    activity_score: float = 0.0
+    activity_status: RelationshipActivityStatus = RelationshipActivityStatus.STABLE
 
     @staticmethod
     def create(
@@ -70,6 +81,14 @@ class Relationship:
         schema_version: str = "v1",
         processing_metadata: dict[str, str] | None = None,
         observed_at: datetime | None = None,
+        first_observed_at: datetime | None = None,
+        last_observed_at: datetime | None = None,
+        valid_from: datetime | None = None,
+        valid_to: datetime | None = None,
+        observation_count: int = 1,
+        source_count: int = 1,
+        activity_score: float = 0.0,
+        activity_status: RelationshipActivityStatus = RelationshipActivityStatus.STABLE,
     ) -> Relationship:
         """Factory method for creating a new relationship."""
         now = datetime.now(UTC)
@@ -95,6 +114,14 @@ class Relationship:
             created_at=now,
             updated_at=now,
             observed_at=observed_at or now,
+            first_observed_at=first_observed_at or now,
+            last_observed_at=last_observed_at or now,
+            valid_from=valid_from,
+            valid_to=valid_to,
+            observation_count=observation_count,
+            source_count=source_count,
+            activity_score=activity_score,
+            activity_status=activity_status,
         )
 
     def update_status(self, status: RelationshipStatus) -> None:
@@ -104,6 +131,25 @@ class Relationship:
 
     def touch(self) -> None:
         """Update the updated_at timestamp."""
+        self.updated_at = datetime.now(UTC)
+
+    def record_observation(
+        self,
+        *,
+        observed_at: datetime,
+        source_id: UUID | None = None,
+    ) -> None:
+        """Record a new observation of this relationship.
+
+        Updates last_observed_at and increments observation_count.
+        Does NOT create a new canonical relationship row.
+        """
+        self.last_observed_at = observed_at
+        self.observation_count += 1
+        if source_id is not None:
+            self.source_count += 1
+        if self.first_observed_at is None:
+            self.first_observed_at = observed_at
         self.updated_at = datetime.now(UTC)
 
 

@@ -7,6 +7,9 @@ from sqlalchemy import DateTime, Float, Index, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ai_news_digest.domain.enums.entity_type import EntityType
+from ai_news_digest.domain.enums.relationship_activity_status import (
+    RelationshipActivityStatus,
+)
 from ai_news_digest.domain.enums.relationship_status import RelationshipStatus
 from ai_news_digest.domain.enums.relationship_type import RelationshipType
 from ai_news_digest.infrastructure.database.base import Base
@@ -138,6 +141,44 @@ class RelationshipModel(Base):
         index=True,
     )
 
+    first_observed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+    last_observed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+    valid_from: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    valid_to: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    observation_count: Mapped[int] = mapped_column(
+        default=1,
+        nullable=False,
+    )
+    source_count: Mapped[int] = mapped_column(
+        default=1,
+        nullable=False,
+    )
+    activity_score: Mapped[float] = mapped_column(
+        Float,
+        nullable=False,
+        server_default="0",
+    )
+    activity_status: Mapped[RelationshipActivityStatus] = mapped_column(
+        String(32),
+        nullable=False,
+        server_default=RelationshipActivityStatus.STABLE.value,
+        index=True,
+    )
+
     __table_args__ = (
         UniqueConstraint(
             "subject_entity_type",
@@ -164,5 +205,16 @@ class RelationshipModel(Base):
             "provenance_source",
             "article_id",
             "story_cluster_id",
+        ),
+        Index(
+            "ix_relationships_temporal",
+            "subject_entity_type",
+            "subject_entity_id",
+            "last_observed_at",
+        ),
+        Index(
+            "ix_relationships_activity",
+            "activity_status",
+            "last_observed_at",
         ),
     )

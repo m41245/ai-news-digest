@@ -6,6 +6,7 @@ import { ErrorState } from "../../components/ui/ErrorState";
 import { Badge } from "../../components/ui/Badge";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Skeleton, StoryCardSkeleton } from "../../components/ui/Skeleton";
+import { ConnectionHistorySection } from "../../components/ConnectionHistorySection";
 import { formatDateTime } from "../../utils";
 import type { Conflict, StoryEvent, GraphConnection } from "../../types";
 
@@ -301,6 +302,11 @@ export function StoryClusterPage() {
                             retracted
                           </span>
                         )}
+                        {conn.activity_status && (
+                          <span className="rounded bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
+                            {conn.activity_status as string}
+                          </span>
+                        )}
                       </div>
                       <p className="mt-1 text-xs text-slate-500">{conn.explanation as string}</p>
                       <div className="mt-1 flex flex-wrap gap-1">
@@ -313,6 +319,11 @@ export function StoryClusterPage() {
                           </span>
                         ))}
                       </div>
+                      {conn.first_observed_at && (
+                        <p className="mt-1 text-xs text-slate-400">
+                          First observed {formatDateTime(conn.first_observed_at as string)}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -323,6 +334,8 @@ export function StoryClusterPage() {
             </p>
           </div>
         )}
+
+        <ConnectionHistorySection clusterId={cluster.id} clusterTitle={cluster.title} />
 
         <div className="mt-8 max-w-3xl">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">Recent Articles</h2>

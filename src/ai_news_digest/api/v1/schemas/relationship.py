@@ -1,5 +1,5 @@
 """
-Knowledge graph relationship schemas for M89.
+Knowledge graph relationship schemas for M89/M91.
 """
 
 from __future__ import annotations
@@ -20,6 +20,12 @@ class PublicRelationshipResponse(BaseModel):
     confidence: float | None = None
     provenance_source: str | None = None
     observed_at: str | None = None
+    first_observed_at: str | None = None
+    last_observed_at: str | None = None
+    observation_count: int = 0
+    source_count: int = 0
+    activity_status: str | None = None
+    activity_score: float = 0.0
 
 
 class PublicEntityRelationshipsResponse(BaseModel):

@@ -2,17 +2,20 @@
 
 ## Current Phase
 
-Milestone 90 — Graph-Aware Intelligence and Discovery: **COMPLETE**.
+Milestone 91 — Temporal Knowledge Graph & Entity Evolution Intelligence: **COMPLETE**.
 
-M90 additions:
-- Added `GraphIntelligenceService` with bounded BFS traversal over existing relationship table
-- Added graph API endpoints: `/api/v1/public/graph/entities/{type}/{id}/connections`, `/api/v1/public/graph/story-clusters/{id}/connections`, `/api/v1/public/graph/path/{source_type}/{source_id}/{target_type}/{target_id}`
-- Added conflict-aware scoring: DISPUTED reduces score, RETRACTED/INACTIVE excluded
-- Added bounded traversal with max_depth/max_nodes/max_edges/max_paths limits
-- Extended public story cluster response with `graph_connections` field
-- Extended related stories endpoint with graph signal enrichment
-- Added frontend Knowledge Connections UI section on story cluster pages
-- Added 18 unit tests for `GraphIntelligenceService` and 5 unit tests for graph API routes
+M91 additions:
+- Added `RelationshipActivityStatus` enum (NEW, EMERGING, ACTIVE, STABLE, DECLINING, STALE)
+- Extended `Relationship` domain model with temporal fields: `first_observed_at`, `last_observed_at`, `valid_from`, `valid_to`, `observation_count`, `source_count`, `activity_score`, `activity_status`
+- Added `record_observation()` method for deterministic temporal updates without creating new rows
+- Added manual migration `030_add_temporal_graph_fields.py` with composite temporal indexes
+- Extended `RelationshipRepository` with `update_observation`, `list_for_entity_with_temporal`, `get_entity_relationship_history`
+- Added `TemporalGraphIntelligenceService` with deterministic activity scoring, status computation, entity evolution, change detection, and time-bounded filtering
+- Extended graph API with `/evolution`, `/history`, `/changes`, `/temporal-connections` endpoints and temporal filters on `/connections` and `/path`
+- Extended public relationship schema with temporal fields
+- Added frontend `RelationshipEvolutionSection` and `ConnectionHistorySection` components
+- Integrated `ConnectionHistorySection` into `StoryClusterPage`
+- 22 unit tests for `TemporalGraphIntelligenceService`, 5 graph route tests, all passing
 - All quality gates pass: ruff, mypy, pytest, TypeScript, frontend build
 
 ### Next Milestone
@@ -23,9 +26,9 @@ TBD
 
 ## Current Focus
 
-Milestone 90 — Graph-Aware Intelligence and Discovery: **Complete**.
+Milestone 91 — Temporal Knowledge Graph & Entity Evolution Intelligence: **Complete**.
 
-M90 completed. The platform now provides graph-aware intelligence and discovery using the existing M89 relationship foundation. All graph traversal is bounded and explainable, conflict-aware, and operates without a graph database. Graph features work with AI_ENABLED=false and remain separate from M87 recommendation scoring and M68 ranking.
+M91 completed. The platform now provides deterministic temporal relationship intelligence on top of the M89/M90 graph foundation. All temporal signals are derived from existing relationship observation metadata without introducing new infrastructure or external data sources. Temporal features work with `AI_ENABLED=false` and remain separate from M87 recommendation scoring and M68 ranking.
 
 ---
 

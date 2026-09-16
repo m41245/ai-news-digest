@@ -70,6 +70,12 @@ async def get_entity_relationships(
                 confidence=r.confidence,
                 provenance_source=r.provenance_source.value,
                 observed_at=r.observed_at.isoformat() if r.observed_at else None,
+                first_observed_at=r.first_observed_at.isoformat() if r.first_observed_at else None,
+                last_observed_at=r.last_observed_at.isoformat() if r.last_observed_at else None,
+                observation_count=r.observation_count,
+                source_count=r.source_count,
+                activity_status=r.activity_status.value if r.activity_status else None,
+                activity_score=r.activity_score,
             )
             for r in relationships
         ],

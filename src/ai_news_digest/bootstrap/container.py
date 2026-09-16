@@ -18,6 +18,9 @@ from ai_news_digest.application.rendering.renderer_factory import (
 from ai_news_digest.application.services.digest_editorial_generator import (
     DigestEditorialGenerator,
 )
+from ai_news_digest.application.services.graph_intelligence import (
+    temporal_graph_intelligence_service as _temporal_graph_module,
+)
 from ai_news_digest.application.services.graph_intelligence.graph_intelligence_service import (
     GraphIntelligenceService,
 )
@@ -546,6 +549,11 @@ class Container:
     def graph_intelligence(self) -> GraphIntelligenceService:
         return GraphIntelligenceService()
 
+    @property
+    def temporal_graph_intelligence(
+        self,
+    ) -> _temporal_graph_module.TemporalGraphIntelligenceService:
+        return _temporal_graph_module.TemporalGraphIntelligenceService()
 
     @property
     def story_activity_repository(self) -> StoryActivityRepository:

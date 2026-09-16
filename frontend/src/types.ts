@@ -65,19 +65,7 @@ export interface PublicStoryCluster extends PublicStoryClusterSearch {
   related_companies: string[];
   related_topics: string[];
   relationship_count: number;
-  graph_connections: Array<{
-    entity_type: string;
-    entity_id: string;
-    name: string;
-    relationship_type?: string | null;
-    status?: string | null;
-    score: number;
-    signals: string[];
-    explanation: string;
-    source_count: number;
-    is_disputed: boolean;
-    is_retracted: boolean;
-  }>;
+  graph_connections: GraphConnection[];
 }
 
 export interface StoryEvent {
@@ -487,6 +475,11 @@ export interface GraphConnection {
   source_count: number;
   is_disputed: boolean;
   is_retracted: boolean;
+  first_observed_at?: string | null;
+  last_observed_at?: string | null;
+  observation_count: number;
+  activity_status?: string | null;
+  activity_score: number;
 }
 
 export interface EntityConnectionsResponse {
@@ -497,6 +490,97 @@ export interface EntityConnectionsResponse {
   limit: number;
   offset: number;
   truncated: boolean;
+}
+
+export interface EntityEvolutionResponse {
+  entity_type: string;
+  entity_id: string;
+  new_connections: Array<{
+    entity_type: string;
+    entity_id: string;
+    name: string;
+    relationship_type?: string | null;
+    status?: string | null;
+    activity_status?: string | null;
+    activity_score: number;
+    first_observed_at?: string | null;
+    last_observed_at?: string | null;
+    observation_count: number;
+    source_count: number;
+    explanation: string;
+  }>;
+  recently_active: Array<{
+    entity_type: string;
+    entity_id: string;
+    name: string;
+    relationship_type?: string | null;
+    status?: string | null;
+    activity_status?: string | null;
+    activity_score: number;
+    first_observed_at?: string | null;
+    last_observed_at?: string | null;
+    observation_count: number;
+    source_count: number;
+    explanation: string;
+  }>;
+  recently_changed: Array<{
+    entity_type: string;
+    entity_id: string;
+    name: string;
+    relationship_type?: string | null;
+    status?: string | null;
+    activity_status?: string | null;
+    activity_score: number;
+    first_observed_at?: string | null;
+    last_observed_at?: string | null;
+    observation_count: number;
+    source_count: number;
+    explanation: string;
+  }>;
+  historical_connections: Array<{
+    entity_type: string;
+    entity_id: string;
+    name: string;
+    relationship_type?: string | null;
+    status?: string | null;
+    activity_status?: string | null;
+    activity_score: number;
+    first_observed_at?: string | null;
+    last_observed_at?: string | null;
+    observation_count: number;
+    source_count: number;
+    explanation: string;
+  }>;
+  total_connections: number;
+  generated_at: string;
+}
+
+export interface RelationshipChangeEvent {
+  change_type: string;
+  relationship_type: string;
+  object_entity_type: string;
+  object_entity_id: string;
+  object_name: string;
+  observed_at?: string | null;
+  explanation: string;
+}
+
+export interface EntityRelationshipHistoryResponse {
+  entity_type: string;
+  entity_id: string;
+  history: Array<{
+    relationship_type: string;
+    status: string;
+    first_observed_at?: string | null;
+    last_observed_at?: string | null;
+    observation_count: number;
+    source_count: number;
+    activity_status?: string;
+    activity_score: number;
+    change_count: number;
+  }>;
+  total: number;
+  limit: number;
 }
 
 export interface PersonalizedFeedItemResponse {

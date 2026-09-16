@@ -189,6 +189,76 @@ export const publicApi = {
         params: { limit, offset },
       })
       .then((r) => r.data),
+  entityTemporalConnections: (entityType: string, entityId: string, limit = 20, offset = 0): Promise<{
+    entity_type: string;
+    entity_id: string;
+    connections: Array<{
+      entity_type: string;
+      entity_id: string;
+      name: string;
+      relationship_type?: string | null;
+      status?: string | null;
+      score: number;
+      signals: string[];
+      explanation: string;
+      source_count: number;
+      is_disputed: boolean;
+      is_retracted: boolean;
+      first_observed_at?: string | null;
+      last_observed_at?: string | null;
+      observation_count: number;
+      activity_status?: string | null;
+      activity_score: number;
+    }>;
+    total: number;
+    limit: number;
+    offset: number;
+    truncated: boolean;
+  }> =>
+    api
+      .get(`/api/v1/public/graph/entities/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}/temporal-connections`, {
+        params: { limit, offset },
+      })
+      .then((r) => r.data),
+  entityEvolution: (entityType: string, entityId: string): Promise<{
+    entity_type: string;
+    entity_id: string;
+    new_connections: Array<Record<string, unknown>>;
+    recently_active: Array<Record<string, unknown>>;
+    recently_changed: Array<Record<string, unknown>>;
+    historical_connections: Array<Record<string, unknown>>;
+    total_connections: number;
+    generated_at: string;
+  }> =>
+    api
+      .get(`/api/v1/public/graph/entities/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}/evolution`)
+      .then((r) => r.data),
+  entityRelationshipHistory: (entityType: string, entityId: string, limit = 50): Promise<{
+    entity_type: string;
+    entity_id: string;
+    history: Array<Record<string, unknown>>;
+    total: number;
+    limit: number;
+  }> =>
+    api
+      .get(`/api/v1/public/relationships/entities/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}/history`, {
+        params: { limit },
+      })
+      .then((r) => r.data),
+  entityRelationshipChanges: (entityType: string, entityId: string, limit = 50): Promise<Array<{
+    change_type: string;
+    relationship_type: string;
+    object_entity_type: string;
+    object_entity_id: string;
+    object_name: string;
+    observed_at?: string | null;
+    explanation: string;
+  }>> =>
+    api
+      .get(`/api/v1/public/graph/entities/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}/changes`, {
+        params: { limit },
+      })
+      .then((r) => r.data),
   storyClusterGraphConnections: (clusterId: string, limit = 20, offset = 0): Promise<{
     entity_type: string;
     entity_id: string;
