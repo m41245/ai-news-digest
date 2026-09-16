@@ -2,16 +2,17 @@
 
 ## Current Phase
 
-Milestone 88 — Semantic Intelligence and Embedding-Ready Discovery: **COMPLETE**.
+Milestone 90 — Graph-Aware Intelligence and Discovery: **COMPLETE**.
 
-M88 additions:
-- Added provider-independent embedding abstraction (`EmbeddingProvider` interface)
-- Added validated cosine similarity engine (`SimilarityEngine`)
-- Added hybrid search: lexical, semantic, and hybrid modes via `?mode=` query param
-- Added related story discovery endpoint: `GET /api/v1/public/articles/{id}/related`
-- Added OpenAI embedding provider implementation
-- Added frontend search mode selector and Related Stories section
-- Added 24 comprehensive unit tests (similarity, embedding, semantic search, related stories)
+M90 additions:
+- Added `GraphIntelligenceService` with bounded BFS traversal over existing relationship table
+- Added graph API endpoints: `/api/v1/public/graph/entities/{type}/{id}/connections`, `/api/v1/public/graph/story-clusters/{id}/connections`, `/api/v1/public/graph/path/{source_type}/{source_id}/{target_type}/{target_id}`
+- Added conflict-aware scoring: DISPUTED reduces score, RETRACTED/INACTIVE excluded
+- Added bounded traversal with max_depth/max_nodes/max_edges/max_paths limits
+- Extended public story cluster response with `graph_connections` field
+- Extended related stories endpoint with graph signal enrichment
+- Added frontend Knowledge Connections UI section on story cluster pages
+- Added 18 unit tests for `GraphIntelligenceService` and 5 unit tests for graph API routes
 - All quality gates pass: ruff, mypy, pytest, TypeScript, frontend build
 
 ### Next Milestone
@@ -22,9 +23,9 @@ TBD
 
 ## Current Focus
 
-Milestone 88 — Semantic Intelligence and Embedding-Ready Discovery: **Complete**.
+Milestone 90 — Graph-Aware Intelligence and Discovery: **Complete**.
 
-M88 completed. The platform now has provider-independent semantic intelligence with hybrid search and related story discovery. Embeddings are generated on-the-fly without persistence, maintaining zero new infrastructure dependencies. All semantic features degrade gracefully when AI is disabled. Raw embeddings are never exposed in public APIs.
+M90 completed. The platform now provides graph-aware intelligence and discovery using the existing M89 relationship foundation. All graph traversal is bounded and explainable, conflict-aware, and operates without a graph database. Graph features work with AI_ENABLED=false and remain separate from M87 recommendation scoring and M68 ranking.
 
 ---
 
