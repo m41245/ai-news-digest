@@ -187,6 +187,7 @@ module = [
     "ai_news_digest.application.use_cases.user_preference.unmute_topic",
     "ai_news_digest.application.use_cases.user_preference.update_preferences",
     "ai_news_digest.application.services.notifications.*",
+    "ai_news_digest.application.services.graph_intelligence.graph_intelligence_service",
     "ai_news_digest.infrastructure.database.mappers.notification_mapper",
     "ai_news_digest.infrastructure.database.repositories.notification_repository",
     "ai_news_digest.workers.tasks.notifications",
@@ -204,6 +205,10 @@ disable_error_code = ["untyped-decorator"]
 
 [[tool.mypy.overrides]]
 module = ["ai_news_digest.application.services.ranking.*"]
+disable_error_code = ["import-untyped"]
+
+[[tool.mypy.overrides]]
+module = ["ai_news_digest.application.services.graph_intelligence.graph_intelligence_service"]
 disable_error_code = ["import-untyped"]
 
 [[tool.mypy.overrides]]

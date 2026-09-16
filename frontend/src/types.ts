@@ -65,6 +65,19 @@ export interface PublicStoryCluster extends PublicStoryClusterSearch {
   related_companies: string[];
   related_topics: string[];
   relationship_count: number;
+  graph_connections: Array<{
+    entity_type: string;
+    entity_id: string;
+    name: string;
+    relationship_type?: string | null;
+    status?: string | null;
+    score: number;
+    signals: string[];
+    explanation: string;
+    source_count: number;
+    is_disputed: boolean;
+    is_retracted: boolean;
+  }>;
 }
 
 export interface StoryEvent {
@@ -460,6 +473,30 @@ export interface UserPreferenceUpdateRequest {
   feed_sort?: string;
   freshness_window_days?: number;
   preferred_source_types?: string[];
+}
+
+export interface GraphConnection {
+  entity_type: string;
+  entity_id: string;
+  name: string;
+  relationship_type?: string | null;
+  status?: string | null;
+  score: number;
+  signals: string[];
+  explanation: string;
+  source_count: number;
+  is_disputed: boolean;
+  is_retracted: boolean;
+}
+
+export interface EntityConnectionsResponse {
+  entity_type: string;
+  entity_id: string;
+  connections: GraphConnection[];
+  total: number;
+  limit: number;
+  offset: number;
+  truncated: boolean;
 }
 
 export interface PersonalizedFeedItemResponse {

@@ -163,6 +163,58 @@ export const publicApi = {
     api
       .get("/api/v1/public/articles", { params: { search: q, limit } })
       .then((r) => r.data),
+  graphConnections: (entityType: string, entityId: string, limit = 20, offset = 0): Promise<{
+    entity_type: string;
+    entity_id: string;
+    connections: Array<{
+      entity_type: string;
+      entity_id: string;
+      name: string;
+      relationship_type?: string | null;
+      status?: string | null;
+      score: number;
+      signals: string[];
+      explanation: string;
+      source_count: number;
+      is_disputed: boolean;
+      is_retracted: boolean;
+    }>;
+    total: number;
+    limit: number;
+    offset: number;
+    truncated: boolean;
+  }> =>
+    api
+      .get(`/api/v1/public/graph/entities/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}/connections`, {
+        params: { limit, offset },
+      })
+      .then((r) => r.data),
+  storyClusterGraphConnections: (clusterId: string, limit = 20, offset = 0): Promise<{
+    entity_type: string;
+    entity_id: string;
+    connections: Array<{
+      entity_type: string;
+      entity_id: string;
+      name: string;
+      relationship_type?: string | null;
+      status?: string | null;
+      score: number;
+      signals: string[];
+      explanation: string;
+      source_count: number;
+      is_disputed: boolean;
+      is_retracted: boolean;
+    }>;
+    total: number;
+    limit: number;
+    offset: number;
+    truncated: boolean;
+  }> =>
+    api
+      .get(`/api/v1/public/graph/story-clusters/${encodeURIComponent(clusterId)}/connections`, {
+        params: { limit, offset },
+      })
+      .then((r) => r.data),
 };
 
 export const articlesApi = {

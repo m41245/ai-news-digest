@@ -7,7 +7,7 @@ import { Badge } from "../../components/ui/Badge";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Skeleton, StoryCardSkeleton } from "../../components/ui/Skeleton";
 import { formatDateTime } from "../../utils";
-import type { Conflict, StoryEvent } from "../../types";
+import type { Conflict, StoryEvent, GraphConnection } from "../../types";
 
 export function StoryClusterPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -238,7 +238,7 @@ export function StoryClusterPage() {
           </div>
         )}
 
-        {(cluster.related_companies.length > 0 || cluster.related_topics.length > 0) && (
+        {(cluster.related_companies.length > 0 || cluster.related_topics.length > 0 || (cluster.graph_connections && cluster.graph_connections.length > 0)) && (
           <div className="mt-8 max-w-3xl">
             <h2 className="text-lg font-semibold text-slate-900">Knowledge Connections</h2>
             <p className="mt-1 text-sm text-slate-500">
@@ -270,6 +270,50 @@ export function StoryClusterPage() {
                     >
                       {name}
                     </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {cluster.graph_connections && cluster.graph_connections.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-sm font-medium text-slate-700">Connected Entities</h3>
+                <div className="mt-2 space-y-2">
+                  {cluster.graph_connections.map((conn: GraphConnection, idx: number) => (
+                    <div
+                      key={idx}
+                      className="rounded-lg border border-slate-200 bg-white p-3 text-sm"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-slate-900">{conn.name as string}</span>
+                        <span className="text-xs text-slate-500">{conn.entity_type as string}</span>
+                        {conn.relationship_type && (
+                          <span className="rounded bg-brand-50 px-2 py-0.5 text-xs text-brand-700">
+                            {conn.relationship_type as string}
+                          </span>
+                        )}
+                        {conn.is_disputed && (
+                          <span className="rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
+                            disputed
+                          </span>
+                        )}
+                        {conn.is_retracted && (
+                          <span className="rounded bg-red-50 px-2 py-0.5 text-xs text-red-700">
+                            retracted
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">{conn.explanation as string}</p>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {(conn.signals as string[]).map((signal: string) => (
+                          <span
+                            key={signal}
+                            className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600"
+                          >
+                            {signal}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>

@@ -305,18 +305,90 @@ async def get_related_stories(
         limit=limit,
     )
 
-    return [
-        RelatedStoryResponse(
-            cluster_id=r.cluster_id,
-            title=r.title,
-            summary=r.summary,
-            similarity=r.similarity,
-            article_count=r.article_count,
-            source_count=r.source_count,
-            reason=r.reason,
+    graph_signals_map: dict[str, dict[str, Any]] = {}
+    if get_settings().knowledge_graph_enabled:
+        try:
+            from ai_news_digest.application.services.graph_intelligence.graph_intelligence_service import (  # noqa: E501
+                GraphIntelligenceService,
+            )
+
+            service = GraphIntelligenceService()
+            source_company_ids = set(article.companies or [])
+            source_topic_ids = set(article.topics or [])
+            source_category_ids = set()
+            if article.category_id:
+                source_category_ids.add(str(article.category_id))
+
+            for cluster in clusters:
+                if str(cluster.id) == existing_cluster_id:
+                    continue
+                candidate_rels = await container.relationship_repository.list_for_entity(
+                    entity_type="story",
+                    entity_id=cluster.id,
+                    status=None,
+                    limit=50,
+                )
+                source_rels = await container.relationship_repository.list_for_entity(
+                    entity_type="story",
+                    entity_id=article.cluster_id if article.cluster_id else article.id,
+                    status=None,
+                    limit=50,
+                )
+
+                candidate_company_ids = {
+                    str(r.object_entity_id)
+                    for r in candidate_rels
+                    if r.object_entity_type.value == "company"
+                }
+                candidate_topic_ids = {
+                    str(r.object_entity_id)
+                    for r in candidate_rels
+                    if r.object_entity_type.value == "topic"
+                }
+
+                signal = service.compute_related_story_signals(
+                    source_cluster_id=str(article.cluster_id or article.id),
+                    candidate_cluster_id=str(cluster.id),
+                    source_company_ids=source_company_ids,
+                    source_topic_ids=source_topic_ids,
+                    source_category_ids=source_category_ids,
+                    candidate_company_ids=candidate_company_ids,
+                    candidate_topic_ids=candidate_topic_ids,
+                    candidate_category_ids=set(),
+                    relationships=source_rels + candidate_rels,
+                )
+                if signal:
+                    graph_signals_map[str(cluster.id)] = {
+                        "graph_score": signal.graph_score,
+                        "signals": signal.signals,
+                        "explanation": signal.explanation,
+                        "relationship_count": signal.relationship_count,
+                    }
+        except Exception:
+            graph_signals_map = {}
+
+    results: list[RelatedStoryResponse] = []
+    for r in related:
+        graph_data = graph_signals_map.get(r.cluster_id)
+        reason = r.reason
+        if graph_data and graph_data.get("graph_score", 0) > 0:
+            reason = f"{r.reason}; {graph_data['explanation']}"
+
+        results.append(
+            RelatedStoryResponse(
+                cluster_id=r.cluster_id,
+                title=r.title,
+                summary=r.summary,
+                similarity=r.similarity,
+                article_count=r.article_count,
+                source_count=r.source_count,
+                reason=reason,
+            )
         )
-        for r in related
-    ]
+        if len(results) >= limit:
+            break
+
+    return results
 
 
 @router.get(
@@ -724,6 +796,7 @@ async def get_public_story_cluster(
     related_companies: list[str] = []
     related_topics: list[str] = []
     relationship_count = 0
+    graph_connections: list[dict[str, Any]] = []
     try:
         activity = await container.story_activity_repository.get_by_story_cluster_id(cluster.id)
         if activity is not None:
@@ -735,18 +808,26 @@ async def get_public_story_cluster(
 
     if get_settings().knowledge_graph_enabled:
         try:
+            from ai_news_digest.application.services.graph_intelligence.graph_intelligence_service import (  # noqa: E501
+                GraphIntelligenceService,
+            )
+
             relationships = await container.relationship_repository.list_for_entity(
                 entity_type="story",
                 entity_id=cluster.id,
-                status="verified",
+                status=None,
                 limit=200,
             )
             relationship_count = len(relationships)
             company_ids = [
-                str(r.object_entity_id) for r in relationships if r.object_entity_type.value == "company"
+                str(r.object_entity_id)
+                for r in relationships
+                if r.object_entity_type.value == "company"
             ]
             topic_ids = [
-                str(r.object_entity_id) for r in relationships if r.object_entity_type.value == "topic"
+                str(r.object_entity_id)
+                for r in relationships
+                if r.object_entity_type.value == "topic"
             ]
             if company_ids:
                 companies = await container.company_repository.list_by_ids(company_ids)
@@ -754,8 +835,37 @@ async def get_public_story_cluster(
             if topic_ids:
                 topics = await container.topic_repository.list_by_ids(topic_ids)
                 related_topics = [t.name for t in topics]
+
+            service = GraphIntelligenceService()
+            name_map = await _build_graph_name_map(container, relationships)
+            name_map[f"story:{cluster.id}"] = cluster.title
+
+            connections = service.get_entity_connections(
+                entity_type="story",
+                entity_id=str(cluster.id),
+                relationships=relationships,
+                name_resolver=lambda e_type, e_id: name_map.get(
+                    f"{e_type}:{e_id}", f"{e_type} {e_id[:8]}"
+                ),
+            )
+            graph_connections = [
+                {
+                    "entity_type": c.entity_type,
+                    "entity_id": c.entity_id,
+                    "name": c.name,
+                    "relationship_type": c.relationship_type,
+                    "status": c.status,
+                    "score": round(c.score, 4),
+                    "signals": c.signals,
+                    "explanation": c.explanation,
+                    "source_count": c.source_count,
+                    "is_disputed": c.is_disputed,
+                    "is_retracted": c.is_retracted,
+                }
+                for c in connections[:20]
+            ]
         except Exception:
-            pass
+            graph_connections = []
 
     return PublicStoryClusterResponse(
         id=str(cluster.id),
@@ -782,6 +892,7 @@ async def get_public_story_cluster(
         related_companies=related_companies,
         related_topics=related_topics,
         relationship_count=relationship_count,
+        graph_connections=graph_connections,
     )
 
 
@@ -1056,6 +1167,67 @@ async def get_public_trend(
 
 
 router.include_router(timeline_router)
+
+
+async def _build_graph_name_map(
+    container: Container,
+    relationships: list[Any],
+) -> dict[str, str]:
+    """Build a map of entity keys to display names for graph connections."""
+    name_map: dict[str, str] = {}
+    company_ids: list[str] = []
+    topic_ids: list[str] = []
+    category_ids: list[str] = []
+    story_ids: list[str] = []
+
+    for rel in relationships:
+        obj_type = rel.object_entity_type.value
+        subj_type = rel.subject_entity_type.value
+        if obj_type == "company":
+            company_ids.append(str(rel.object_entity_id))
+        elif obj_type == "topic":
+            topic_ids.append(str(rel.object_entity_id))
+        elif obj_type == "category":
+            category_ids.append(str(rel.object_entity_id))
+        elif obj_type == "story":
+            story_ids.append(str(rel.object_entity_id))
+
+        if subj_type == "company":
+            company_ids.append(str(rel.subject_entity_id))
+        elif subj_type == "topic":
+            topic_ids.append(str(rel.subject_entity_id))
+        elif subj_type == "category":
+            category_ids.append(str(rel.subject_entity_id))
+        elif subj_type == "story":
+            story_ids.append(str(rel.subject_entity_id))
+
+    if company_ids:
+        companies = await container.company_repository.list_by_ids(company_ids)
+        for c in companies:
+            name_map[f"company:{c.id}"] = c.name
+
+    if topic_ids:
+        topics = await container.topic_repository.list_by_ids(topic_ids)
+        for t in topics:
+            name_map[f"topic:{t.id}"] = t.name
+
+    if category_ids:
+        unique_cat_ids = list(set(category_ids))
+        categories = await container.category_repository.list_by_ids(
+            [UUID(cid) for cid in unique_cat_ids]
+        )
+        for cat in categories:
+            name_map[f"category:{cat.id}"] = cat.name
+
+    if story_ids:
+        unique_story_ids = list(set(story_ids))
+        clusters = await container.story_cluster_repository.get_by_ids(
+            [UUID(sid) for sid in unique_story_ids]
+        )
+        for cluster in clusters:
+            name_map[f"story:{cluster.id}"] = cluster.title
+
+    return name_map
 
 
 __all__ = ["router"]

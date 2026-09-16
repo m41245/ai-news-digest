@@ -18,6 +18,9 @@ from ai_news_digest.application.rendering.renderer_factory import (
 from ai_news_digest.application.services.digest_editorial_generator import (
     DigestEditorialGenerator,
 )
+from ai_news_digest.application.services.graph_intelligence.graph_intelligence_service import (
+    GraphIntelligenceService,
+)
 from ai_news_digest.application.services.related_story_finder import (
     RelatedStoryFinder,
 )
@@ -198,6 +201,7 @@ from ai_news_digest.domain.ports.notification_repository import (
     NotificationPreferenceRepository,
     NotificationRepository,
 )
+from ai_news_digest.domain.ports.relationship_repository import RelationshipRepository
 from ai_news_digest.domain.ports.source_repository import SourceRepository
 from ai_news_digest.domain.ports.story_activity_repository import (
     StoryActivityRepository,
@@ -537,6 +541,10 @@ class Container:
             topic_repository=self.topic_repository,
             provider_manager=self.provider_manager,
         )
+
+    @property
+    def graph_intelligence(self) -> GraphIntelligenceService:
+        return GraphIntelligenceService()
 
 
     @property

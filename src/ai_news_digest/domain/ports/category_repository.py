@@ -42,6 +42,13 @@ class CategoryRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def list_by_ids(
+        self,
+        category_ids: list[UUID],
+    ) -> list[Category]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def update(
         self,
         category: Category,

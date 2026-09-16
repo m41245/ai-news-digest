@@ -91,6 +91,18 @@ class CategoryRepository(
 
         return [CategoryMapper.to_domain(model) for model in models]
 
+    async def list_by_ids(
+        self,
+        category_ids: list[UUID],
+    ) -> list[Category]:
+        """Return categories matching the given identifiers."""
+        statement = select(CategoryModel).where(
+            CategoryModel.id.in_([str(cid) for cid in category_ids])
+        )
+        result = await self._session.execute(statement)
+        models = result.scalars().all()
+        return [CategoryMapper.to_domain(model) for model in models]
+
     async def count(self) -> int:
         """Return the total number of categories."""
         statement = select(func.count()).select_from(CategoryModel)

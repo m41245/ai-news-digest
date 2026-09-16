@@ -122,6 +122,7 @@ class PublicStoryClusterResponse(BaseModel):
     related_companies: list[str] = []
     related_topics: list[str] = []
     relationship_count: int = 0
+    graph_connections: list[dict[str, Any]] = []
 
 
 class PublicTopStoryResponse(BaseModel):

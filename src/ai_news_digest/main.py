@@ -19,11 +19,12 @@ from ai_news_digest.api.v1.routes.articles import router as articles_router
 from ai_news_digest.api.v1.routes.auth import router as auth_router
 from ai_news_digest.api.v1.routes.categories import router as categories_router
 from ai_news_digest.api.v1.routes.digests import router as digests_router
+from ai_news_digest.api.v1.routes.graph import router as graph_router
 from ai_news_digest.api.v1.routes.health import router as health_router
 from ai_news_digest.api.v1.routes.notifications import router as notifications_router
 from ai_news_digest.api.v1.routes.public import router as public_router
-from ai_news_digest.api.v1.routes.relationships import router as relationships_router
 from ai_news_digest.api.v1.routes.recommendations import router as recommendations_router
+from ai_news_digest.api.v1.routes.relationships import router as relationships_router
 from ai_news_digest.api.v1.routes.sources import router as sources_router
 from ai_news_digest.api.v1.routes.story_ranking import router as story_ranking_router
 from ai_news_digest.api.v1.routes.user_preferences import router as user_preferences_router
@@ -149,6 +150,11 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     application.include_router(
         public_router,
         prefix=app_settings.api_prefix,
+    )
+
+    application.include_router(
+        graph_router,
+        prefix=f"{app_settings.api_prefix}/public",
     )
 
     application.include_router(
