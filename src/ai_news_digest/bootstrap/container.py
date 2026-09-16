@@ -37,6 +37,9 @@ from ai_news_digest.application.services.semantic_candidate_finder import (
 from ai_news_digest.application.services.semantic_duplicate_detector import (
     SemanticDuplicateDetector,
 )
+from ai_news_digest.application.services.story_intelligence_brief import (
+    StoryIntelligenceBriefService,
+)
 from ai_news_digest.application.use_cases.article.analyze_and_materialize import (
     AnalyzeAndMaterializeUseCase,
 )
@@ -959,6 +962,10 @@ class Container:
             duplicate_detector=self.semantic_duplicate_detector,
             candidate_finder=self.semantic_candidate_finder,
         )
+
+    @property
+    def story_intelligence_brief(self) -> StoryIntelligenceBriefService:
+        return StoryIntelligenceBriefService(container=self)
 
     @property
     def create_story_cluster(self) -> CreateStoryClusterUseCase:

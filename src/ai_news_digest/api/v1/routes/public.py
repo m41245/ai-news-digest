@@ -42,11 +42,17 @@ from ai_news_digest.api.v1.schemas.public import (
     RelatedStoryResponse,
 )
 from ai_news_digest.api.v1.schemas.source import SourceResponse
+from ai_news_digest.api.v1.schemas.story_intelligence_brief import (
+    StoryIntelligenceBriefResponse,
+)
 from ai_news_digest.application.services.ranking.story_ranking_service import (
     StoryRankingEngine,
 )
 from ai_news_digest.application.services.ranking.top_story_selector import (
     TopStorySelector,
+)
+from ai_news_digest.application.services.story_intelligence_brief import (
+    StoryIntelligenceBriefService,
 )
 from ai_news_digest.application.use_cases.story_cluster.story_intelligence import (
     TimelineItem,
@@ -676,6 +682,62 @@ async def get_public_top_story(
         activity_status=activity_status,
         activity_score=activity_score,
     )
+
+
+@router.get(
+    "/story-clusters/{slug}/brief",
+    response_model=StoryIntelligenceBriefResponse,
+    summary="Get a story intelligence brief",
+)
+async def get_story_intelligence_brief(
+    slug: str,
+    container: Annotated[Container, Depends(get_container)],
+) -> StoryIntelligenceBriefResponse:
+    """Retrieve a structured intelligence brief for a public story cluster.
+
+    The brief assembles existing M67-M94 intelligence into a coherent
+    evidence-first experience without requiring new AI calls.
+    """
+    settings = get_settings()
+    service = StoryIntelligenceBriefService(container=container)
+
+    cache_key = f"story-brief:{slug}"
+    cached_brief = None
+    with contextlib.suppress(Exception):
+        cached_brief = await container.cache_store.get(cache_key)
+
+    if cached_brief is not None:
+        brief = cached_brief
+    else:
+        brief = await service.build_brief(slug=slug)
+        if brief:
+            with contextlib.suppress(Exception):
+                await container.cache_store.set(cache_key, brief, ttl=300)
+
+    if not brief:
+        raise ResourceNotFoundError(f"Story cluster with slug '{slug}' not found.")
+
+    quality = brief.get("quality") or {}
+    health_status = quality.get("health_status", "insufficient_data")
+
+    if settings.quality_gates_enabled and health_status == "blocked":
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=403,
+            detail="Intelligence for this story is currently blocked by quality gates.",
+        )
+
+    if settings.quality_gates_enabled and quality.get("degraded"):
+        degraded_message = (
+            "Some intelligence for this story is currently unavailable."
+        )
+        if quality.get("degraded_message"):
+            degraded_message = quality["degraded_message"]
+        quality["degraded"] = True
+        quality["degraded_message"] = degraded_message
+        brief["quality"] = quality
+
+    return StoryIntelligenceBriefResponse(**brief)
 
 
 @router.get(

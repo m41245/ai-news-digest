@@ -5,58 +5,57 @@ import { publicApi } from "../../api";
 import { ErrorState } from "../../components/ui/ErrorState";
 import { Badge } from "../../components/ui/Badge";
 import { EmptyState } from "../../components/ui/EmptyState";
-import { Skeleton, StoryCardSkeleton } from "../../components/ui/Skeleton";
-import { ConnectionHistorySection } from "../../components/ConnectionHistorySection";
+import { Skeleton } from "../../components/ui/Skeleton";
 import { IntelligenceQualityPanel } from "../../components/IntelligenceQualityPanel";
+import { ProvenanceBadge } from "../../components/ProvenanceBadge";
 import { formatDateTime } from "../../utils";
-import type { Conflict, StoryEvent, GraphConnection } from "../../types";
+import type {
+  BriefEntitiesContext,
+  BriefEntityContext,
+  BriefGraphConnection,
+  BriefQualityIndicators,
+  BriefRelatedStoryItem,
+  BriefStoryEvolution,
+  BriefTimelineItem,
+  BriefTrendContext,
+} from "../../types";
+
+function BriefSkeleton() {
+  return (
+    <div className="container-page py-8">
+      <div className="max-w-3xl">
+        <Skeleton className="h-4 w-24 mb-4" />
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <Skeleton className="h-6 w-24" />
+          <Skeleton className="h-5 w-20" />
+          <Skeleton className="h-5 w-20" />
+        </div>
+        <Skeleton className="h-8 w-3/4 mb-3" />
+        <Skeleton className="h-4 w-48 mb-8" />
+        <div className="mb-8">
+          <Skeleton className="h-5 w-24 mb-2" />
+          <Skeleton className="h-4 w-full mb-2" />
+          <Skeleton className="h-4 w-5/6" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function StoryClusterPage() {
   const { slug } = useParams<{ slug: string }>();
 
-  const { data: cluster, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["storyCluster", slug],
-    queryFn: () => publicApi.storyCluster(slug!),
+  const { data: brief, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ["storyClusterBrief", slug],
+    queryFn: () => publicApi.storyClusterBrief(slug!),
     enabled: !!slug,
   });
 
-  const { data: timeline } = useQuery({
-    queryKey: ["storyTimeline", cluster?.id],
-    queryFn: () => publicApi.storyTimeline(cluster!.id),
-    enabled: !!cluster?.id,
-  });
-
   if (isLoading) {
-    return (
-      <div className="container-page py-8">
-        <div className="max-w-3xl">
-          <Skeleton className="h-4 w-24 mb-4" />
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-            <Skeleton className="h-6 w-24" />
-            <Skeleton className="h-5 w-20" />
-            <Skeleton className="h-5 w-20" />
-          </div>
-          <Skeleton className="h-8 w-3/4 mb-3" />
-          <Skeleton className="h-4 w-48 mb-8" />
-          <div className="mb-8">
-            <Skeleton className="h-5 w-24 mb-2" />
-            <Skeleton className="h-4 w-full mb-2" />
-            <Skeleton className="h-4 w-5/6" />
-          </div>
-          <div className="mb-8">
-            <Skeleton className="h-6 w-32 mb-4" />
-            <div className="flex flex-col gap-4">
-              <StoryCardSkeleton />
-              <StoryCardSkeleton />
-              <StoryCardSkeleton />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <BriefSkeleton />;
   }
 
-  if (isError || !cluster) {
+  if (isError || !brief) {
     return (
       <div className="container-page py-16">
         <ErrorState
@@ -67,13 +66,54 @@ export function StoryClusterPage() {
     );
   }
 
+  const sources = brief.sources || [];
+  const claims = brief.claims || [];
+  const conflicts = brief.conflicts || [];
+  const timeline = brief.timeline || [];
+  const trends = brief.trends || [];
+  const entities: BriefEntitiesContext = brief.entities || { companies: [], topics: [], graph_connections: [] };
+  const relatedStories = brief.related_stories || [];
+  const quality = brief.quality as BriefQualityIndicators | undefined;
+  const provenance = brief.provenance;
+  const storyEvolution = brief.story_evolution as BriefStoryEvolution | null | undefined;
+
+  const statusBadgeTone = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "breaking":
+        return "danger";
+      case "developing":
+        return "warning";
+      case "stale":
+        return "neutral";
+      default:
+        return "brand";
+    }
+  };
+
+  const activityBadgeTone = (activityStatus: string | null | undefined) => {
+    if (!activityStatus) return "neutral";
+    switch (activityStatus.toLowerCase()) {
+      case "breaking":
+        return "danger";
+      case "developing":
+        return "warning";
+      case "dormant":
+        return "neutral";
+      default:
+        return "brand";
+    }
+  };
+
   return (
     <>
       <Seo
-        title={cluster.title}
-        description={cluster.summary ?? `A story cluster with ${cluster.article_count} articles from ${cluster.source_count} sources.`}
+        title={brief.title}
+        description={
+          brief.summary ||
+          `Intelligence brief: ${brief.title}. ${brief.article_count} articles from ${brief.source_count} sources.`
+        }
         ogType="article"
-        canonical={`/stories/${cluster.slug}`}
+        canonical={`/stories/${brief.slug}`}
       />
       <article className="container-page py-8">
         <Link
@@ -82,104 +122,222 @@ export function StoryClusterPage() {
         >
           &larr; Back to digests
         </Link>
+
         <header className="mt-4 max-w-3xl">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone="brand">{cluster.status}</Badge>
-            {cluster.activity_status && (
-              <Badge tone={cluster.activity_status === "breaking" ? "danger" : cluster.activity_status === "developing" ? "warning" : "neutral"}>
-                {cluster.activity_status}
+            <Badge tone={statusBadgeTone(brief.status)}>{brief.status}</Badge>
+            {brief.activity_status && (
+              <Badge tone={activityBadgeTone(brief.activity_status)}>
+                {brief.activity_status}
               </Badge>
             )}
-            {cluster.importance_score != null && (
+            {brief.importance_score != null && (
               <span className="text-sm text-slate-500">
-                Importance: {cluster.importance_score.toFixed(2)}
+                Importance: {brief.importance_score.toFixed(2)}
               </span>
             )}
-            {cluster.confidence != null && (
+            {brief.confidence != null && (
               <span className="text-sm text-slate-500">
-                Confidence: {cluster.confidence.toFixed(2)}
+                Confidence: {brief.confidence.toFixed(2)}
               </span>
             )}
-            {cluster.overall_quality_score != null && (
-              <span className="text-sm text-slate-500">
-                Quality: {(cluster.overall_quality_score * 100).toFixed(0)}%
-              </span>
+            {provenance && (
+              <ProvenanceBadge provenanceSource={provenance.source} />
             )}
           </div>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-            {cluster.title}
+            {brief.title}
           </h1>
           <p className="mt-3 text-sm text-slate-500">
-            {cluster.article_count} articles &middot; {cluster.source_count} sources &middot;{" "}
-            Updated {formatDateTime(cluster.last_updated_at)}
-            {cluster.independent_source_count != null && cluster.independent_source_count !== cluster.source_count && (
-              <span> &middot; {cluster.independent_source_count} independent sources</span>
+            {brief.article_count} articles &middot; {brief.source_count} sources &middot;{" "}
+            Updated {formatDateTime(brief.updated_at || brief.last_updated_at)}
+            {brief.independent_source_count != null && brief.independent_source_count !== brief.source_count && (
+              <span> &middot; {brief.independent_source_count} independent sources</span>
             )}
           </p>
         </header>
 
-        {cluster.summary && (
-          <div className="mt-8 max-w-3xl rounded-xl bg-brand-50 p-6">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-brand-700">
-              Summary
+        {brief.summary && (
+          <section className="mt-8 max-w-3xl" aria-labelledby="summary-heading">
+            <h2 id="summary-heading" className="text-sm font-semibold uppercase tracking-wide text-brand-700">
+              Executive Brief
             </h2>
-            <p className="mt-2 text-slate-800 leading-relaxed">{cluster.summary}</p>
-          </div>
+            <p className="mt-2 text-slate-800 leading-relaxed">{brief.summary}</p>
+          </section>
         )}
 
-        {(cluster.quality_flags && cluster.quality_flags.length > 0) || cluster.quality_explanation ? (
-          <div className="mt-8 max-w-3xl">
-            <IntelligenceQualityPanel
-              qualityFlags={cluster.quality_flags}
-              qualityExplanation={cluster.quality_explanation}
-              overallQualityScore={cluster.overall_quality_score}
-              provenanceComplete={cluster.provenance_complete}
-            />
-          </div>
-        ) : null}
-
-        {cluster.what_changed && cluster.what_changed.length > 0 && (
-          <div className="mt-8 max-w-3xl">
-            <h2 className="text-lg font-semibold text-slate-900">What Changed</h2>
+        {brief.key_takeaways && brief.key_takeaways.length > 0 && (
+          <section className="mt-8 max-w-3xl" aria-labelledby="takeaways-heading">
+            <h2 id="takeaways-heading" className="text-lg font-semibold text-slate-900">
+              Key Takeaways
+            </h2>
             <ul className="mt-3 list-inside list-disc space-y-1 text-slate-700">
-              {cluster.what_changed.map((change, i) => (
-                <li key={i}>{change}</li>
+              {brief.key_takeaways.map((takeaway, i) => (
+                <li key={i}>{takeaway}</li>
               ))}
             </ul>
-          </div>
+          </section>
         )}
 
-        {cluster.contradictions && cluster.contradictions.length > 0 && (
-          <div className="mt-8 max-w-3xl">
-            <h2 className="text-lg font-semibold text-slate-900">Conflicting Reports</h2>
+        {brief.why_it_matters && (
+          <section className="mt-8 max-w-3xl" aria-labelledby="why-heading">
+            <h2 id="why-heading" className="text-lg font-semibold text-slate-900">
+              Why It Matters
+            </h2>
+            <p className="mt-2 text-slate-700 leading-relaxed">{brief.why_it_matters}</p>
+          </section>
+        )}
+
+        {quality && (
+          <section className="mt-8 max-w-3xl" aria-labelledby="quality-heading">
+            <h2 id="quality-heading" className="text-sm font-semibold uppercase tracking-wide text-brand-700">
+              Intelligence Quality
+            </h2>
+            <div className="mt-3">
+              <IntelligenceQualityPanel
+                qualityFlags={quality.quality_flags}
+                qualityExplanation={quality.quality_explanation}
+                overallQualityScore={quality.overall_quality_score}
+                provenanceComplete={provenance?.is_complete}
+              />
+              {quality.degraded && quality.degraded_message && (
+                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                  {quality.degraded_message}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {sources.length > 0 && (
+          <section className="mt-8 max-w-3xl" aria-labelledby="sources-heading">
+            <h2 id="sources-heading" className="text-lg font-semibold text-slate-900">
+              What Sources Say
+            </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Different sources report incompatible facts about this story.
-              This does not mean any source is wrong.
+              {sources.length} publisher{sources.length === 1 ? "" : "s"} contributing to this story.
             </p>
-            <div className="mt-3 space-y-4">
-              {cluster.contradictions.map((c, i) => (
-                <div
-                  key={i}
-                  className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
-                >
-                  {typeof c === "string" ? c : JSON.stringify(c)}
+            <div className="mt-4 space-y-6">
+              {sources.map((source, idx) => (
+                <div key={idx} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-slate-900">{source.publisher}</span>
+                    <Badge tone="neutral">{source.source_type}</Badge>
+                    <Badge>{source.source_role}</Badge>
+                    {source.provenance_source && (
+                      <ProvenanceBadge provenanceSource={source.provenance_source} />
+                    )}
+                    <span className="text-xs text-slate-500">
+                      {source.article_count} article{source.article_count === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  {source.articles && source.articles.length > 0 && (
+                    <div className="mt-3 flex flex-col gap-3">
+                      {source.articles.map((article, aIdx) => (
+                        <div key={aIdx} className="text-sm">
+                          <a
+                            href={article.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-brand-700 hover:underline focus-visible:text-brand-700"
+                          >
+                            {article.headline}
+                          </a>
+                          <span className="ml-2 text-xs text-slate-500">
+                            ({formatDateTime(article.publication_date)})
+                          </span>
+                          <span className="ml-2 text-xs text-brand-600">
+                            Read original
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
-        {cluster.conflicts && cluster.conflicts.length > 0 && (
-          <div className="mt-8 max-w-3xl">
-            <h2 className="text-lg font-semibold text-slate-900">Conflicting Reports</h2>
+        {claims.length > 0 && (
+          <section className="mt-8 max-w-3xl" aria-labelledby="claims-heading">
+            <h2 id="claims-heading" className="text-lg font-semibold text-slate-900">
+              Claims &amp; Evidence
+            </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Different sources report incompatible facts about this story.
-              This does not mean any source is wrong.
+              Facts and reported claims backed by evidence from sources.
+            </p>
+            <div className="mt-4 space-y-4">
+              {claims.map((claim, idx) => (
+                <div key={idx} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone={claim.status === "SUPPORTED" ? "success" : claim.status === "PARTIALLY_SUPPORTED" ? "warning" : claim.status === "UNSUPPORTED" ? "danger" : "neutral"}>
+                      {claim.status}
+                    </Badge>
+                    <span className="text-xs text-slate-500">{claim.type}</span>
+                    {claim.confidence != null && (
+                      <span className="text-xs text-slate-500">
+                        Confidence: {(claim.confidence * 100).toFixed(0)}%
+                      </span>
+                    )}
+                     {claim.provenance_source && (
+                       <ProvenanceBadge provenanceSource={claim.provenance_source} />
+                     )}
+                  </div>
+                  <p className="mt-2 text-sm text-slate-800">{claim.claim_text}</p>
+                  {claim.evidence && claim.evidence.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Evidence ({claim.evidence_count})
+                      </p>
+                      {claim.evidence.map((ev, eIdx) => (
+                        <div
+                          key={eIdx}
+                          className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs text-slate-700"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge tone="neutral" className="text-xs">
+                              {ev.evidence_type}
+                            </Badge>
+                            {ev.source_name && <span>{ev.source_name}</span>}
+                            {ev.published_at && (
+                              <span className="text-slate-500">
+                                {formatDateTime(ev.published_at)}
+                              </span>
+                            )}
+                          </div>
+                          {ev.excerpt && <p className="mt-1 italic">&ldquo;{ev.excerpt}&rdquo;</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {claims.length === 0 && (
+          <section className="mt-8 max-w-3xl">
+            <EmptyState
+              title="No claims extracted"
+              description="Claims and evidence are extracted from source articles when available."
+            />
+          </section>
+        )}
+
+        {conflicts.length > 0 && (
+          <section className="mt-8 max-w-3xl" aria-labelledby="conflicts-heading">
+            <h2 id="conflicts-heading" className="text-lg font-semibold text-slate-900">
+              Conflicts / Different Accounts
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Different sources report incompatible facts. This does not mean any source is wrong.
             </p>
             <div className="mt-3 space-y-4">
-              {(cluster.conflicts as Conflict[]).map((c, i) => (
+              {conflicts.map((c, idx) => (
                 <div
-                  key={i}
+                  key={idx}
                   className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
                 >
                   <div className="flex flex-wrap items-center gap-2">
@@ -188,6 +346,7 @@ export function StoryClusterPage() {
                       {c.conflict_type}
                       {c.confidence != null && ` · ${(c.confidence * 100).toFixed(0)}%`}
                     </span>
+                    <Badge tone="warning" className="text-xs">{c.status}</Badge>
                   </div>
                   <div className="mt-2 grid gap-2 text-xs text-amber-800">
                     {c.source_a_name && (
@@ -214,102 +373,192 @@ export function StoryClusterPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
-        {cluster.needs_verification && (
-          <div className="mt-8 max-w-3xl">
-            <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800">
-              This story may need verification due to detected contradictions.
+        {storyEvolution && (
+          <section className="mt-8 max-w-3xl" aria-labelledby="evolution-heading">
+            <h2 id="evolution-heading" className="text-lg font-semibold text-slate-900">
+              Story Evolution
+            </h2>
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              {storyEvolution.first_reported && (
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                    First Reported
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-slate-900">
+                    {String(storyEvolution.first_reported.title || "")}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {storyEvolution.first_reported.published_at
+                      ? formatDateTime(String(storyEvolution.first_reported.published_at))
+                      : ""}
+                  </p>
+                  {storyEvolution.first_reported.source_name && (
+                    <p className="text-xs text-slate-500">
+                      {String(storyEvolution.first_reported.source_name)}
+                    </p>
+                  )}
+                </div>
+              )}
+              {storyEvolution.latest_development && (
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Latest Development
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-slate-900">
+                    {String(storyEvolution.latest_development.title || "")}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {storyEvolution.latest_development.published_at
+                      ? formatDateTime(String(storyEvolution.latest_development.published_at))
+                      : ""}
+                  </p>
+                  {storyEvolution.latest_development.source_name && (
+                    <p className="text-xs text-slate-500">
+                      {String(storyEvolution.latest_development.source_name)}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
-          </div>
+            {storyEvolution.major_developments && storyEvolution.major_developments.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-sm font-medium text-slate-700">Major Developments</h3>
+                <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-slate-700">
+                  {storyEvolution.major_developments.map((dev, i) => (
+                    <li key={i}>{dev}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
         )}
 
-        {timeline && timeline.events.length > 0 && (
-          <div className="mt-8 max-w-3xl">
-            <h2 className="text-lg font-semibold text-slate-900">Story Evolution</h2>
-            <div className="mt-4 space-y-4">
-              {timeline.events.map((event: StoryEvent) => (
+        {timeline.length > 0 && (
+          <section className="mt-8 max-w-3xl" aria-labelledby="timeline-heading">
+            <h2 id="timeline-heading" className="text-lg font-semibold text-slate-900">
+              Timeline
+            </h2>
+            <div className="mt-4 space-y-3">
+              {timeline.map((event: BriefTimelineItem) => (
                 <div
                   key={event.id}
-                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                  className="flex gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
                 >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone="brand">{event.event_type}</Badge>
-                    <span className="text-xs text-slate-500">
-                      {event.event_time ? formatDateTime(event.event_time) : "Unknown date"}
-                    </span>
-                    <span className="text-xs text-slate-500">
-                      Confidence: {(event.confidence * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                  <h3 className="mt-2 text-base font-semibold text-slate-900">
-                    {event.title}
-                  </h3>
-                  {event.description && (
-                    <p className="mt-1 text-sm text-slate-600">{event.description}</p>
-                  )}
-                  <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
-                    <span>{event.article_count} articles</span>
-                    <span>{event.claim_count} claims</span>
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {event.source_role && (
+                        <Badge tone="brand" className="text-xs">{event.source_role}</Badge>
+                      )}
+                      {event.source_type && (
+                        <Badge tone="neutral" className="text-xs">{event.source_type}</Badge>
+                      )}
+                      {event.published_at && (
+                        <span className="text-xs text-slate-500">
+                          {formatDateTime(event.published_at)}
+                        </span>
+                      )}
+                    </div>
+                    {event.title && (
+                      <h3 className="mt-1 text-sm font-medium text-slate-900">
+                        {event.url ? (
+                          <a
+                            href={event.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-brand-700 focus-visible:text-brand-700"
+                          >
+                            {event.title}
+                          </a>
+                        ) : (
+                          event.title
+                        )}
+                      </h3>
+                    )}
+                    {event.summary && (
+                      <p className="mt-1 text-xs text-slate-600">{event.summary}</p>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
-        {(cluster.related_companies.length > 0 || cluster.related_topics.length > 0 || (cluster.graph_connections && cluster.graph_connections.length > 0)) && (
-          <div className="mt-8 max-w-3xl">
-            <h2 className="text-lg font-semibold text-slate-900">Knowledge Connections</h2>
+        {trends.length > 0 && (
+          <section className="mt-8 max-w-3xl" aria-labelledby="trends-heading">
+            <h2 id="trends-heading" className="text-lg font-semibold text-slate-900">
+              Trend Context
+            </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Entities connected to this story based on extracted relationships.
+              This story is part of active trends:
             </p>
-            {cluster.related_companies.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {trends.map((trend: BriefTrendContext) => (
+                <Link
+                  key={trend.id}
+                  to={`/trends`}
+                  className="rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-800 hover:underline"
+                >
+                  {trend.display_name}
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {(entities.companies?.length > 0 || entities.topics?.length > 0 || (entities.graph_connections && entities.graph_connections.length > 0)) && (
+          <section className="mt-8 max-w-3xl" aria-labelledby="entities-heading">
+            <h2 id="entities-heading" className="text-lg font-semibold text-slate-900">
+              Entity Context
+            </h2>
+            {entities.companies && entities.companies.length > 0 && (
               <div className="mt-3">
                 <h3 className="text-sm font-medium text-slate-700">Companies</h3>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {cluster.related_companies.map((name: string) => (
+                  {(entities.companies as BriefEntityContext[]).map((c) => (
                     <span
-                      key={name}
+                      key={c.id}
                       className="rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-800"
                     >
-                      {name}
+                      {c.name}
                     </span>
                   ))}
                 </div>
               </div>
             )}
-            {cluster.related_topics.length > 0 && (
+            {entities.topics && entities.topics.length > 0 && (
               <div className="mt-4">
                 <h3 className="text-sm font-medium text-slate-700">Topics</h3>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {cluster.related_topics.map((name: string) => (
+                  {(entities.topics as BriefEntityContext[]).map((t) => (
                     <span
-                      key={name}
+                      key={t.id}
                       className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-800"
                     >
-                      {name}
+                      {t.name}
                     </span>
                   ))}
                 </div>
               </div>
             )}
-            {cluster.graph_connections && cluster.graph_connections.length > 0 && (
+            {entities.graph_connections && entities.graph_connections.length > 0 && (
               <div className="mt-4">
                 <h3 className="text-sm font-medium text-slate-700">Connected Entities</h3>
                 <div className="mt-2 space-y-2">
-                  {cluster.graph_connections.map((conn: GraphConnection, idx: number) => (
+                  {(entities.graph_connections as BriefGraphConnection[]).map((conn, idx) => (
                     <div
                       key={idx}
                       className="rounded-lg border border-slate-200 bg-white p-3 text-sm"
                     >
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium text-slate-900">{conn.name as string}</span>
-                        <span className="text-xs text-slate-500">{conn.entity_type as string}</span>
+                        <span className="font-medium text-slate-900">{conn.name}</span>
+                        <span className="text-xs text-slate-500">{conn.entity_type}</span>
                         {conn.relationship_type && (
                           <span className="rounded bg-brand-50 px-2 py-0.5 text-xs text-brand-700">
-                            {conn.relationship_type as string}
+                            {conn.relationship_type}
                           </span>
                         )}
                         {conn.is_disputed && (
@@ -322,90 +571,92 @@ export function StoryClusterPage() {
                             retracted
                           </span>
                         )}
-                        {conn.activity_status && (
-                          <span className="rounded bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
-                            {conn.activity_status as string}
-                          </span>
-                        )}
                       </div>
-                      <p className="mt-1 text-xs text-slate-500">{conn.explanation as string}</p>
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {(conn.signals as string[]).map((signal: string) => (
-                          <span
-                            key={signal}
-                            className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600"
-                          >
-                            {signal}
-                          </span>
-                        ))}
-                      </div>
-                      {conn.first_observed_at && (
-                        <p className="mt-1 text-xs text-slate-400">
-                          First observed {formatDateTime(conn.first_observed_at as string)}
-                        </p>
-                      )}
+                      <p className="mt-1 text-xs text-slate-500">{conn.explanation}</p>
                     </div>
                   ))}
                 </div>
               </div>
             )}
-            <p className="mt-2 text-xs text-slate-500">
-              {cluster.relationship_count} relationship{cluster.relationship_count === 1 ? "" : "s"} found
-            </p>
-          </div>
+          </section>
         )}
 
-        <ConnectionHistorySection clusterId={cluster.id} clusterTitle={cluster.title} />
-
-        <div className="mt-8 max-w-3xl">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">Recent Articles</h2>
-          {cluster.recent_articles.length > 0 ? (
-            <div className="flex flex-col gap-4">
-              {cluster.recent_articles.map((article) => (
-                <div
-                  key={article.id}
-                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+        {relatedStories.length > 0 && (
+          <section className="mt-8 max-w-3xl" aria-labelledby="related-heading">
+            <h2 id="related-heading" className="text-lg font-semibold text-slate-900">
+              Related Stories
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Stories semantically or graph-connected to this one.
+            </p>
+            <div className="mt-3 flex flex-col gap-3">
+              {relatedStories.map((story: BriefRelatedStoryItem) => (
+                <Link
+                  key={story.cluster_id}
+                  to={`/stories/${story.cluster_id}`}
+                  className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-brand-300 focus-visible:border-brand-300"
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    {article.source_name && (
-                      <Badge tone="brand">{article.source_name}</Badge>
-                    )}
-                    {article.source_role && <Badge>{article.source_role}</Badge>}
-                    <span className="ml-auto text-xs text-slate-500">
-                      {formatDateTime(article.published_at)}
-                    </span>
+                    <span className="font-medium text-slate-900">{story.title}</span>
+                    <Badge tone="neutral" className="text-xs">
+                      {story.article_count} articles
+                    </Badge>
+                    <Badge tone="neutral" className="text-xs">
+                      {story.source_count} sources
+                    </Badge>
                   </div>
-                  <h3 className="mt-2 text-lg font-semibold text-slate-900">
-                    <a
-                      href={article.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-brand-700 focus-visible:text-brand-700"
-                    >
-                      {article.title}
-                    </a>
-                  </h3>
-                  {article.summary && (
-                    <p className="mt-1 text-sm text-slate-600">{article.summary}</p>
+                  {story.summary && (
+                    <p className="mt-1 text-sm text-slate-600">{story.summary}</p>
                   )}
-                  <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
-                    {article.importance_score != null && (
-                      <span>Importance: {article.importance_score.toFixed(2)}</span>
-                    )}
-                    {article.confidence != null && (
-                      <span>Confidence: {article.confidence.toFixed(2)}</span>
-                    )}
-                  </div>
-                </div>
+                  <p className="mt-1 text-xs text-slate-500">{story.reason}</p>
+                </Link>
               ))}
             </div>
-          ) : (
+          </section>
+        )}
+
+        {relatedStories.length === 0 && (
+          <section className="mt-8 max-w-3xl">
             <EmptyState
-              title="No articles"
-              description="There are no articles linked to this story yet."
+              title="No related stories"
+              description="There are no semantically related stories at this time."
             />
-          )}
-        </div>
+          </section>
+        )}
+
+        {provenance && (
+          <section className="mt-8 max-w-3xl">
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                Provenance
+              </h2>
+              <div className="mt-2 grid gap-2 text-xs text-slate-600 sm:grid-cols-2">
+                <div>
+                  <span className="font-medium">Source type:</span> {provenance.source}
+                </div>
+                <div>
+                  <span className="font-medium">Articles:</span> {provenance.article_count}
+                </div>
+                <div>
+                  <span className="font-medium">AI-generated:</span> {provenance.ai_generated_count}
+                </div>
+                <div>
+                  <span className="font-medium">Deterministic:</span> {provenance.deterministic_count}
+                </div>
+                <div>
+                  <span className="font-medium">Complete:</span>{" "}
+                  {provenance.is_complete ? "Yes" : "No"}
+                </div>
+                {provenance.completeness_gaps && provenance.completeness_gaps.length > 0 && (
+                  <div className="sm:col-span-2">
+                    <span className="font-medium">Gaps:</span>{" "}
+                    {provenance.completeness_gaps.join(", ")}
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
       </article>
     </>
   );

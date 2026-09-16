@@ -27,6 +27,7 @@ import type {
   Source,
   SourceCreateRequest,
   SourceUpdateRequest,
+  StoryIntelligenceBriefResponse,
   StoryTimelineResponse,
   SystemStats,
   Topic,
@@ -116,6 +117,8 @@ export const publicApi = {
   }> => api.get("/api/v1/public/story-ranking/top-story").then((r) => r.data),
   storyCluster: (slug: string): Promise<PublicStoryCluster> =>
     api.get(`/api/v1/public/story-clusters/${encodeURIComponent(slug)}`).then((r) => r.data),
+  storyClusterBrief: (slug: string): Promise<StoryIntelligenceBriefResponse> =>
+    api.get(`/api/v1/public/story-clusters/${encodeURIComponent(slug)}/brief`).then((r) => r.data),
   storyTimeline: (clusterId: string): Promise<StoryTimelineResponse> =>
     api.get(`/api/v1/public/story-clusters/${clusterId}/timeline`).then((r) => r.data),
   storyClusters: (params: {

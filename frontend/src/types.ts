@@ -833,3 +833,184 @@ export interface TriggerQualityGateEvaluationResponse {
   run_id: string;
   task_id: string | null;
 }
+
+export interface BriefSourceItem {
+  publisher: string;
+  source_type: string;
+  source_role: string;
+  article_count: number;
+  provenance_source?: string | null;
+  articles?: Array<{
+    headline: string;
+    publication_date?: string | null;
+    url: string;
+    source_id: string;
+  }> | null;
+}
+
+export interface BriefEvidenceItem {
+  evidence_type: string;
+  excerpt?: string | null;
+  source_location?: string | null;
+  strength?: string | null;
+  article_title?: string | null;
+  source_name?: string | null;
+  published_at?: string | null;
+}
+
+export interface BriefClaimItem {
+  claim_text: string;
+  type: string;
+  status: string;
+  confidence?: number | null;
+  evidence_support_score?: number | null;
+  evidence_count: number;
+  evidence?: BriefEvidenceItem[] | null;
+  provenance_source?: string | null;
+}
+
+export interface BriefConflictItem {
+  conflict_type: string;
+  status: string;
+  confidence?: number | null;
+  explanation: string;
+  source_a_name?: string | null;
+  source_b_name?: string | null;
+  same_source: boolean;
+  published_at_a?: string | null;
+  published_at_b?: string | null;
+}
+
+export interface BriefTimelineItem {
+  id?: string | null;
+  title?: string | null;
+  url?: string | null;
+  summary?: string | null;
+  published_at?: string | null;
+  source_name?: string | null;
+  source_type?: string | null;
+  source_role?: string | null;
+  importance_score?: number | null;
+  confidence?: number | null;
+}
+
+export interface BriefTrendContext {
+  id: string;
+  trend_type: string;
+  display_name: string;
+  status: string;
+  trend_score: number;
+  momentum_score: number;
+  explanation?: string | null;
+}
+
+export interface BriefEntityContext {
+  id: string;
+  name: string;
+  entity_type: string;
+}
+
+export interface BriefGraphConnection {
+  entity_type: string;
+  entity_id: string;
+  name: string;
+  relationship_type?: string | null;
+  status?: string | null;
+  score: number;
+  signals: string[];
+  explanation: string;
+  source_count: number;
+  is_disputed: boolean;
+  is_retracted: boolean;
+}
+
+export interface BriefRelatedStoryItem {
+  cluster_id: string;
+  title: string;
+  summary?: string | null;
+  similarity: number;
+  article_count: number;
+  source_count: number;
+  reason: string;
+}
+
+export interface BriefEntitiesContext {
+  companies: BriefEntityContext[];
+  topics: BriefEntityContext[];
+  graph_connections: BriefGraphConnection[];
+}
+
+export interface BriefStoryEvolutionItem {
+  title?: string | null;
+  published_at?: string | null;
+  source_name?: string | null;
+}
+
+export interface BriefStoryEvolution {
+  first_reported?: BriefStoryEvolutionItem | null;
+  latest_development?: BriefStoryEvolutionItem | null;
+  major_developments?: string[] | null;
+  current_status?: string | null;
+}
+
+export interface BriefProvenanceInfo {
+  source: string;
+  article_count: number;
+  ai_generated_count: number;
+  deterministic_count: number;
+  is_complete: boolean;
+  completeness_gaps: string[];
+}
+
+export interface BriefQualityIndicators {
+  overall_quality_score: number;
+  quality_flags: string[];
+  quality_explanation: string;
+  evidence_coverage: number;
+  source_coverage: number;
+  conflict_count: number;
+  health_status: string;
+  degraded: boolean;
+  degraded_message?: string | null;
+}
+
+export interface BriefPersonalizationContext {
+  user_id: string;
+  relevance_reason?: string | null;
+  matched_companies: string[];
+  matched_topics: string[];
+}
+
+export interface StoryIntelligenceBriefResponse {
+  id: string;
+  title: string;
+  slug: string;
+  status: string;
+  importance_score?: number | null;
+  confidence?: number | null;
+  ranking_score?: number | null;
+  ranking_explanation?: string | null;
+  first_published_at?: string | null;
+  last_updated_at?: string | null;
+  article_count: number;
+  source_count: number;
+  independent_source_count: number;
+  summary?: string | null;
+  key_takeaways: string[];
+  why_it_matters?: string | null;
+  activity_status?: string | null;
+  activity_score?: number | null;
+  latest_activity_at?: string | null;
+  sources: BriefSourceItem[];
+  claims: BriefClaimItem[];
+  conflicts: BriefConflictItem[];
+  timeline: BriefTimelineItem[];
+  story_evolution?: BriefStoryEvolution | null;
+  trends?: BriefTrendContext[] | null;
+  entities?: BriefEntitiesContext | null;
+  related_stories: BriefRelatedStoryItem[];
+  provenance?: BriefProvenanceInfo | null;
+  quality?: BriefQualityIndicators | null;
+  updated_at?: string | null;
+  personalization?: BriefPersonalizationContext | null;
+}

@@ -2,17 +2,19 @@
 
 ## Current Phase
 
-Milestone 94.1 — M94 Audit and Completion: **COMPLETE**.
+Milestone 95 — Intelligence Briefs & Story Exploration: **COMPLETE**.
 
-M94.1 additions:
-- Fixed quality gate WARN generation via configurable `quality_gate_warning_margin`
-- Wired drift detection into M94 Celery task using M93 `DriftDetector`
-- Added automatic alert recovery when component gates recover
-- Enforced `quality_gate_history_limit` in repository queries
-- Fixed `OperationalAlertModel.resolved` type mismatch
-- Added baseline evaluation retrieval for drift comparison
-- Fixed pre-existing migration test defect (`revision =` vs `revision:`)
-- Added tests for WARN boundary, drift state, alert recovery, and migration compatibility
+M95 additions:
+- New public API endpoint: `GET /api/v1/public/story-clusters/{slug}/brief`
+- `StoryIntelligenceBriefService` composes M67-M94 intelligence into a coherent brief
+- Frontend `StoryClusterPage` upgraded to render intelligence brief with progressive-disclosure sections
+- Evidence-first UX: provenance badges distinguish source-backed info from AI-generated interpretation
+- M94 quality gate integration: HEALTHY, DEGRADED, BLOCKED states affect brief exposure
+- Response caching via Redis `cache_store` with 300s TTL
+- AI_DISABLED compatible: deterministic fallbacks, no new LLM calls
+- Bounded collections throughout (sources, claims, conflicts, timeline, etc.)
+- 18 new backend tests, 5 new frontend tests
+- All quality gates pass: ruff, mypy, pytest (1561 backend + 40 frontend), TypeScript, ESLint, frontend build
 
 ### Next Milestone
 
@@ -22,9 +24,9 @@ TBD
 
 ## Current Focus
 
-Milestone 94.1 — M94 Audit and Completion: **Complete**.
+Milestone 95 — Intelligence Briefs & Story Exploration: **Complete**.
 
-M94.1 completed the M94 operational reliability layer by wiring previously unimplemented behaviors: WARN gate results, drift integration, automatic alert recovery, and bounded query enforcement. All quality gates pass: ruff, mypy, pytest (70 M94/M93/migration tests), TypeScript, frontend build. Works with `AI_ENABLED=false`.
+M95 composes M67-M94 intelligence into a public Story Intelligence Brief API and upgraded story page. The brief assembly service lives in `application/services/story_intelligence_brief.py` and reuses existing repositories, claims, conflicts, trends, entities, provenance, quality gates, and related-story finders. All quality gates pass: ruff, mypy, pytest (1561 backend + 40 frontend), TypeScript, ESLint, frontend build. Works with `AI_ENABLED=false`.
 
 ---
 
