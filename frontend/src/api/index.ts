@@ -35,6 +35,12 @@ import type {
   UserPreferenceResponse,
   UserPreferenceUpdateRequest,
   UserUpdateRequest,
+  EvaluationRun,
+  EvaluationDetailResponse,
+  QualitySnapshot,
+  QualityHealthResponse,
+  DriftSignal,
+  TriggerEvaluationResponse,
 } from "../types";
 
 export const authApi = {
@@ -389,6 +395,20 @@ export const adminApi = {
     api.post(`/api/v1/admin/articles/${articleId}/analyze`).then((r) => r.data),
   triggerPendingAnalysis: (): Promise<{ message: string; task_id: string }> =>
     api.post("/api/v1/admin/articles/analyze-pending").then((r) => r.data),
+  evaluation: {
+    listRuns: (params: { limit?: number; offset?: number; evaluation_type?: string; status?: string; scope?: string; provider?: string } = {}): Promise<PaginatedResponse<EvaluationRun>> =>
+      api.get("/api/v1/admin/intelligence/evaluations", { params }).then((r) => r.data),
+    getRun: (runId: string): Promise<EvaluationDetailResponse> =>
+      api.get(`/api/v1/admin/intelligence/evaluations/${runId}`).then((r) => r.data),
+    listSnapshots: (params: { limit?: number; offset?: number; scope?: string } = {}): Promise<PaginatedResponse<QualitySnapshot>> =>
+      api.get("/api/v1/admin/intelligence/quality/snapshots", { params }).then((r) => r.data),
+    getHealth: (scope: string = "global"): Promise<QualityHealthResponse> =>
+      api.get("/api/v1/admin/intelligence/quality/health", { params: { scope } }).then((r) => r.data),
+    getDrift: (scope: string = "global", provider?: string): Promise<DriftSignal[]> =>
+      api.get("/api/v1/admin/intelligence/drift", { params: { scope, provider } }).then((r) => r.data),
+    trigger: (evaluation_type: string = "manual", scope: string = "global"): Promise<TriggerEvaluationResponse> =>
+      api.post("/api/v1/admin/intelligence/evaluations/run", null, { params: { evaluation_type, scope } }).then((r) => r.data),
+  },
 };
 
 export function bootstrapAuthFromStorage(): string | null {

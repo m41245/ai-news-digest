@@ -39,6 +39,9 @@ const AdminDigestsPage = lazy(() =>
 const AdminOperationsPage = lazy(() =>
   import("./pages/admin/AdminOperationsPage").then((m) => ({ default: m.AdminOperationsPage })),
 );
+const AdminIntelligencePage = lazy(() =>
+  import("./pages/admin/AdminIntelligencePage").then((m) => ({ default: m.AdminIntelligencePage })),
+);
 
 function PageFallback() {
   return (
@@ -167,6 +170,18 @@ export function App() {
             <AdminLayout>
               <Suspense fallback={<PageFallback />}>
                 <AdminOperationsPage />
+              </Suspense>
+            </AdminLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/intelligence"
+        element={
+          <ProtectedRoute admin>
+            <AdminLayout>
+              <Suspense fallback={<PageFallback />}>
+                <AdminIntelligencePage />
               </Suspense>
             </AdminLayout>
           </ProtectedRoute>

@@ -636,6 +636,64 @@ class Settings(BaseSettings):
     )
 
     # ======================================================================
+    # Intelligence Evaluation and Drift Detection (M93)
+    # ======================================================================
+
+    evaluation_enabled: bool = Field(
+        default=True,
+        description="Enable M93 intelligence evaluation and drift detection.",
+    )
+
+    evaluation_sample_limit: int = Field(
+        default=500,
+        ge=1,
+        le=5000,
+        description="Maximum articles/claims/clusters to evaluate per run.",
+    )
+
+    evaluation_history_limit: int = Field(
+        default=30,
+        ge=1,
+        le=365,
+        description="Maximum number of evaluation runs/snapshots to retain.",
+    )
+
+    evaluation_retention_days: int = Field(
+        default=90,
+        ge=1,
+        le=3650,
+        description="Number of days to retain evaluation records.",
+    )
+
+    drift_absolute_threshold: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=1.0,
+        description="Absolute change threshold for drift detection.",
+    )
+
+    drift_relative_threshold: float = Field(
+        default=0.2,
+        ge=0.0,
+        le=2.0,
+        description="Relative change threshold for drift detection.",
+    )
+
+    evaluation_schedule_hour: int = Field(
+        default=3,
+        ge=0,
+        le=23,
+        description="Hour of day (UTC) when scheduled evaluation runs.",
+    )
+
+    evaluation_schedule_minute: int = Field(
+        default=0,
+        ge=0,
+        le=59,
+        description="Minute of hour when scheduled evaluation runs.",
+    )
+
+    # ======================================================================
     # AI Cost & Quota (M79)
     # ======================================================================
 

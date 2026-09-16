@@ -21,11 +21,11 @@ from .topic_model import TopicModel
 from .user_followed_category_model import UserFollowedCategoryModel
 from .user_followed_company_model import UserFollowedCompanyModel
 from .user_followed_topic_model import UserFollowedTopicModel
+from .user_model import UserModel
 from .user_muted_category_model import UserMutedCategoryModel
 from .user_muted_company_model import UserMutedCompanyModel
 from .user_muted_source_model import UserMutedSourceModel
 from .user_muted_topic_model import UserMutedTopicModel
-from .user_model import UserModel
 from .user_preference_model import UserPreferenceProfileModel
 
 __all__ = [
@@ -50,10 +50,10 @@ __all__ = [
     "UserFollowedCategoryModel",
     "UserFollowedCompanyModel",
     "UserFollowedTopicModel",
+    "UserModel",
     "UserMutedCategoryModel",
     "UserMutedCompanyModel",
     "UserMutedSourceModel",
     "UserMutedTopicModel",
-    "UserModel",
     "UserPreferenceProfileModel",
 ]

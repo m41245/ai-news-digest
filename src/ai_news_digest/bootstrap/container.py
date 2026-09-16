@@ -18,11 +18,15 @@ from ai_news_digest.application.rendering.renderer_factory import (
 from ai_news_digest.application.services.digest_editorial_generator import (
     DigestEditorialGenerator,
 )
+from ai_news_digest.application.services.drift_detector import DriftDetector
 from ai_news_digest.application.services.graph_intelligence import (
     temporal_graph_intelligence_service as _temporal_graph_module,
 )
 from ai_news_digest.application.services.graph_intelligence.graph_intelligence_service import (
     GraphIntelligenceService,
+)
+from ai_news_digest.application.services.intelligence_evaluation_service import (
+    IntelligenceEvaluationService,
 )
 from ai_news_digest.application.services.related_story_finder import (
     RelatedStoryFinder,
@@ -236,6 +240,9 @@ from ai_news_digest.infrastructure.database.repositories.delivery_repository imp
 )
 from ai_news_digest.infrastructure.database.repositories.digest_repository import (
     DigestRepository as SqlAlchemyDigestRepository,
+)
+from ai_news_digest.infrastructure.database.repositories.evaluation_repository import (
+    EvaluationRepository,
 )
 from ai_news_digest.infrastructure.database.repositories.source_repository import (
     SourceRepository as SqlAlchemySourceRepository,
@@ -1217,6 +1224,18 @@ class Container:
             delivery_repo=self.notification_delivery_repository,
             preference_repo=self.notification_preference_repository,
         )
+
+    @property
+    def evaluation_repository(self) -> EvaluationRepository:
+        return EvaluationRepository(self._session)
+
+    @property
+    def intelligence_evaluation_service(self) -> IntelligenceEvaluationService:
+        return IntelligenceEvaluationService()
+
+    @property
+    def drift_detector(self) -> DriftDetector:
+        return DriftDetector()
 
 
 __all__ = ["Container"]

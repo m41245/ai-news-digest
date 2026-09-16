@@ -10,6 +10,7 @@ const ADMIN_LINKS = [
   { to: "/admin/sources", label: "Sources" },
   { to: "/admin/digests", label: "Digests" },
   { to: "/admin/operations", label: "Operations" },
+  { to: "/admin/intelligence", label: "Intelligence" },
 ];
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {

@@ -692,3 +692,74 @@ export interface RelatedStoryResponse {
   source_count: number;
   reason: string;
 }
+
+export interface EvaluationRun {
+  run_id: string;
+  evaluation_type: string;
+  scope: string;
+  status: string;
+  started_at: string | null;
+  completed_at: string | null;
+  dataset_version: string;
+  benchmark_version: string;
+  configuration_version: string;
+  provider: string | null;
+  model: string | null;
+  sample_count: number;
+  metric_count: number;
+  error: string | null;
+}
+
+export interface EvaluationMetric {
+  metric_type: string;
+  value: number;
+  sample_count: number;
+  scope: string;
+  provider: string | null;
+  model: string | null;
+}
+
+export interface DriftSignal {
+  metric_type: string;
+  baseline_value: number | null;
+  current_value: number;
+  difference: number;
+  relative_change: number;
+  threshold: number;
+  state: string;
+  scope: string;
+  provider: string | null;
+  model: string | null;
+}
+
+export interface QualitySnapshot {
+  snapshot_id: string;
+  evaluated_at: string | null;
+  scope: string;
+  sample_count: number;
+  overall_quality: number | null;
+  structured_output_validity: number | null;
+  summary_presence: number | null;
+  provenance_completeness: number | null;
+  evidence_attachment_rate: number | null;
+  extraction_success_rate: number | null;
+}
+
+export interface QualityHealthResponse {
+  status: string;
+  warnings: string[];
+  sample_count: number;
+  evaluated_at: string | null;
+  overall_quality: number | null;
+}
+
+export interface EvaluationDetailResponse {
+  run: EvaluationRun;
+  metrics: EvaluationMetric[];
+}
+
+export interface TriggerEvaluationResponse {
+  message: string;
+  run_id: string;
+  task_id: string | null;
+}
