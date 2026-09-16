@@ -24,6 +24,9 @@ from ai_news_digest.api.v1.routes.health import router as health_router
 from ai_news_digest.api.v1.routes.intelligence_evaluation import (
     router as intelligence_evaluation_router,
 )
+from ai_news_digest.api.v1.routes.intelligence_operations import (
+    router as intelligence_operations_router,
+)
 from ai_news_digest.api.v1.routes.intelligence_quality import router as intelligence_quality_router
 from ai_news_digest.api.v1.routes.notifications import router as notifications_router
 from ai_news_digest.api.v1.routes.public import router as public_router
@@ -168,6 +171,11 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
 
     application.include_router(
         intelligence_evaluation_router,
+        prefix=app_settings.api_prefix,
+    )
+
+    application.include_router(
+        intelligence_operations_router,
         prefix=app_settings.api_prefix,
     )
 

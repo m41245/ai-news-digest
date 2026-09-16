@@ -41,6 +41,11 @@ import type {
   QualityHealthResponse,
   DriftSignal,
   TriggerEvaluationResponse,
+  QualityGateResultResponse,
+  IntelligenceHealthResponse,
+  OperationalAlertResponse,
+  QualityGateDefinitionResponse,
+  TriggerQualityGateEvaluationResponse,
 } from "../types";
 
 export const authApi = {
@@ -408,6 +413,18 @@ export const adminApi = {
       api.get("/api/v1/admin/intelligence/drift", { params: { scope, provider } }).then((r) => r.data),
     trigger: (evaluation_type: string = "manual", scope: string = "global"): Promise<TriggerEvaluationResponse> =>
       api.post("/api/v1/admin/intelligence/evaluations/run", null, { params: { evaluation_type, scope } }).then((r) => r.data),
+    getIntelligenceHealth: (scope: string = "global"): Promise<IntelligenceHealthResponse> =>
+      api.get("/api/v1/admin/intelligence/health", { params: { scope } }).then((r) => r.data),
+    listGateResults: (params: { limit?: number; offset?: number; component?: string; result?: string } = {}): Promise<PaginatedResponse<QualityGateResultResponse>> =>
+      api.get("/api/v1/admin/intelligence/gates", { params }).then((r) => r.data),
+    listGateDefinitions: (): Promise<QualityGateDefinitionResponse[]> =>
+      api.get("/api/v1/admin/intelligence/gates/definitions").then((r) => r.data),
+    listAlerts: (params: { limit?: number; offset?: number; component?: string; severity?: string; resolved?: boolean } = {}): Promise<PaginatedResponse<OperationalAlertResponse>> =>
+      api.get("/api/v1/admin/intelligence/alerts", { params }).then((r) => r.data),
+    resolveAlert: (alertId: string): Promise<OperationalAlertResponse> =>
+      api.post(`/api/v1/admin/intelligence/alerts/${alertId}/resolve`).then((r) => r.data),
+    triggerGateEvaluation: (): Promise<TriggerQualityGateEvaluationResponse> =>
+      api.post("/api/v1/admin/intelligence/gates/evaluate", null).then((r) => r.data),
   },
 };
 

@@ -763,3 +763,73 @@ export interface TriggerEvaluationResponse {
   run_id: string;
   task_id: string | null;
 }
+
+export interface QualityGateResultResponse {
+  gate_id: string;
+  component: string;
+  metric_type: string;
+  result: string;
+  current_value: number | null;
+  threshold: number;
+  operator: string;
+  sample_count: number;
+  min_sample_size: number;
+  severity: string;
+  explanation: string | null;
+  evaluated_at: string | null;
+  evaluation_run_id: string | null;
+}
+
+export interface ComponentHealthResponse {
+  component: string;
+  status: string;
+  metric_type: string | null;
+  metric_value: number | null;
+  sample_count: number;
+  baseline_value: number | null;
+  drift_state: string | null;
+  last_evaluation_at: string | null;
+  evaluation_run_id: string | null;
+  warnings: string[];
+  gate_results: QualityGateResultResponse[];
+}
+
+export interface IntelligenceHealthResponse {
+  overall_status: string;
+  components: ComponentHealthResponse[];
+  generated_at: string | null;
+  evaluation_run_id: string | null;
+  scope: string;
+  warnings: string[];
+}
+
+export interface OperationalAlertResponse {
+  alert_id: string;
+  severity: string;
+  component: string;
+  gate_id: string | null;
+  message: string;
+  details: Record<string, unknown> | null;
+  resolved: boolean;
+  resolved_at: string | null;
+  created_at: string | null;
+}
+
+export interface QualityGateDefinitionResponse {
+  gate_id: string;
+  component: string;
+  metric_type: string;
+  operator: string;
+  threshold: number;
+  min_sample_size: number;
+  severity: string;
+  enabled: boolean;
+  description: string | null;
+  version: string;
+}
+
+export interface TriggerQualityGateEvaluationResponse {
+  message: string;
+  run_id: string;
+  task_id: string | null;
+}

@@ -2,16 +2,16 @@
 
 ## Current Phase
 
-Milestone 92 — Intelligence Quality, Provenance & Explainability: **COMPLETE**.
+Milestone 94 — Intelligence Operations, Quality Gates & Automated Reliability Controls: **COMPLETE**.
 
-M92 additions:
-- Added `ProvenanceInfo` domain class and 9 factory functions (`for_article`, `for_claim`, `for_evidence`, `for_conflict`, `for_relationship`, `for_story_cluster`, `for_story_event`, `for_trend`, `for_digest`) inferring provenance from existing model metadata
-- Added `IntelligenceQualityService` with deterministic quality evaluation, `QualityFlag` enum (10 flags), and `QualityResult` dataclass
-- Added authenticated endpoints: `GET /intelligence/provenance/{entity_type}/{entity_id}` and `GET /intelligence/quality/{entity_type}/{entity_id}`
-- Extended public API schemas with provenance/quality fields for articles, claims, evidence, story clusters, trends, and relationships
-- Added frontend `IntelligenceQualityPanel` and `ProvenanceBadge` components
-- Integrated `ProvenanceBadge` into `ArticleCard` and `IntelligenceQualityPanel` into `StoryClusterPage`
-- 31 unit tests (13 provenance, 11 quality service, 7 API routes), all passing
+M94 additions:
+- Added `QualityGate`, `QualityGateResult`, `ComponentHealth`, `IntelligenceHealthReport`, `OperationalAlert` domain models with PASS/WARN/FAIL/INSUFFICIENT_DATA semantics
+- Added `QualityGateService`, `IntelligenceHealthService`, `OperationalAlertService` with deterministic evaluation, health aggregation, and alert deduplication
+- Added admin API endpoints: `GET /intelligence/health`, `GET /intelligence/gates`, `GET /intelligence/gates/definitions`, `GET /intelligence/alerts`, `POST /intelligence/alerts/{id}/resolve`, `POST /intelligence/gates/evaluate`
+- Added Celery beat task `daily-quality-gate-evaluation` (04:00 UTC) for automated quality monitoring
+- Added database tables via migration `032`: `quality_gate_results`, `operational_alerts`, `component_health_snapshots`
+- Added frontend M94 sections to `AdminIntelligencePage` (health status, gate results, alerts with resolve, evaluation trigger)
+- 30 unit tests (28 M94-specific + 2 updated celery schedule tests), all passing
 - All quality gates pass: ruff, mypy, pytest, TypeScript, frontend build
 
 ### Next Milestone
@@ -22,9 +22,9 @@ TBD
 
 ## Current Focus
 
-Milestone 92 — Intelligence Quality, Provenance & Explainability: **Complete**.
+Milestone 94 — Intelligence Operations, Quality Gates & Automated Reliability Controls: **Complete**.
 
-M92 completed. All intelligence outputs are now auditable, explainable, traceable, and quality-aware. Provenance is inferred from existing `ai_provider`, `ai_model`, `prompt_version`, `schema_version`, and `processing_metadata` fields without new database migrations. Quality scores are deterministic and bounded (0.0–1.0). The layer reuses existing M81 Evidence, M82 Conflicts, M84 Events, M89/M90/M91 graph systems, M68 Ranking, and M87 Recommendations. Works with `AI_ENABLED=false`.
+M94 completed. The platform now has deterministic quality gate evaluation, component health aggregation, operational alerting, and automated daily quality monitoring. No production intelligence algorithms were modified. The layer reuses existing M78 circuit breakers, M79 quota systems, M93 evaluation infrastructure, and existing health endpoints. Works with `AI_ENABLED=false`.
 
 ---
 
@@ -1569,4 +1569,3 @@ M86 adds user-specific follow/mute preferences for companies, topics, categories
 - [x] MyPy clean on changed M86 backend files
 - [x] Ruff clean on changed M86 files
 - [x] Documentation: `docs/MILESTONE_86_PERSONALIZATION.md`, `docs/MILESTONE_86_ENGINEERING_REPORT.md`
-

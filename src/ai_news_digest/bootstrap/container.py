@@ -1230,6 +1230,27 @@ class Container:
         return EvaluationRepository(self._session)
 
     @property
+    def quality_gate_repository(self):
+        from ai_news_digest.infrastructure.database.repositories.intelligence_operations_repository import (  # noqa: E501
+            QualityGateRepository,
+        )
+        return QualityGateRepository(self._session)
+
+    @property
+    def operational_alert_repository(self):
+        from ai_news_digest.infrastructure.database.repositories.intelligence_operations_repository import (  # noqa: E501
+            OperationalAlertRepository,
+        )
+        return OperationalAlertRepository(self._session)
+
+    @property
+    def component_health_repository(self):
+        from ai_news_digest.infrastructure.database.repositories.intelligence_operations_repository import (  # noqa: E501
+            ComponentHealthRepository,
+        )
+        return ComponentHealthRepository(self._session)
+
+    @property
     def intelligence_evaluation_service(self) -> IntelligenceEvaluationService:
         return IntelligenceEvaluationService()
 

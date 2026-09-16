@@ -85,7 +85,7 @@ class TestBeatSchedule:
 
     def test_beat_schedule_is_configured(self) -> None:
         assert celery_app.conf.beat_schedule is not None
-        assert len(celery_app.conf.beat_schedule) == 20
+        assert len(celery_app.conf.beat_schedule) == 21
 
     def test_schedule_names_are_unique(self) -> None:
         names = list(celery_app.conf.beat_schedule.keys())
@@ -125,6 +125,7 @@ class TestBeatSchedule:
             "workers.tasks.story_activity.detect_story_activity",
             "workers.tasks.trend.detect_trends",
             "workers.tasks.evaluation.run_intelligence_evaluation",
+            "workers.tasks.quality_gates.evaluate_quality_gates",
         }
         actual_tasks = {entry["task"] for entry in celery_app.conf.beat_schedule.values()}
         assert expected_tasks == actual_tasks

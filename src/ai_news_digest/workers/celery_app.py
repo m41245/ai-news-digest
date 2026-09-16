@@ -119,6 +119,7 @@ celery_app = Celery(
         "ai_news_digest.workers.tasks.timeline",
         "ai_news_digest.workers.tasks.trend",
         "ai_news_digest.workers.tasks.evaluation",
+        "ai_news_digest.workers.tasks.quality_gates",
     ],
     task_cls=AwaitableTask,
 )
@@ -309,6 +310,14 @@ celery_app.conf.update(
                 hour=settings.evaluation_schedule_hour,
                 minute=settings.evaluation_schedule_minute,
             ),
+            "options": {
+                "expires": 3600,
+                "send_events": True,
+            },
+        },
+        "daily-quality-gate-evaluation": {
+            "task": "workers.tasks.quality_gates.evaluate_quality_gates",
+            "schedule": crontab(hour=4, minute=0),
             "options": {
                 "expires": 3600,
                 "send_events": True,

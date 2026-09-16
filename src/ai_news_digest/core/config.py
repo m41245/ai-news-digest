@@ -694,6 +694,77 @@ class Settings(BaseSettings):
     )
 
     # ======================================================================
+    # Intelligence Quality Gates and Operational Controls (M94)
+    # ======================================================================
+
+    quality_gates_enabled: bool = Field(
+        default=True,
+        description="Enable M94 quality gates and operational health controls.",
+    )
+
+    quality_gate_evaluation_enabled: bool = Field(
+        default=True,
+        description="Enable automated quality gate evaluation after M93 evaluation runs.",
+    )
+
+    minimum_evaluation_samples: int = Field(
+        default=10,
+        ge=1,
+        le=5000,
+        description="Minimum sample count for a quality gate to produce a definitive result.",
+    )
+
+    extraction_success_threshold: float = Field(
+        default=0.7,
+        ge=0.0,
+        le=1.0,
+        description="Minimum extraction success rate to pass the extraction quality gate.",
+    )
+
+    structured_validity_threshold: float = Field(
+        default=0.8,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Minimum structured output validity rate to pass the"
+            " article analysis quality gate."
+        ),
+    )
+
+    provenance_completeness_threshold: float = Field(
+        default=0.8,
+        ge=0.0,
+        le=1.0,
+        description="Minimum provenance completeness rate to pass the provenance quality gate.",
+    )
+
+    evidence_coverage_threshold: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Minimum evidence coverage rate to pass the claims/evidence quality gate.",
+    )
+
+    drift_gate_enabled: bool = Field(
+        default=True,
+        description="Enable quality gates that react to drift signals.",
+    )
+
+    alert_retention_days: int = Field(
+        default=90,
+        ge=1,
+        le=3650,
+        description="Number of days to retain operational alert records.",
+    )
+
+    quality_gate_history_limit: int = Field(
+        default=100,
+        ge=1,
+        le=1000,
+        description="Maximum number of quality gate result records to retain per evaluation.",
+    )
+
+    # ======================================================================
     # AI Cost & Quota (M79)
     # ======================================================================
 
