@@ -66,15 +66,29 @@ The audit covered the complete M1–M96 architecture as implemented in the repos
 | NBD-5 | `TestNotificationRequest` frontend type missing required fields | Updated frontend types |
 | NBD-6 | `get_personalized_trends` endpoint missing `response_model` | Added `PersonalizedTrendResponse` schema and response_model |
 
-### Known Limitations (5)
+### Additional Findings — DOCUMENTED (not release blockers)
+
+| ID | Issue | Category | Status |
+|----|-------|----------|--------|
+| AF-1 | Relationship repository `list_for_entity`, `list_related`, `list_for_entity_with_temporal`, `get_entity_relationship_history`, `count_for_entity` only query `subject_entity_type/id` — object-side relationships are invisible | Data completeness | Documented as KL-6 |
+| AF-2 | N+1 queries in graph routes (`_build_name_map`), related stories (`get_related_stories`), personalized feed (`get_personalized_feed`), and evaluation (`run_evaluation`) | Performance | Documented as KL-7 |
+| AF-3 | `quality_gate_warning_margin` defaults to 0.0, making WARN state mathematically unreachable without explicit config | Configuration | Documented as KL-8 |
+| AF-4 | `or True` in intelligence evaluation drift health endpoint (line 302) makes baseline loading always execute | Logic | Documented (minor) |
+| AF-5 | Semantic search re-ranks pre-fetched candidates rather than performing true retrieval | Architecture | Documented (by design) |
+| AF-6 | `_build_graph_name_map` duplicated in both `graph.py` and `public.py` | Code duplication | Documented |
+
+### Known Limitations (8)
 
 | ID | Limitation |
 |----|-----------|
 | KL-1 | No JWT refresh tokens or revocation (60-min access tokens) |
 | KL-2 | No real AI provider credentials verified in audit environment |
-| KL-3 | Production deployment not verified (no infrastructure access) |
+| KL-3 | Production deployment not verified |
 | KL-4 | 13 tests fail on Windows due to pytest-asyncio + testcontainers scope mismatch |
 | KL-5 | `.env.staging` contains credentials in working tree |
+| KL-6 | Relationship repository only queries subject side — object-side relationships are invisible to graph endpoints (one-sided query) |
+| KL-7 | N+1 queries in graph routes, related stories, personalized feed, and evaluation (performance, not correctness) |
+| KL-8 | `quality_gate_warning_margin` defaults to 0.0, making WARN state unreachable without config change |
 
 ### Future Enhancements (not implemented)
 
@@ -233,9 +247,9 @@ The audit covered the complete M1–M96 architecture as implemented in the repos
 
 ## 13. Git
 
-- **Final commit hash:** 455d901e64c980219601ad5e236a6edcd611cdb0
-- **Push status:** Pending (will push after audit completion)
-- **HEAD == origin/main:** Yes (verified at start of audit)
+- **Final commit hash:** 76626a1
+- **Push status:** Pushed to origin/main
+- **HEAD == origin/main:** Yes (0 commits behind/ahead)
 - **Working tree status:** Clean after fixes
 
 ---
@@ -247,6 +261,10 @@ The audit covered the complete M1–M96 architecture as implemented in the repos
 3. Production deployment not verified
 4. 13 Windows-incompatible tests due to testcontainers
 5. `.env.staging` contains credentials in working tree
+6. Relationship repository only queries subject side — object-side relationships invisible to graph endpoints
+7. N+1 queries in graph routes, related stories, personalized feed, and evaluation
+8. `quality_gate_warning_margin` defaults to 0.0, making WARN state unreachable without explicit config
+9. `or True` in intelligence evaluation drift endpoint makes baseline loading always execute (minor)
 
 ---
 
@@ -256,6 +274,8 @@ The audit covered the complete M1–M96 architecture as implemented in the repos
 - Password special-character requirement
 - Real-time notification delivery
 - Enhanced graph traversal algorithms
+- Bidirectional relationship queries
+- Semantic search with broader candidate pool
 
 ---
 
