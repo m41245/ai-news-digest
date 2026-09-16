@@ -28,22 +28,12 @@ class EvaluationMetricType(StrEnum):
     CONFLICT_DETECTION_RATE = "conflict_detection_rate"
     CLUSTER_DUPLICATE_RATE = "cluster_duplicate_rate"
     CLUSTER_SINGLETON_RATE = "cluster_singleton_rate"
-    RANKING_STABILITY = "ranking_stability"
-    ACTIVITY_CLASSIFICATION_STABILITY = "activity_classification_stability"
     TREND_SCORE_DISTRIBUTION = "trend_score_distribution"
-    PREFERENCE_ALIGNMENT = "preference_alignment"
-    MUTE_COMPLIANCE = "mute_compliance"
-    RECOMMENDATION_DIVERSITY = "recommendation_diversity"
-    SEMANTIC_RESULT_VALIDITY = "semantic_result_validity"
     GRAPH_RELATIONSHIP_COMPLETENESS = "graph_relationship_completeness"
     PROVENANCE_COMPLETENESS = "provenance_completeness"
-    EXPLANATION_COVERAGE = "explanation_coverage"
     EXTRACTION_SUCCESS_RATE = "extraction_success_rate"
     EXTRACTION_FALLBACK_RATE = "extraction_fallback_rate"
     PROVIDER_VALIDITY = "provider_validity"
-    PROVIDER_LATENCY = "provider_latency"
-    PROVIDER_TOKEN_USAGE = "provider_token_usage"  # noqa: S105
-    PROVIDER_COST = "provider_cost"
     OVERALL_QUALITY = "overall_quality"
 
 

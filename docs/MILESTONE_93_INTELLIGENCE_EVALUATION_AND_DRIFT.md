@@ -15,7 +15,7 @@ M93 is an observability layer over M80–M92 intelligence systems. It does not m
 - `DriftSignal`: drift detection result
 
 ## Metrics
-Structured output validity, summary presence/rate/length, takeaway count, category/company/topic normalization, claim quality, evidence attachment, conflict detection, cluster stability, ranking stability, activity stability, trend distribution, preference alignment, provenance completeness, explanation coverage, extraction success, provider metrics.
+28 deterministic metrics: structured output validity, summary presence/empty/oversized/input-copy/length-bounds, takeaway count/duplicate/empty, category/company/topic normalization, claim completeness, evidence attachment/coverage, supported claim rate, conflict detection rate, cluster singleton/duplicate, trend score distribution, graph relationship completeness, provenance completeness, extraction success/fallback, provider validity, overall quality.
 
 ## Ground Truth Strategy
 No fabricated ground truth. Metrics are computed from deterministic invariants (field presence, bounds, counts) and cross-run consistency. LLM output is not treated as ground truth.
@@ -27,7 +27,7 @@ Reuses M80 benchmark infrastructure. Benchmark results are recorded with version
 Bounded historical snapshots stored in PostgreSQL with key metric aggregates.
 
 ## Baseline and Drift
-Drift detection compares current window vs baseline window using absolute and relative thresholds. Configurable via settings.
+Drift detection compares the previous evaluation run (baseline) against the current run using absolute and relative thresholds. Configurable via settings. Minimum 5 samples required before drift classification.
 
 ## API
 - `GET /api/v1/admin/intelligence/evaluations` — list runs

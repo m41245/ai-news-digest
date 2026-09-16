@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from sqlalchemy import desc, func, select
+from datetime import UTC, datetime, timedelta
+from typing import Any, cast
+
+from sqlalchemy import delete, desc, func, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_news_digest.domain.evaluation.metrics import EvaluationReport, MetricValue, QualitySnapshot
@@ -154,3 +158,17 @@ class EvaluationRepository:
         query = query.limit(limit).offset(offset)
         result = await self._session.execute(query)
         return list(result.scalars().all()), total
+
+    async def cleanup_old_runs(self, retention_days: int) -> int:
+        cutoff = datetime.now(UTC) - timedelta(days=retention_days)
+        stmt = delete(EvaluationRunModel).where(EvaluationRunModel.created_at < cutoff)
+        result = cast(CursorResult[Any], await self._session.execute(stmt))
+        await self._session.flush()
+        return int(result.rowcount)
+
+    async def cleanup_old_snapshots(self, retention_days: int) -> int:
+        cutoff = datetime.now(UTC) - timedelta(days=retention_days)
+        stmt = delete(QualitySnapshotModel).where(QualitySnapshotModel.created_at < cutoff)
+        result = cast(CursorResult[Any], await self._session.execute(stmt))
+        await self._session.flush()
+        return int(result.rowcount)

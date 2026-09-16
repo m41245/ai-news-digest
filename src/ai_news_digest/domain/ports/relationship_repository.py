@@ -98,6 +98,15 @@ class RelationshipRepository:
         """List relationships with temporal filters."""
         raise NotImplementedError
 
+    async def list_recent(
+        self,
+        *,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[Relationship]:
+        """List recent relationships ordered by creation date."""
+        raise NotImplementedError
+
     async def get_entity_relationship_history(
         self,
         *,

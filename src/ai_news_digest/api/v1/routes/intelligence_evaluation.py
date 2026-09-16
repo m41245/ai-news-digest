@@ -213,52 +213,43 @@ async def get_drift_signals(
     scope: str = Query(default="global", max_length=128),
     provider: str | None = Query(default=None),
 ) -> list[DriftSignalResponse]:
-    """Return drift signals by comparing recent snapshots (admin only)."""
+    """Return drift signals by comparing recent evaluation runs (admin only)."""
     repo = container.evaluation_repository
-    snapshots, _snapshot_total = await repo.list_snapshots(limit=2, scope=scope)
-    if len(snapshots) < 2:
+    runs, _total = await repo.list_runs(limit=2, scope=scope)
+    if len(runs) < 2:
         return []
 
-    current_snap = snapshots[0]
-    baseline_snap = snapshots[1]
+    current_run = runs[0]
+    baseline_run = runs[1]
+
+    current_metrics = await repo.list_metrics(current_run.run_id)
+    baseline_metrics = await repo.list_metrics(baseline_run.run_id)
+
+    current_by_type = {m.metric_type: m for m in current_metrics}
+    baseline_by_type = {m.metric_type: m for m in baseline_metrics}
+
+    common_types = sorted(set(current_by_type) & set(baseline_by_type))
+    current_mv = [
+        MetricValue(
+            metric_type=EvaluationMetricType(t),
+            value=current_by_type[t].value,
+            sample_count=current_by_type[t].sample_count,
+        )
+        for t in common_types
+    ]
+    baseline_mv = [
+        MetricValue(
+            metric_type=EvaluationMetricType(t),
+            value=baseline_by_type[t].value,
+            sample_count=baseline_by_type[t].sample_count,
+        )
+        for t in common_types
+    ]
 
     detector = container.drift_detector
-    current_metrics = [
-        MetricValue(
-            metric_type=EvaluationMetricType(m),
-            value=getattr(current_snap, m),
-            sample_count=current_snap.sample_count,
-        )
-        for m in [
-            "structured_output_validity",
-            "summary_presence",
-            "provenance_completeness",
-            "evidence_attachment_rate",
-            "extraction_success_rate",
-            "overall_quality",
-        ]
-        if getattr(current_snap, m, None) is not None
-    ]
-    baseline_metrics = [
-        MetricValue(
-            metric_type=EvaluationMetricType(m),
-            value=getattr(baseline_snap, m),
-            sample_count=baseline_snap.sample_count,
-        )
-        for m in [
-            "structured_output_validity",
-            "summary_presence",
-            "provenance_completeness",
-            "evidence_attachment_rate",
-            "extraction_success_rate",
-            "overall_quality",
-        ]
-        if getattr(baseline_snap, m, None) is not None
-    ]
-
     signals = detector.detect_drift(
-        baseline=baseline_metrics,
-        current=current_metrics,
+        baseline=baseline_mv,
+        current=current_mv,
         scope=scope,
         provider=provider,
     )
@@ -290,61 +281,59 @@ async def get_quality_health(
 ) -> dict[str, Any]:
     """Return bounded quality health status (admin only)."""
     repo = container.evaluation_repository
-    snapshots, _snapshot_total = await repo.list_snapshots(limit=1, scope=scope)
-    if not snapshots:
-        return {"status": "insufficient_data", "warnings": ["No quality snapshots available"]}
+    runs, _total = await repo.list_runs(limit=1, scope=scope)
+    if not runs:
+        return {"status": "insufficient_data", "warnings": ["No evaluation runs available"]}
 
-    snap = snapshots[0]
-    metrics = [
+    current_run = runs[0]
+    current_metrics = await repo.list_metrics(current_run.run_id)
+
+    current_mv = [
         MetricValue(
-            metric_type=EvaluationMetricType(m),
-            value=getattr(snap, m),
-            sample_count=snap.sample_count,
+            metric_type=EvaluationMetricType(m.metric_type),
+            value=m.value,
+            sample_count=m.sample_count,
         )
-        for m in [
-            "structured_output_validity",
-            "summary_presence",
-            "provenance_completeness",
-            "evidence_attachment_rate",
-            "extraction_success_rate",
-            "overall_quality",
-        ]
-        if getattr(snap, m, None) is not None
+        for m in current_metrics
     ]
 
-    snapshots_for_drift, _drift_total = await repo.list_snapshots(limit=2, scope=scope)
+    baseline_mv: list[MetricValue] = []
     signals: list[Any] = []
-    if len(snapshots_for_drift) >= 2:
-        baseline_snap = snapshots_for_drift[1]
-        baseline_metrics = [
-            MetricValue(
-                metric_type=EvaluationMetricType(m),
-                value=getattr(baseline_snap, m),
-                sample_count=baseline_snap.sample_count,
-            )
-            for m in [
-                "structured_output_validity",
-                "summary_presence",
-                "provenance_completeness",
-                "evidence_attachment_rate",
-                "extraction_success_rate",
-                "overall_quality",
+    if len(runs) >= 2 or True:
+        baseline_runs, _ = await repo.list_runs(limit=2, scope=scope)
+        if len(baseline_runs) >= 2:
+            baseline_run = baseline_runs[1]
+            baseline_metrics = await repo.list_metrics(baseline_run.run_id)
+            baseline_mv = [
+                MetricValue(
+                    metric_type=EvaluationMetricType(m.metric_type),
+                    value=m.value,
+                    sample_count=m.sample_count,
+                )
+                for m in baseline_metrics
             ]
-            if getattr(baseline_snap, m, None) is not None
-        ]
-        signals = container.drift_detector.detect_drift(
-            baseline=baseline_metrics,
-            current=metrics,
-            scope=scope,
-        )
+            signals = container.drift_detector.detect_drift(
+                baseline=baseline_mv,
+                current=current_mv,
+                scope=scope,
+            )
 
-    status, warnings = container.drift_detector.classify_health(signals, metrics)
+    status, warnings = container.drift_detector.classify_health(signals, current_mv)
     return {
         "status": status,
         "warnings": warnings,
-        "sample_count": snap.sample_count,
-        "evaluated_at": snap.evaluated_at.isoformat() if snap.evaluated_at else None,
-        "overall_quality": snap.overall_quality,
+        "sample_count": current_run.sample_count,
+        "evaluated_at": (
+            current_run.completed_at.isoformat()
+            if current_run.completed_at
+            else current_run.started_at.isoformat()
+            if current_run.started_at
+            else None
+        ),
+        "overall_quality": next(
+            (m.value for m in current_mv if m.metric_type == EvaluationMetricType.OVERALL_QUALITY),
+            None,
+        ),
     }
 
 

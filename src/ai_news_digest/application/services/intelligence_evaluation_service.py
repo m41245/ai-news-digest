@@ -125,18 +125,102 @@ class IntelligenceEvaluationService:
         if articles_with_takeaways:
             import json
             in_bounds_takeaways = 0
+            empty_takeaways = 0
+            duplicate_takeaways = 0
             for a in articles_with_takeaways:
                 try:
                     takeaways = json.loads(a.key_takeaways_json)
                     if isinstance(takeaways, list) and 3 <= len(takeaways) <= 10:
                         in_bounds_takeaways += 1
+                    if not takeaways or all(
+                        not isinstance(t, str) or not t.strip() for t in takeaways
+                    ):
+                        empty_takeaways += 1
+                    if isinstance(takeaways, list) and len(takeaways) != len(
+                        {t.strip().lower() for t in takeaways if isinstance(t, str)}
+                    ):
+                        duplicate_takeaways += 1
                 except (json.JSONDecodeError, TypeError):
-                    pass
+                    empty_takeaways += 1
             metrics.append(MetricValue(
                 metric_type=EvaluationMetricType.TAKEAWAY_COUNT,
                 value=in_bounds_takeaways / len(articles_with_takeaways),
                 sample_count=len(articles_with_takeaways),
             ))
+            metrics.append(MetricValue(
+                metric_type=EvaluationMetricType.TAKEAWAY_EMPTY_RATE,
+                value=empty_takeaways / total,
+                sample_count=total,
+            ))
+            metrics.append(MetricValue(
+                metric_type=EvaluationMetricType.TAKEAWAY_DUPLICATE_RATE,
+                value=duplicate_takeaways / len(articles_with_takeaways),
+                sample_count=len(articles_with_takeaways),
+            ))
+
+        # Summary oversized rate (>2000 chars)
+        oversized = sum(
+            1 for a in articles
+            if getattr(a, "summary", None) and len(a.summary) > 2000
+        )
+        metrics.append(MetricValue(
+            metric_type=EvaluationMetricType.SUMMARY_OVERSIZED_RATE,
+            value=oversized / total,
+            sample_count=total,
+        ))
+
+        # Summary input copy rate (summary length close to content length)
+        input_copy = sum(
+            1 for a in articles
+            if (
+                getattr(a, "summary", None)
+                and getattr(a, "content", None)
+                and len(a.summary) >= 0.9 * len(a.content)
+                and len(a.content) > 200
+            )
+        )
+        articles_with_content = [
+            a for a in articles if getattr(a, "content", None) and len(a.content) > 200
+        ]
+        if articles_with_content:
+            metrics.append(MetricValue(
+                metric_type=EvaluationMetricType.SUMMARY_INPUT_COPY_RATE,
+                value=input_copy / len(articles_with_content),
+                sample_count=len(articles_with_content),
+            ))
+
+        # Category validity
+        valid_category = sum(
+            1 for a in articles
+            if getattr(a, "category_id", None) or getattr(a, "categories", ())
+        )
+        metrics.append(MetricValue(
+            metric_type=EvaluationMetricType.CATEGORY_VALIDITY,
+            value=valid_category / total,
+            sample_count=total,
+        ))
+
+        # Company normalization
+        normalized_companies = sum(
+            1 for a in articles
+            if getattr(a, "companies", ()) or getattr(a, "company_ids", ())
+        )
+        metrics.append(MetricValue(
+            metric_type=EvaluationMetricType.COMPANY_NORMALIZATION,
+            value=normalized_companies / total,
+            sample_count=total,
+        ))
+
+        # Topic normalization
+        normalized_topics = sum(
+            1 for a in articles
+            if getattr(a, "topics", ()) or getattr(a, "topic_ids", ())
+        )
+        metrics.append(MetricValue(
+            metric_type=EvaluationMetricType.TOPIC_NORMALIZATION,
+            value=normalized_topics / total,
+            sample_count=total,
+        ))
 
         return metrics
 
@@ -192,6 +276,18 @@ class IntelligenceEvaluationService:
         metrics.append(MetricValue(
             metric_type=EvaluationMetricType.CONFLICT_DETECTION_RATE,
             value=with_conflicts / total,
+            sample_count=total,
+        ))
+
+        # Claim completeness (non-empty text and valid type)
+        complete_claims = sum(
+            1 for c in claims
+            if getattr(c, "claim_text", None) and getattr(c, "claim_text", "").strip()
+            and getattr(c, "claim_type", None) is not None
+        )
+        metrics.append(MetricValue(
+            metric_type=EvaluationMetricType.CLAIM_COMPLETENESS,
+            value=complete_claims / total,
             sample_count=total,
         ))
 
@@ -392,9 +488,9 @@ class IntelligenceEvaluationService:
                     relationship_repo = container.relationship_repository
 
                     articles = await article_repo.list_recent(limit=500)
-                    claims = await claim_repo.list_recent(limit=500)
-                    clusters = await story_cluster_repo.list_recent(limit=200)
-                    trends = await trend_repo.list_recent(limit=200)
+                    claims = await claim_repo.list_recent_for_conflicts(limit=500)
+                    clusters = await story_cluster_repo.list_all(limit=200)
+                    trends = await trend_repo.list_recent(since=started_at, limit=200)
                     relationships = await relationship_repo.list_recent(limit=500)
                     conflicts = await conflict_repo.list_recent(limit=500)
 
