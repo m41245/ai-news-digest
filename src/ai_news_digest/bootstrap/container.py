@@ -100,11 +100,21 @@ from ai_news_digest.application.use_cases.digest.generate_intelligent_digest imp
 from ai_news_digest.application.use_cases.digest.update import (
     UpdateDigestUseCase,
 )
+from ai_news_digest.application.use_cases.followed_story.manage_followed_stories import (
+    FollowStoryUseCase,
+    ListFollowedStoriesUseCase,
+    UnfollowStoryUseCase,
+)
 from ai_news_digest.application.use_cases.knowledge_graph.extract_relationships import (
     RelationshipExtractionUseCase,
 )
 from ai_news_digest.application.use_cases.recommendation.get_recommendations import (
     GetRecommendationsUseCase,
+)
+from ai_news_digest.application.use_cases.saved_story.save_story import (
+    ListSavedStoriesUseCase,
+    SaveStoryUseCase,
+    UnsaveStoryUseCase,
 )
 from ai_news_digest.application.use_cases.source.update import (
     UpdateSourceUseCase,
@@ -132,6 +142,12 @@ from ai_news_digest.application.use_cases.trend.detect_trends import (
 )
 from ai_news_digest.application.use_cases.trend.get_personalized_trends import (
     GetPersonalizedTrendsUseCase,
+)
+from ai_news_digest.application.use_cases.user_collection.manage_collections import (
+    CreateCollectionUseCase,
+    DeleteCollectionUseCase,
+    ListCollectionsUseCase,
+    UpdateCollectionUseCase,
 )
 from ai_news_digest.application.use_cases.user_preference.follow_category import (
     FollowCategoryUseCase,
@@ -206,12 +222,14 @@ from ai_news_digest.domain.ports.digest_repository import (
 )
 from ai_news_digest.domain.ports.email_sender import EmailSender
 from ai_news_digest.domain.ports.embedding_provider import EmbeddingProvider
+from ai_news_digest.domain.ports.followed_story_repository import FollowedStoryRepository
 from ai_news_digest.domain.ports.notification_repository import (
     NotificationDeliveryRepository,
     NotificationPreferenceRepository,
     NotificationRepository,
 )
 from ai_news_digest.domain.ports.relationship_repository import RelationshipRepository
+from ai_news_digest.domain.ports.saved_story_repository import SavedStoryRepository
 from ai_news_digest.domain.ports.source_repository import SourceRepository
 from ai_news_digest.domain.ports.story_activity_repository import (
     StoryActivityRepository,
@@ -220,6 +238,7 @@ from ai_news_digest.domain.ports.story_cluster_repository import StoryClusterRep
 from ai_news_digest.domain.ports.story_event_repository import StoryEventRepository
 from ai_news_digest.domain.ports.topic_repository import TopicRepository
 from ai_news_digest.domain.ports.trend_repository import TrendRepository
+from ai_news_digest.domain.ports.user_collection_repository import UserCollectionRepository
 from ai_news_digest.domain.ports.user_preference_repository import UserPreferenceRepository
 from ai_news_digest.domain.ports.user_repository import UserRepository
 from ai_news_digest.infrastructure.cache.redis_store import RedisStore
@@ -247,6 +266,12 @@ from ai_news_digest.infrastructure.database.repositories.digest_repository impor
 from ai_news_digest.infrastructure.database.repositories.evaluation_repository import (
     EvaluationRepository,
 )
+from ai_news_digest.infrastructure.database.repositories.followed_story_repository import (
+    SqlAlchemyFollowedStoryRepository,
+)
+from ai_news_digest.infrastructure.database.repositories.saved_story_repository import (
+    SqlAlchemySavedStoryRepository,
+)
 from ai_news_digest.infrastructure.database.repositories.source_repository import (
     SourceRepository as SqlAlchemySourceRepository,
 )
@@ -258,6 +283,9 @@ from ai_news_digest.infrastructure.database.repositories.topic_repository import
 )
 from ai_news_digest.infrastructure.database.repositories.trend_repository import (
     SqlAlchemyTrendRepository,
+)
+from ai_news_digest.infrastructure.database.repositories.user_collection_repository import (
+    SqlAlchemyUserCollectionRepository,
 )
 from ai_news_digest.infrastructure.database.repositories.user_preference_repository import (
     UserPreferenceRepository as SqlAlchemyUserPreferenceRepository,
@@ -624,6 +652,58 @@ class Container:
     @property
     def user_preference_repository(self) -> UserPreferenceRepository:
         return SqlAlchemyUserPreferenceRepository(self._session)
+
+    @property
+    def saved_story_repository(self) -> SavedStoryRepository:
+        return SqlAlchemySavedStoryRepository(self._session)
+
+    @property
+    def user_collection_repository(self) -> UserCollectionRepository:
+        return SqlAlchemyUserCollectionRepository(self._session)
+
+    @property
+    def followed_story_repository(self) -> FollowedStoryRepository:
+        return SqlAlchemyFollowedStoryRepository(self._session)
+
+    @property
+    def save_story(self) -> SaveStoryUseCase:
+        return SaveStoryUseCase(saved_story_repository=self.saved_story_repository)
+
+    @property
+    def unsave_story(self) -> UnsaveStoryUseCase:
+        return UnsaveStoryUseCase(saved_story_repository=self.saved_story_repository)
+
+    @property
+    def list_saved_stories(self) -> ListSavedStoriesUseCase:
+        return ListSavedStoriesUseCase(saved_story_repository=self.saved_story_repository)
+
+    @property
+    def create_collection(self) -> CreateCollectionUseCase:
+        return CreateCollectionUseCase(collection_repository=self.user_collection_repository)
+
+    @property
+    def update_collection(self) -> UpdateCollectionUseCase:
+        return UpdateCollectionUseCase(collection_repository=self.user_collection_repository)
+
+    @property
+    def delete_collection(self) -> DeleteCollectionUseCase:
+        return DeleteCollectionUseCase(collection_repository=self.user_collection_repository)
+
+    @property
+    def list_collections(self) -> ListCollectionsUseCase:
+        return ListCollectionsUseCase(collection_repository=self.user_collection_repository)
+
+    @property
+    def follow_story(self) -> FollowStoryUseCase:
+        return FollowStoryUseCase(followed_story_repository=self.followed_story_repository)
+
+    @property
+    def unfollow_story(self) -> UnfollowStoryUseCase:
+        return UnfollowStoryUseCase(followed_story_repository=self.followed_story_repository)
+
+    @property
+    def list_followed_stories(self) -> ListFollowedStoriesUseCase:
+        return ListFollowedStoriesUseCase(followed_story_repository=self.followed_story_repository)
 
     #
     # Infrastructure

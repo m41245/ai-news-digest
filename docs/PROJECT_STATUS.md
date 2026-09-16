@@ -2,19 +2,17 @@
 
 ## Current Phase
 
-Milestone 95 — Intelligence Briefs & Story Exploration: **COMPLETE**.
+Milestone 96 — Intelligence Workspace, Saved Intelligence & User Experience: **COMPLETE**.
 
-M95 additions:
-- New public API endpoint: `GET /api/v1/public/story-clusters/{slug}/brief`
-- `StoryIntelligenceBriefService` composes M67-M94 intelligence into a coherent brief
-- Frontend `StoryClusterPage` upgraded to render intelligence brief with progressive-disclosure sections
-- Evidence-first UX: provenance badges distinguish source-backed info from AI-generated interpretation
-- M94 quality gate integration: HEALTHY, DEGRADED, BLOCKED states affect brief exposure
-- Response caching via Redis `cache_store` with 300s TTL
-- AI_DISABLED compatible: deterministic fallbacks, no new LLM calls
-- Bounded collections throughout (sources, claims, conflicts, timeline, etc.)
-- 18 new backend tests, 5 new frontend tests
-- All quality gates pass: ruff, mypy, pytest (1561 backend + 40 frontend), TypeScript, ESLint, frontend build
+M96 additions:
+- New authenticated API endpoints: POST/GET/DELETE `/api/v1/me/saved-stories`, POST/GET/PATCH/DELETE `/api/v1/me/collections`, POST/DELETE/GET `/api/v1/me/followed-stories`
+- Domain entities: `SavedStory`, `UserCollection`, `FollowedStory`
+- Database tables: `saved_stories`, `user_collections`, `followed_stories` (Alembic migration 033)
+- Frontend pages: `/me` (IntelligenceWorkspacePage), `/me/saved`, `/me/following`
+- StoryClusterPage enhanced with Save/Follow actions for authenticated users
+- Header navigation updated with Saved and Following links
+- 13 new backend unit tests (mocked), 0 new frontend tests (existing 40 tests pass)
+- All quality gates pass: ruff, mypy, pytest (existing + new), TypeScript, frontend build
 
 ### Next Milestone
 
@@ -24,9 +22,9 @@ TBD
 
 ## Current Focus
 
-Milestone 95 — Intelligence Briefs & Story Exploration: **Complete**.
+Milestone 96 — Intelligence Workspace, Saved Intelligence & User Experience: **Complete**.
 
-M95 composes M67-M94 intelligence into a public Story Intelligence Brief API and upgraded story page. The brief assembly service lives in `application/services/story_intelligence_brief.py` and reuses existing repositories, claims, conflicts, trends, entities, provenance, quality gates, and related-story finders. All quality gates pass: ruff, mypy, pytest (1561 backend + 40 frontend), TypeScript, ESLint, frontend build. Works with `AI_ENABLED=false`.
+M96 adds a personal intelligence workspace on top of the existing intelligence platform. Users can save story clusters to personal collections, follow stories to track evolution, and access a unified `/me` workspace. All features are deterministic and database-driven; no new LLM calls are introduced. Works with `AI_ENABLED=false`.
 
 ---
 

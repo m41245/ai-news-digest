@@ -34,6 +34,9 @@ from ai_news_digest.api.v1.routes.recommendations import router as recommendatio
 from ai_news_digest.api.v1.routes.relationships import router as relationships_router
 from ai_news_digest.api.v1.routes.sources import router as sources_router
 from ai_news_digest.api.v1.routes.story_ranking import router as story_ranking_router
+from ai_news_digest.api.v1.routes.intelligence_workspace import (
+    router as intelligence_workspace_router,
+)
 from ai_news_digest.api.v1.routes.user_preferences import router as user_preferences_router
 from ai_news_digest.api.v1.routes.users import router as users_router
 from ai_news_digest.core.config import Settings, get_settings
@@ -236,6 +239,11 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
 
     application.include_router(
         relationships_router,
+        prefix=app_settings.api_prefix,
+    )
+
+    application.include_router(
+        intelligence_workspace_router,
         prefix=app_settings.api_prefix,
     )
 

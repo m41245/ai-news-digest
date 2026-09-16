@@ -19,10 +19,12 @@ import { TermsOfServicePage } from "./pages/public/TermsOfServicePage";
 import { NotFoundPage } from "./pages/public/NotFoundPage";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
-import { DashboardPage } from "./pages/dashboard/DashboardPage";
 import { PreferencesPage } from "./pages/dashboard/PreferencesPage";
 import { PersonalizedFeedPage } from "./pages/dashboard/PersonalizedFeedPage";
 import { RecommendationsPage } from "./pages/dashboard/RecommendationsPage";
+import { IntelligenceWorkspacePage } from "./pages/dashboard/IntelligenceWorkspacePage";
+import { SavedStoriesPage } from "./pages/dashboard/SavedStoriesPage";
+import { FollowedStoriesPage } from "./pages/dashboard/FollowedStoriesPage";
 
 const AdminDashboardPage = lazy(() =>
   import("./pages/admin/AdminDashboardPage").then((m) => ({ default: m.AdminDashboardPage })),
@@ -76,7 +78,29 @@ export function App() {
         element={
           <ProtectedRoute>
             <PublicLayout>
-              <DashboardPage />
+              <IntelligenceWorkspacePage />
+            </PublicLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/me/saved"
+        element={
+          <ProtectedRoute>
+            <PublicLayout>
+              <SavedStoriesPage />
+            </PublicLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/me/following"
+        element={
+          <ProtectedRoute>
+            <PublicLayout>
+              <FollowedStoriesPage />
             </PublicLayout>
           </ProtectedRoute>
         }

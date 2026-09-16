@@ -5,6 +5,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
+import { AuthProvider } from "../../src/auth/AuthContext";
 import { StoryClusterPage } from "../../src/pages/public/StoryClusterPage";
 import * as api from "../../src/api";
 
@@ -16,11 +17,13 @@ function renderWithProviders(ui: React.ReactElement, slug = "test-story") {
   return render(
     <QueryClientProvider client={queryClient}>
       <HelmetProvider>
-        <MemoryRouter initialEntries={[`/stories/${slug}`]}>
-          <Routes>
-            <Route path="/stories/:slug" element={ui} />
-          </Routes>
-        </MemoryRouter>
+        <AuthProvider>
+          <MemoryRouter initialEntries={[`/stories/${slug}`]}>
+            <Routes>
+              <Route path="/stories/:slug" element={ui} />
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
       </HelmetProvider>
     </QueryClientProvider>,
   );

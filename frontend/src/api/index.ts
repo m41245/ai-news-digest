@@ -498,4 +498,27 @@ export const personalizedApi = {
     api.get("/api/v1/me/recommendations", { params }).then((r) => r.data),
 };
 
+export const intelligenceWorkspaceApi = {
+  saveStory: (data: import("../types").SaveStoryRequest): Promise<import("../types").SavedStoryResponse> =>
+    api.post("/api/v1/me/saved-stories", data).then((r) => r.data),
+  listSavedStories: (params: { collection_id?: string | null; limit?: number; offset?: number } = {}): Promise<import("../types").SavedStoryResponse[]> =>
+    api.get("/api/v1/me/saved-stories", { params }).then((r) => r.data),
+  unsaveStory: (story_cluster_id: string): Promise<void> =>
+    api.delete(`/api/v1/me/saved-stories/${encodeURIComponent(story_cluster_id)}`).then((r) => r.data),
+  createCollection: (data: import("../types").CollectionCreateRequest): Promise<import("../types").CollectionResponse> =>
+    api.post("/api/v1/me/collections", data).then((r) => r.data),
+  listCollections: (params: { limit?: number; offset?: number } = {}): Promise<import("../types").CollectionResponse[]> =>
+    api.get("/api/v1/me/collections", { params }).then((r) => r.data),
+  updateCollection: (collection_id: string, data: import("../types").CollectionUpdateRequest): Promise<import("../types").CollectionResponse> =>
+    api.patch(`/api/v1/me/collections/${encodeURIComponent(collection_id)}`, data).then((r) => r.data),
+  deleteCollection: (collection_id: string): Promise<void> =>
+    api.delete(`/api/v1/me/collections/${encodeURIComponent(collection_id)}`).then((r) => r.data),
+  followStory: (story_cluster_id: string): Promise<import("../types").FollowedStoryResponse> =>
+    api.post(`/api/v1/me/followed-stories/${encodeURIComponent(story_cluster_id)}`).then((r) => r.data),
+  unfollowStory: (story_cluster_id: string): Promise<void> =>
+    api.delete(`/api/v1/me/followed-stories/${encodeURIComponent(story_cluster_id)}`).then((r) => r.data),
+  listFollowedStories: (params: { limit?: number; offset?: number } = {}): Promise<import("../types").FollowedStoryResponse[]> =>
+    api.get("/api/v1/me/followed-stories", { params }).then((r) => r.data),
+};
+
 export { setStoredToken };

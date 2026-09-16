@@ -103,6 +103,20 @@ export function Header() {
                 {user?.email}
               </Button>
               <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate("/me/saved")}
+              >
+                Saved
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate("/me/following")}
+              >
+                Following
+              </Button>
+              <Button
                 variant="secondary"
                 size="sm"
                 onClick={() => {
@@ -196,6 +210,28 @@ export function Header() {
                     role="menuitem"
                   >
                     {user?.email}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setMobileOpen(false);
+                      navigate("/me/saved");
+                    }}
+                    role="menuitem"
+                  >
+                    Saved
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setMobileOpen(false);
+                      navigate("/me/following");
+                    }}
+                    role="menuitem"
+                  >
+                    Following
                   </Button>
                   <Button
                     variant="secondary"

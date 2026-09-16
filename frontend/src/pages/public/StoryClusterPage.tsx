@@ -1,14 +1,18 @@
 import { useParams, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Seo } from "../../components/Seo";
 import { publicApi } from "../../api";
+import { intelligenceWorkspaceApi } from "../../api";
 import { ErrorState } from "../../components/ui/ErrorState";
 import { Badge } from "../../components/ui/Badge";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Skeleton } from "../../components/ui/Skeleton";
+import { Button } from "../../components/ui/Button";
 import { IntelligenceQualityPanel } from "../../components/IntelligenceQualityPanel";
 import { ProvenanceBadge } from "../../components/ProvenanceBadge";
 import { formatDateTime } from "../../utils";
+import { useAuth } from "../../auth/AuthContext";
 import type {
   BriefEntitiesContext,
   BriefEntityContext,
@@ -44,12 +48,36 @@ function BriefSkeleton() {
 
 export function StoryClusterPage() {
   const { slug } = useParams<{ slug: string }>();
+  const queryClient = useQueryClient();
+  const { isAuthenticated } = useAuth();
+  const [saving, setSaving] = useState(false);
+  const [following, setFollowing] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isFollowed, setIsFollowed] = useState(false);
 
   const { data: brief, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["storyClusterBrief", slug],
     queryFn: () => publicApi.storyClusterBrief(slug!),
     enabled: !!slug,
   });
+
+  const { data: savedList } = useQuery({
+    queryKey: ["saved-stories"],
+    queryFn: () => intelligenceWorkspaceApi.listSavedStories({ limit: 100 }),
+    enabled: isAuthenticated,
+  });
+
+  const { data: followedList } = useQuery({
+    queryKey: ["followed-stories"],
+    queryFn: () => intelligenceWorkspaceApi.listFollowedStories({ limit: 100 }),
+    enabled: isAuthenticated,
+  });
+
+  if (brief && savedList && followedList && !isLoading) {
+  const clusterId = brief.id;
+    setIsSaved(savedList.some((s) => s.story_cluster_id === clusterId));
+    setIsFollowed(followedList.some((f) => f.story_cluster_id === clusterId));
+  }
 
   if (isLoading) {
     return <BriefSkeleton />;
@@ -64,6 +92,62 @@ export function StoryClusterPage() {
         />
       </div>
     );
+  }
+
+  const clusterId = brief.id;
+
+  async function handleSave() {
+    if (!isAuthenticated) return;
+    setSaving(true);
+    try {
+      await intelligenceWorkspaceApi.saveStory({ story_cluster_id: clusterId });
+      setIsSaved(true);
+      await queryClient.invalidateQueries({ queryKey: ["saved-stories"] });
+    } catch {
+      // handled
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleUnsave() {
+    setSaving(true);
+    try {
+      await intelligenceWorkspaceApi.unsaveStory(clusterId);
+      setIsSaved(false);
+      await queryClient.invalidateQueries({ queryKey: ["saved-stories"] });
+    } catch {
+      // handled
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleFollow() {
+    if (!isAuthenticated) return;
+    setFollowing(true);
+    try {
+      await intelligenceWorkspaceApi.followStory(clusterId);
+      setIsFollowed(true);
+      await queryClient.invalidateQueries({ queryKey: ["followed-stories"] });
+    } catch {
+      // handled
+    } finally {
+      setFollowing(false);
+    }
+  }
+
+  async function handleUnfollow() {
+    setFollowing(true);
+    try {
+      await intelligenceWorkspaceApi.unfollowStory(clusterId);
+      setIsFollowed(false);
+      await queryClient.invalidateQueries({ queryKey: ["followed-stories"] });
+    } catch {
+      // handled
+    } finally {
+      setFollowing(false);
+    }
   }
 
   const sources = brief.sources || [];
@@ -143,6 +227,28 @@ export function StoryClusterPage() {
             )}
             {provenance && (
               <ProvenanceBadge provenanceSource={provenance.source} />
+            )}
+            {isAuthenticated && (
+              <>
+                {isSaved ? (
+                  <Button variant="ghost" size="sm" onClick={handleUnsave} disabled={saving}>
+                    {saving ? "Removing..." : "Saved"}
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="sm" onClick={handleSave} disabled={saving}>
+                    {saving ? "Saving..." : "Save"}
+                  </Button>
+                )}
+                {isFollowed ? (
+                  <Button variant="ghost" size="sm" onClick={handleUnfollow} disabled={following}>
+                    {following ? "Unfollowing..." : "Following"}
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="sm" onClick={handleFollow} disabled={following}>
+                    {following ? "Following..." : "Follow"}
+                  </Button>
+                )}
+              </>
             )}
           </div>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">

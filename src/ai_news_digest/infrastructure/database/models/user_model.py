@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from sqlalchemy import Boolean, DateTime, String, func
@@ -34,6 +35,17 @@ from ai_news_digest.infrastructure.database.models.user_muted_topic_model import
 from ai_news_digest.infrastructure.database.models.user_preference_model import (
     UserPreferenceProfileModel,
 )
+
+if TYPE_CHECKING:
+    from ai_news_digest.infrastructure.database.models.followed_story_model import (
+        FollowedStoryModel,
+    )
+    from ai_news_digest.infrastructure.database.models.saved_story_model import (
+        SavedStoryModel,
+    )
+    from ai_news_digest.infrastructure.database.models.user_collection_model import (
+        UserCollectionModel,
+    )
 
 
 class UserModel(Base):
@@ -121,6 +133,24 @@ class UserModel(Base):
     )
 
     followed_sources: Mapped[list[UserFollowedSourceModel]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    collections: Mapped[list[UserCollectionModel]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    saved_stories: Mapped[list[SavedStoryModel]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    followed_stories: Mapped[list[FollowedStoryModel]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
         lazy="selectin",

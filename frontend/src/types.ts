@@ -1014,3 +1014,69 @@ export interface StoryIntelligenceBriefResponse {
   updated_at?: string | null;
   personalization?: BriefPersonalizationContext | null;
 }
+
+export interface SavedStoryResponse {
+  id: string;
+  user_id: string;
+  story_cluster_id: string;
+  collection_id: string | null;
+  note: string | null;
+  created_at: string | null;
+}
+
+export interface CollectionResponse {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface FollowedStoryResponse {
+  id: string;
+  user_id: string;
+  story_cluster_id: string;
+  created_at: string | null;
+}
+
+export interface SaveStoryRequest {
+  story_cluster_id: string;
+  collection_id?: string | null;
+  note?: string | null;
+}
+
+export interface CollectionCreateRequest {
+  name: string;
+  description?: string | null;
+}
+
+export interface CollectionUpdateRequest {
+  name?: string;
+  description?: string | null;
+}
+
+export interface IntelligenceWorkspaceStats {
+  saved_count: number;
+  followed_count: number;
+  collection_count: number;
+}
+
+export interface StoryClusterPersonalization {
+  is_saved?: boolean;
+  is_followed?: boolean;
+}
+
+export interface DashboardStoryItem {
+  cluster_id: string;
+  title: string;
+  slug: string;
+  status: string;
+  importance_score?: number | null;
+  confidence?: number | null;
+  activity_status?: string | null;
+  last_updated_at?: string | null;
+  article_count: number;
+  source_count: number;
+  summary?: string | null;
+}
