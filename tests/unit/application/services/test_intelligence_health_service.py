@@ -156,5 +156,25 @@ class TestIntelligenceHealthService:
         )
         assert service.derive_status_from_gates([gate_pass]) == IntelligenceHealthStatus.HEALTHY
 
+    def test_aggregate_component_health_with_drift(
+        self, service: IntelligenceHealthService
+    ) -> None:
+        gate_results = [
+            _make_gate_result(
+                "extraction-success-rate",
+                IntelligenceComponent.EXTRACTION,
+                QualityGateResult.PASS,
+            )
+        ]
+        health = service.aggregate_component_health(
+            component=IntelligenceComponent.EXTRACTION,
+            gate_results=gate_results,
+            sample_count=10,
+            drift_state="drifted",
+        )
+        assert health.status == IntelligenceHealthStatus.HEALTHY
+        assert health.drift_state == "drifted"
+        assert any("drifted" in w for w in health.warnings)
+
 
 __all__ = ["TestIntelligenceHealthService"]

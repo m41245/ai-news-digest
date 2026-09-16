@@ -37,7 +37,7 @@ class OperationalAlertModel(Base):
     details: Mapped[str | None] = mapped_column(
         Text, nullable=True
     )
-    resolved: Mapped[bool] = mapped_column(
+    resolved: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default="0", index=True
     )
     resolved_at: Mapped[datetime | None] = mapped_column(

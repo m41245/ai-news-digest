@@ -23,8 +23,9 @@ from ai_news_digest.infrastructure.database.models.quality_gate_result_model imp
 
 
 class QualityGateRepository:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, settings: Any = None) -> None:
         self._session = session
+        self._settings = settings
 
     async def save_result(self, result: QualityGateResultDetail) -> QualityGateResultModel:
         model = QualityGateResultModel(
@@ -68,6 +69,8 @@ class QualityGateRepository:
 
         count_query = select(func.count()).select_from(query.subquery())
         total = (await self._session.execute(count_query)).scalar_one_or_none() or 0
+        if self._settings is not None:
+            limit = min(limit, int(self._settings.quality_gate_history_limit))
         query = query.limit(limit).offset(offset)
         result_rows = await self._session.execute(query)
         return list(result_rows.scalars().all()), total
@@ -147,7 +150,7 @@ class OperationalAlertRepository:
         model = result.scalar_one_or_none()
         if model is None:
             return None
-        model.resolved = True
+        model.resolved = 1
         model.resolved_at = datetime.now(UTC)
         await self._session.flush()
         return model

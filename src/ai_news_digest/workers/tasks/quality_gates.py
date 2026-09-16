@@ -10,6 +10,11 @@ from typing import Any
 
 from ai_news_digest.core.config import get_settings
 from ai_news_digest.core.logging import get_logger
+from ai_news_digest.application.services.drift_detector import DriftDetector
+from ai_news_digest.domain.evaluation.quality_gates import (
+    IntelligenceComponent,
+    QualityGateResult,
+)
 from ai_news_digest.workers.celery_app import celery_app
 
 logger = get_logger(__name__)
@@ -83,6 +88,7 @@ def evaluate_quality_gates(
 
             gate_repo = container.quality_gate_repository
             health_repo = container.component_health_repository
+            eval_repo = container.evaluation_repository
 
             for result in gate_results:
                 await gate_repo.save_result(result)
@@ -100,8 +106,52 @@ def evaluate_quality_gates(
             component_health = health_service.build_components_from_gates(
                 gate_results, report.metrics, report.run_id
             )
+
+            if settings.drift_gate_enabled:
+                try:
+                    baseline_run = await eval_repo.get_latest_completed_run(
+                        scope, report.run_id
+                    )
+                    if baseline_run is not None:
+                        baseline_metrics = await eval_repo.list_metrics_by_run_id(
+                            baseline_run.run_id
+                        )
+                        drift_detector = DriftDetector()
+                        drift_signals = drift_detector.detect_drift(
+                            baseline_metrics,
+                            report.metrics,
+                            scope=scope,
+                        )
+                        component_drift: dict[str, str] = {}
+                        for signal in drift_signals:
+                            drift_state = (
+                                signal.state.value
+                                if hasattr(signal.state, "value")
+                                else str(signal.state)
+                            )
+                            component_drift[signal.metric_type] = drift_state
+
+                        for health in component_health:
+                            if health.metric_type in component_drift:
+                                health.drift_state = component_drift[health.metric_type]
+                except Exception as drift_exc:
+                    logger.warning(
+                        "Drift detection failed",
+                        error=str(drift_exc),
+                    )
+
             for health in component_health:
                 await health_repo.save_snapshot(health)
+
+            passed_components = {
+                r.component.value for r in gate_results if r.result == QualityGateResult.PASS
+            }
+            all_component_names = {r.component.value for r in gate_results}
+            for comp_name in all_component_names:
+                if comp_name in passed_components:
+                    await alert_service.resolve_alerts_for_component(
+                        component=IntelligenceComponent(comp_name),
+                    )
 
             return {
                 "status": "completed",

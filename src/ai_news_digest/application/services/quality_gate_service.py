@@ -174,7 +174,14 @@ class QualityGateService:
             )
 
         passed = _evaluate_operator(gate.operator, metric.value, gate.threshold)
-        result = QualityGateResult.PASS if passed else QualityGateResult.FAIL
+        if passed:
+            result = QualityGateResult.PASS
+        else:
+            warn_boundary = gate.threshold * (1 - self._settings.quality_gate_warning_margin)
+            if metric.value >= warn_boundary:
+                result = QualityGateResult.WARN
+            else:
+                result = QualityGateResult.FAIL
 
         explanation = _build_explanation(gate, metric.value, metric.sample_count, result.value)
 

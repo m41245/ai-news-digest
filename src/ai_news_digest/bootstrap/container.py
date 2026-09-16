@@ -1234,7 +1234,7 @@ class Container:
         from ai_news_digest.infrastructure.database.repositories.intelligence_operations_repository import (  # noqa: E501
             QualityGateRepository,
         )
-        return QualityGateRepository(self._session)
+        return QualityGateRepository(self._session, settings=self._settings)
 
     @property
     def operational_alert_repository(self):

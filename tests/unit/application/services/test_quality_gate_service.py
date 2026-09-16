@@ -37,6 +37,7 @@ class TestQualityGateService:
                 provenance_completeness_threshold=0.8,
                 evidence_coverage_threshold=0.5,
                 minimum_evaluation_samples=5,
+                quality_gate_warning_margin=0.0,
             ),
         )
         return QualityGateService()
@@ -162,6 +163,63 @@ class TestQualityGateService:
         result = service.evaluate_gate(gate, metrics)
         alert = service.build_alert(result)
         assert alert is None
+
+    def test_evaluate_gate_warn_within_margin(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_news_digest.application.services.quality_gate_service.get_settings",
+            lambda: MagicMock(
+                quality_gates_enabled=True,
+                extraction_success_threshold=0.7,
+                structured_validity_threshold=0.8,
+                provenance_completeness_threshold=0.8,
+                evidence_coverage_threshold=0.5,
+                minimum_evaluation_samples=5,
+                quality_gate_warning_margin=0.1,
+            ),
+        )
+        service = QualityGateService()
+        gate = QualityGate(
+            gate_id="test-gate",
+            component=IntelligenceComponent.EXTRACTION,
+            metric_type=EvaluationMetricType.EXTRACTION_SUCCESS_RATE.value,
+            operator=GateOperator.GTE,
+            threshold=0.7,
+            min_sample_size=5,
+        )
+        metrics = [_make_metric(EvaluationMetricType.EXTRACTION_SUCCESS_RATE.value, 0.65, 10)]
+        result = service.evaluate_gate(gate, metrics)
+        assert result.result == QualityGateResult.WARN
+        assert result.current_value == 0.65
+
+    def test_evaluate_gate_fail_beyond_margin(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_news_digest.application.services.quality_gate_service.get_settings",
+            lambda: MagicMock(
+                quality_gates_enabled=True,
+                extraction_success_threshold=0.7,
+                structured_validity_threshold=0.8,
+                provenance_completeness_threshold=0.8,
+                evidence_coverage_threshold=0.5,
+                minimum_evaluation_samples=5,
+                quality_gate_warning_margin=0.1,
+            ),
+        )
+        service = QualityGateService()
+        gate = QualityGate(
+            gate_id="test-gate",
+            component=IntelligenceComponent.EXTRACTION,
+            metric_type=EvaluationMetricType.EXTRACTION_SUCCESS_RATE.value,
+            operator=GateOperator.GTE,
+            threshold=0.7,
+            min_sample_size=5,
+        )
+        metrics = [_make_metric(EvaluationMetricType.EXTRACTION_SUCCESS_RATE.value, 0.5, 10)]
+        result = service.evaluate_gate(gate, metrics)
+        assert result.result == QualityGateResult.FAIL
 
 
 __all__ = ["TestQualityGateService"]

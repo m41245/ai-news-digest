@@ -142,6 +142,37 @@ class EvaluationRepository:
         result = await self._session.execute(query)
         return list(result.scalars().all())
 
+    async def list_metrics_by_run_id(self, run_id: str) -> list[MetricValue]:
+        models = await self.list_metrics(run_id)
+        return [
+            MetricValue(
+                metric_type=EvaluationMetricType(m.metric_type),
+                value=m.value,
+                sample_count=m.sample_count,
+                provider=m.provider,
+                model=m.model,
+                prompt_version=m.prompt_version,
+                schema_version=m.schema_version,
+                dataset_version=m.dataset_version,
+                benchmark_version=m.benchmark_version,
+                metadata={"scope": m.scope},
+            )
+            for m in models
+        ]
+
+    async def get_latest_completed_run(
+        self, scope: str, exclude_run_id: str
+    ) -> EvaluationRunModel | None:
+        result = await self._session.execute(
+            select(EvaluationRunModel)
+            .where(EvaluationRunModel.scope == scope)
+            .where(EvaluationRunModel.status == "completed")
+            .where(EvaluationRunModel.run_id != exclude_run_id)
+            .order_by(desc(EvaluationRunModel.completed_at))
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
     async def list_snapshots(
         self,
         limit: int = 30,

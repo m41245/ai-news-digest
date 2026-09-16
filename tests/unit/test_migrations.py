@@ -32,8 +32,8 @@ def test_migration_files_exist() -> None:
     for migration_file in migration_files:
         assert migration_file.exists()
         content = migration_file.read_text()
-        assert "revision:" in content
-        assert "down_revision:" in content
+        assert "revision =" in content or "revision:" in content
+        assert "down_revision =" in content or "down_revision:" in content
         assert "upgrade()" in content
         assert "downgrade()" in content
 

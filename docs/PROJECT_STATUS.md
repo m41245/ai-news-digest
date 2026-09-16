@@ -2,17 +2,17 @@
 
 ## Current Phase
 
-Milestone 94 — Intelligence Operations, Quality Gates & Automated Reliability Controls: **COMPLETE**.
+Milestone 94.1 — M94 Audit and Completion: **COMPLETE**.
 
-M94 additions:
-- Added `QualityGate`, `QualityGateResult`, `ComponentHealth`, `IntelligenceHealthReport`, `OperationalAlert` domain models with PASS/WARN/FAIL/INSUFFICIENT_DATA semantics
-- Added `QualityGateService`, `IntelligenceHealthService`, `OperationalAlertService` with deterministic evaluation, health aggregation, and alert deduplication
-- Added admin API endpoints: `GET /intelligence/health`, `GET /intelligence/gates`, `GET /intelligence/gates/definitions`, `GET /intelligence/alerts`, `POST /intelligence/alerts/{id}/resolve`, `POST /intelligence/gates/evaluate`
-- Added Celery beat task `daily-quality-gate-evaluation` (04:00 UTC) for automated quality monitoring
-- Added database tables via migration `032`: `quality_gate_results`, `operational_alerts`, `component_health_snapshots`
-- Added frontend M94 sections to `AdminIntelligencePage` (health status, gate results, alerts with resolve, evaluation trigger)
-- 30 unit tests (28 M94-specific + 2 updated celery schedule tests), all passing
-- All quality gates pass: ruff, mypy, pytest, TypeScript, frontend build
+M94.1 additions:
+- Fixed quality gate WARN generation via configurable `quality_gate_warning_margin`
+- Wired drift detection into M94 Celery task using M93 `DriftDetector`
+- Added automatic alert recovery when component gates recover
+- Enforced `quality_gate_history_limit` in repository queries
+- Fixed `OperationalAlertModel.resolved` type mismatch
+- Added baseline evaluation retrieval for drift comparison
+- Fixed pre-existing migration test defect (`revision =` vs `revision:`)
+- Added tests for WARN boundary, drift state, alert recovery, and migration compatibility
 
 ### Next Milestone
 
@@ -22,9 +22,9 @@ TBD
 
 ## Current Focus
 
-Milestone 94 — Intelligence Operations, Quality Gates & Automated Reliability Controls: **Complete**.
+Milestone 94.1 — M94 Audit and Completion: **Complete**.
 
-M94 completed. The platform now has deterministic quality gate evaluation, component health aggregation, operational alerting, and automated daily quality monitoring. No production intelligence algorithms were modified. The layer reuses existing M78 circuit breakers, M79 quota systems, M93 evaluation infrastructure, and existing health endpoints. Works with `AI_ENABLED=false`.
+M94.1 completed the M94 operational reliability layer by wiring previously unimplemented behaviors: WARN gate results, drift integration, automatic alert recovery, and bounded query enforcement. All quality gates pass: ruff, mypy, pytest (70 M94/M93/migration tests), TypeScript, frontend build. Works with `AI_ENABLED=false`.
 
 ---
 

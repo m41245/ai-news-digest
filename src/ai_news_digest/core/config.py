@@ -764,6 +764,13 @@ class Settings(BaseSettings):
         description="Maximum number of quality gate result records to retain per evaluation.",
     )
 
+    quality_gate_warning_margin: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=0.5,
+        description="Fraction below threshold that yields WARN instead of FAIL. 0.0 disables WARN.",
+    )
+
     # ======================================================================
     # AI Cost & Quota (M79)
     # ======================================================================
