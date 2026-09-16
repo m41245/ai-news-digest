@@ -2,29 +2,36 @@
 
 ## Current Phase
 
-Milestone 96 — Intelligence Workspace, Saved Intelligence & User Experience: **COMPLETE**.
+**v1.0 Release — Feature Development Complete.**
 
-M96 additions:
+M1–M96 feature development is complete. A final engineering audit was performed and two release blockers were identified and fixed. The project is in a defensible v1.0 feature-complete state.
+
+### M96 Additions (Last Feature Milestone)
 - New authenticated API endpoints: POST/GET/DELETE `/api/v1/me/saved-stories`, POST/GET/PATCH/DELETE `/api/v1/me/collections`, POST/DELETE/GET `/api/v1/me/followed-stories`
 - Domain entities: `SavedStory`, `UserCollection`, `FollowedStory`
 - Database tables: `saved_stories`, `user_collections`, `followed_stories` (Alembic migration 033)
 - Frontend pages: `/me` (IntelligenceWorkspacePage), `/me/saved`, `/me/following`
 - StoryClusterPage enhanced with Save/Follow actions for authenticated users
 - Header navigation updated with Saved and Following links
-- 13 new backend unit tests (mocked), 0 new frontend tests (existing 40 tests pass)
-- All quality gates pass: ruff, mypy, pytest (existing + new), TypeScript, frontend build
 
-### Next Milestone
+### v1.0 Audit Fixes
+- Fixed circular import between `user_collection_model.py` and `saved_story_model.py`
+- Fixed unauthenticated `/intelligence/provenance/*` and `/intelligence/quality/*` endpoints
+- Fixed frontend/backend API contract mismatches (admin intelligence URLs, relationship URLs, notification types)
+- Added missing `PersonalizedTrendResponse` schema
+- All 2405 unit tests pass; 47 integration tests pass
 
-TBD
+### Documentation
+- `docs/V1.0_RELEASE_READINESS.md` — Release readiness assessment
+- `docs/FINAL_ENGINEERING_AUDIT.md` — Complete engineering audit report
 
 ---
 
 ## Current Focus
 
-Milestone 96 — Intelligence Workspace, Saved Intelligence & User Experience: **Complete**.
+v1.0 feature development is complete. The project is ready for production deployment with documented limitations.
 
-M96 adds a personal intelligence workspace on top of the existing intelligence platform. Users can save story clusters to personal collections, follow stories to track evolution, and access a unified `/me` workspace. All features are deterministic and database-driven; no new LLM calls are introduced. Works with `AI_ENABLED=false`.
+See `docs/V1.0_RELEASE_READINESS.md` for the full release readiness assessment.
 
 ---
 

@@ -12,6 +12,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from ai_news_digest.api.v1.dependencies.auth import get_current_admin_user
 from ai_news_digest.api.v1.dependencies.dependencies import get_container
 from ai_news_digest.api.v1.schemas.intelligence_quality import (
     IntelligenceQualityResponse,
@@ -21,6 +22,7 @@ from ai_news_digest.application.services.intelligence_quality_service import (
     IntelligenceQualityService,
 )
 from ai_news_digest.bootstrap.container import Container
+from ai_news_digest.domain.models.user import User
 from ai_news_digest.domain.provenance import (
     for_article,
     for_claim,
@@ -65,6 +67,7 @@ async def get_entity_provenance(
     entity_type: str,
     entity_id: str,
     container: Annotated[Container, Depends(get_container)],
+    _: Annotated[User, Depends(get_current_admin_user)],
 ) -> ProvenanceResponse:
     """Return provenance information for an intelligence entity."""
     from uuid import UUID
@@ -140,6 +143,7 @@ async def get_entity_quality(
     entity_type: str,
     entity_id: str,
     container: Annotated[Container, Depends(get_container)],
+    _: Annotated[User, Depends(get_current_admin_user)],
 ) -> IntelligenceQualityResponse:
     """Return quality diagnostics for an intelligence entity."""
     from uuid import UUID

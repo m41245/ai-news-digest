@@ -11,12 +11,21 @@ import pytest
 from fastapi.testclient import TestClient
 
 from ai_news_digest.api.middleware.exception_handler import setup_exception_handlers
+from ai_news_digest.api.v1.dependencies.auth import get_current_admin_user
 from ai_news_digest.api.v1.dependencies.dependencies import get_container
 from ai_news_digest.api.v1.routes.intelligence_quality import router
 from ai_news_digest.domain.models.claim import Claim
 from ai_news_digest.domain.models.conflict import Conflict
 from ai_news_digest.domain.models.story_cluster import StoryCluster
 from ai_news_digest.domain.models.story_activity import StoryActivity
+
+
+def _make_admin_user():
+    user = MagicMock()
+    user.id = uuid4()
+    user.is_admin = True
+    user.is_active = True
+    return user
 
 
 def _make_claim(claim_id=None) -> Claim:
@@ -63,6 +72,7 @@ def client(mock_container: MagicMock) -> TestClient:
     app = FastAPI()
     app.include_router(router, prefix="/api/v1")
     app.dependency_overrides[get_container] = lambda: mock_container
+    app.dependency_overrides[get_current_admin_user] = lambda: _make_admin_user()
     setup_exception_handlers(app)
     with TestClient(app) as test_client:
         yield test_client

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from uuid import uuid4
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -10,10 +10,12 @@ from ai_news_digest.infrastructure.database.base import Base
 from ai_news_digest.infrastructure.database.models.story_cluster_model import (
     StoryClusterModel,
 )
-from ai_news_digest.infrastructure.database.models.user_collection_model import (
-    UserCollectionModel,
-)
 from ai_news_digest.infrastructure.database.models.user_model import UserModel
+
+if TYPE_CHECKING:
+    from ai_news_digest.infrastructure.database.models.user_collection_model import (
+        UserCollectionModel,
+    )
 
 
 class SavedStoryModel(Base):

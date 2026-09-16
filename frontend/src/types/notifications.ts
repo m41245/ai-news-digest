@@ -30,16 +30,18 @@ export interface NotificationResponse {
 export interface NotificationDeliveryResponse {
   id: string;
   notification_id: string;
-  status: NotificationDeliveryStatus;
-  channel: NotificationChannel;
-  scheduled_for?: string | null;
-  sent_at?: string | null;
+  channel: string;
+  status: string;
+  provider_message_id?: string | null;
+  attempt_count: number;
+  last_attempt_at?: string | null;
   delivered_at?: string | null;
-  failed_at?: string | null;
-  retry_count: number;
   failure_reason?: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at?: string | null;
+  scheduled_for?: string | null;
+  next_attempt_at?: string | null;
+  delivery_window?: string | null;
+  suppression_reason?: string | null;
 }
 
 export interface NotificationDeliveryHistoryResponse {
@@ -50,28 +52,23 @@ export interface NotificationDeliveryHistoryResponse {
 }
 
 export interface NotificationStatsResponse {
-  total_notifications: number;
-  unread_count: number;
-  delivered_count: number;
-  failed_count: number;
-  deferred_count: number;
-  suppressed_count: number;
+  total: number;
+  unread: number;
   by_type: Record<string, number>;
   by_severity: Record<string, number>;
-  by_channel: Record<string, number>;
+  deliveries_pending: number;
+  deliveries_sent: number;
+  deliveries_failed: number;
 }
 
 export interface SchedulePreviewResponse {
-  timezone: string;
-  next_notification_times: Array<{
-    notification_type: string;
-    scheduled_for: string;
-    reason: string;
-  }>;
+  scheduled: NotificationDeliveryResponse[];
+  count: number;
 }
 
 export interface TestNotificationRequest {
   notification_type?: string;
-  channel?: NotificationChannel;
+  title?: string;
+  body?: string;
   severity?: string;
 }

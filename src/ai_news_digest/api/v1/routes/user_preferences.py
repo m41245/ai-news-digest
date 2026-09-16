@@ -4,7 +4,7 @@ Authenticated user preference endpoints.
 
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
@@ -16,6 +16,7 @@ from ai_news_digest.api.v1.schemas.common import (
     MAX_PAGE_LIMIT,
 )
 from ai_news_digest.api.v1.schemas.user_preference import (
+    PersonalizedTrendResponse,
     UserPreferenceResponse,
     UserPreferenceUpdateRequest,
 )
@@ -401,6 +402,7 @@ async def get_feed(
 
 @router.get(
     "/trends",
+    response_model=list[PersonalizedTrendResponse],
     summary="Get personalized trends",
 )
 async def get_personalized_trends(
@@ -408,7 +410,7 @@ async def get_personalized_trends(
     current_user: Annotated[User, Depends(get_current_active_user)],
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=MAX_PAGE_LIMIT)] = DEFAULT_PAGE_LIMIT,
-) -> list[dict[str, Any]]:
+) -> list[PersonalizedTrendResponse]:
     return await container.get_personalized_trends.execute(
         current_user=current_user,
         page=page,

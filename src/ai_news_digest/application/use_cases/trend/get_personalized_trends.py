@@ -12,6 +12,7 @@ from ai_news_digest.application.services.personalization.personalized_relevance_
     PersonalizedRelevanceEngine,
 )
 from ai_news_digest.application.services.ranking.constants import FeedDefaults
+from ai_news_digest.api.v1.schemas.user_preference import PersonalizedTrendResponse
 from ai_news_digest.domain.models.user import User
 from ai_news_digest.domain.models.user_preference import UserPreferenceProfile
 from ai_news_digest.domain.ports.trend_repository import TrendRepository

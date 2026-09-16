@@ -18,6 +18,7 @@ from .relationship_model import RelationshipModel
 from .source_model import SourceModel
 from .story_cluster_model import StoryClusterModel
 from .topic_model import TopicModel
+from .user_model import UserModel
 from .user_followed_category_model import UserFollowedCategoryModel
 from .user_followed_company_model import UserFollowedCompanyModel
 from .user_followed_source_model import UserFollowedSourceModel

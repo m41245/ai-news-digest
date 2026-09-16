@@ -28,15 +28,15 @@ from ai_news_digest.api.v1.routes.intelligence_operations import (
     router as intelligence_operations_router,
 )
 from ai_news_digest.api.v1.routes.intelligence_quality import router as intelligence_quality_router
+from ai_news_digest.api.v1.routes.intelligence_workspace import (
+    router as intelligence_workspace_router,
+)
 from ai_news_digest.api.v1.routes.notifications import router as notifications_router
 from ai_news_digest.api.v1.routes.public import router as public_router
 from ai_news_digest.api.v1.routes.recommendations import router as recommendations_router
 from ai_news_digest.api.v1.routes.relationships import router as relationships_router
 from ai_news_digest.api.v1.routes.sources import router as sources_router
 from ai_news_digest.api.v1.routes.story_ranking import router as story_ranking_router
-from ai_news_digest.api.v1.routes.intelligence_workspace import (
-    router as intelligence_workspace_router,
-)
 from ai_news_digest.api.v1.routes.user_preferences import router as user_preferences_router
 from ai_news_digest.api.v1.routes.users import router as users_router
 from ai_news_digest.core.config import Settings, get_settings
@@ -169,17 +169,17 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
 
     application.include_router(
         intelligence_quality_router,
-        prefix=app_settings.api_prefix,
+        prefix=f"{app_settings.api_prefix}/admin",
     )
 
     application.include_router(
         intelligence_evaluation_router,
-        prefix=app_settings.api_prefix,
+        prefix=f"{app_settings.api_prefix}/admin",
     )
 
     application.include_router(
         intelligence_operations_router,
-        prefix=app_settings.api_prefix,
+        prefix=f"{app_settings.api_prefix}/admin",
     )
 
     application.include_router(

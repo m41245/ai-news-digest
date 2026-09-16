@@ -150,7 +150,7 @@ export const publicApi = {
     }>;
   }> =>
     api
-      .get(`/api/v1/public/relationships/entities/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}`, {
+      .get(`/api/v1/relationships/entities/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}`, {
         params: { limit },
       })
       .then((r) => r.data),
@@ -161,7 +161,7 @@ export const publicApi = {
     relationship_count: number;
   }> =>
     api
-      .get(`/api/v1/public/relationships/story-clusters/${encodeURIComponent(clusterId)}`)
+      .get(`/api/v1/relationships/story-clusters/${encodeURIComponent(clusterId)}`)
       .then((r) => r.data),
   trends: (params: {
     limit?: number;

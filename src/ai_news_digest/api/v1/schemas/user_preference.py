@@ -52,7 +52,30 @@ class UserPreferenceUpdateRequest(BaseModel):
         return tuple(valid) if valid else None
 
 
+class PersonalizedTrendResponse(BaseModel):
+    """Response schema for personalized trend items."""
+
+    id: str
+    trend_type: str
+    display_name: str
+    status: str
+    trend_score: float
+    momentum_score: float
+    recent_activity: int
+    baseline_activity: int
+    source_count: int
+    story_count: int
+    event_count: int
+    explanation: str
+    personalized_relevance_score: float
+    relevance_reasons: list[str]
+    first_detected_at: str | None = None
+    last_detected_at: str | None = None
+    trend_metadata: dict[str, str] | None = None
+
+
 __all__ = [
+    "PersonalizedTrendResponse",
     "UserPreferenceResponse",
     "UserPreferenceUpdateRequest",
 ]
