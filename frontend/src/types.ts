@@ -34,6 +34,7 @@ export interface PublicStoryClusterSearch {
   status: string;
   article_count: number;
   source_count: number;
+  independent_source_count?: number;
   activity_status?: string | null;
   activity_score?: number | null;
   latest_activity_at?: string | null;
@@ -66,6 +67,10 @@ export interface PublicStoryCluster extends PublicStoryClusterSearch {
   related_topics: string[];
   relationship_count: number;
   graph_connections: GraphConnection[];
+  provenance_complete?: boolean;
+  quality_flags?: string[];
+  quality_explanation?: string;
+  overall_quality_score?: number;
 }
 
 export interface StoryEvent {
@@ -143,6 +148,8 @@ export interface Article {
   ai_model?: string | null;
   ai_processed_at?: string | null;
   claims?: Claim[] | null;
+  provenance_source?: string | null;
+  extraction_quality?: string | null;
 }
 
 export interface Evidence {
@@ -150,6 +157,9 @@ export interface Evidence {
   excerpt?: string | null;
   source_location?: string | null;
   strength?: string | null;
+  article_title?: string | null;
+  source_name?: string | null;
+  published_at?: string | null;
 }
 
 export interface Claim {
@@ -158,6 +168,9 @@ export interface Claim {
   confidence?: number | null;
   status: string;
   evidence_support_score?: number | null;
+  provenance_source?: string | null;
+  schema_version?: string;
+  prompt_version?: string | null;
   evidence?: Evidence[] | null;
 }
 
@@ -417,6 +430,8 @@ export interface Trend {
   first_detected_at?: string | null;
   last_detected_at?: string | null;
   trend_metadata?: Record<string, string> | null;
+  provenance_complete?: boolean;
+  quality_flags?: string[];
 }
 
 export interface PublicTrendSearch {

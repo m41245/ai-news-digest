@@ -107,18 +107,40 @@ def _to_public_article(
                 confidence=c.confidence,
                 status=c.status.value,
                 evidence_support_score=c.evidence_support_score,
+                provenance_source=(
+                    c.ai_provider or (c.ai_model and "ai_extracted")
+                ) or "deterministic",
+                schema_version=c.schema_version,
+                prompt_version=c.prompt_version,
                 evidence=[
                     PublicEvidenceResponse(
                         evidence_type=ev.evidence_type.value,
                         excerpt=ev.excerpt,
                         source_location=ev.source_location,
                         strength=ev.strength.value if ev.strength else None,
+                        article_title=None,
+                        source_name=(
+                            source_map.get(str(article.source_id))
+                            if article.source_id
+                            else None
+                        ),
+                        published_at=(
+                            article.published_at.isoformat()
+                            if article.published_at
+                            else None
+                        ),
                     )
                     for ev in (evidence_items or [])
                 ] if (evidence_items := getattr(c, 'evidence_items', None)) else None,
             )
             for c in claims
         ]
+
+    ai_provider = getattr(article, "ai_provider", None)
+    ai_model = getattr(article, "ai_model", None)
+    provenance_source = (
+        "ai_extracted" if ai_provider or ai_model else "deterministic"
+    )
 
     return PublicArticleResponse(
         id=str(article.id),
@@ -136,6 +158,19 @@ def _to_public_article(
         importance_score=article.importance_score,
         confidence=article.confidence,
         claims=claim_responses,
+        provenance_source=provenance_source,
+        extraction_quality=(
+            getattr(article, "extraction_quality", None).value  # type: ignore[union-attr]
+            if hasattr(getattr(article, "extraction_quality", None), "value")
+            else str(getattr(article, "extraction_quality", None))
+        ),
+        ai_provider=ai_provider,
+        ai_model=ai_model,
+        ai_processed_at=(
+            getattr(article, "ai_processed_at", None).isoformat()  # type: ignore[union-attr]
+            if getattr(article, "ai_processed_at", None)
+            else None
+        ),
     )
 
 
@@ -690,6 +725,42 @@ async def get_public_story_cluster(
     unique_source_ids = {article.source_id for article in articles}
     source_count = len(unique_source_ids)
 
+    provenance_complete = article_count > 0
+    quality_flags: list[str] = []
+    if article_count == 0:
+        quality_flags.append("missing_evidence")
+    if source_count <= 1:
+        quality_flags.append("single_source")
+    if source_count < 2:
+        quality_flags.append("low_source_diversity")
+    try:
+        recent_conflicts = await container.conflict_repository.list_recent(limit=200)
+        article_ids = {a.id for a in articles}
+        conflict_count = sum(
+            1 for c in recent_conflicts
+            if c.article_a_id in article_ids or c.article_b_id in article_ids
+        )
+        if conflict_count > 0:
+            quality_flags.append("conflicting_evidence")
+        if conflict_count > 2:
+            quality_flags.append("high_conflict")
+    except Exception:
+        conflict_count = 0
+
+    overall_quality_score = max(
+        0.0,
+        min(
+            1.0,
+            (article_count / 5.0) * 0.3
+            + (source_count / 5.0) * 0.3
+            + max(0.0, 1.0 - (conflict_count / 3.0)) * 0.2
+            + 0.1,
+        ),
+    )
+    quality_explanation = f"{article_count} article(s); {source_count} independent source(s)"
+    if conflict_count > 0:
+        quality_explanation += f"; {conflict_count} conflict(s)"
+
     recent_articles = [
         {
             "id": str(article.id),
@@ -879,6 +950,7 @@ async def get_public_story_cluster(
         status=cluster.status.value,
         article_count=article_count,
         source_count=source_count,
+        independent_source_count=source_count,
         recent_articles=recent_articles,
         timeline=timeline,
         what_changed=what_changed,
@@ -893,6 +965,10 @@ async def get_public_story_cluster(
         related_topics=related_topics,
         relationship_count=relationship_count,
         graph_connections=graph_connections,
+        provenance_complete=provenance_complete,
+        quality_flags=quality_flags,
+        quality_explanation=quality_explanation,
+        overall_quality_score=overall_quality_score,
     )
 
 
@@ -1163,6 +1239,8 @@ async def get_public_trend(
         first_detected_at=trend.first_detected_at.isoformat(),
         last_detected_at=trend.last_detected_at.isoformat(),
         trend_metadata=trend.trend_metadata if trend.trend_metadata else None,
+        provenance_complete=trend.source_count > 0,
+        quality_flags=[] if trend.source_count > 1 else ["single_source"],
     )
 
 

@@ -39,6 +39,9 @@ class PublicEvidenceResponse(BaseModel):
     excerpt: str | None = None
     source_location: str | None = None
     strength: str | None = None
+    article_title: str | None = None
+    source_name: str | None = None
+    published_at: str | None = None
 
 
 class PublicClaimResponse(BaseModel):
@@ -49,6 +52,9 @@ class PublicClaimResponse(BaseModel):
     confidence: float | None = None
     status: str
     evidence_support_score: float | None = None
+    provenance_source: str | None = None
+    schema_version: str = "v1"
+    prompt_version: str | None = None
     evidence: list[PublicEvidenceResponse] | None = None
 
 
@@ -70,6 +76,11 @@ class PublicArticleResponse(BaseModel):
     importance_score: float | None = None
     confidence: float | None = None
     claims: list[PublicClaimResponse] | None = None
+    provenance_source: str | None = None
+    extraction_quality: str | None = None
+    ai_provider: str | None = None
+    ai_model: str | None = None
+    ai_processed_at: str | None = None
 
 
 class PublicDigestResponse(BaseModel):
@@ -109,6 +120,7 @@ class PublicStoryClusterResponse(BaseModel):
     status: str
     article_count: int = 0
     source_count: int = 0
+    independent_source_count: int = 0
     recent_articles: list[dict[str, Any]] = []
     timeline: list[dict[str, Any]] = []
     what_changed: list[str] = []
@@ -123,6 +135,10 @@ class PublicStoryClusterResponse(BaseModel):
     related_topics: list[str] = []
     relationship_count: int = 0
     graph_connections: list[dict[str, Any]] = []
+    provenance_complete: bool = True
+    quality_flags: list[str] = []
+    quality_explanation: str = ""
+    overall_quality_score: float = 0.0
 
 
 class PublicTopStoryResponse(BaseModel):
@@ -217,6 +233,8 @@ class PublicTrendResponse(BaseModel):
     first_detected_at: str | None = None
     last_detected_at: str | None = None
     trend_metadata: dict[str, str] | None = None
+    provenance_complete: bool = True
+    quality_flags: list[str] = []
 
 
 class SearchResponse(BaseModel):

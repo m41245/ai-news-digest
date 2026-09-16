@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import type { Article } from "../types";
 import { Card } from "./ui/Card";
 import { Badge } from "./ui/Badge";
+import { ProvenanceBadge } from "./ProvenanceBadge";
 import { formatDate, truncate } from "../utils";
 
 interface ArticleCardProps {
@@ -20,6 +21,16 @@ export function ArticleCard({ article }: ArticleCardProps) {
           <span className="ml-auto text-xs text-slate-500">
             {formatDate(article.published_at)}
           </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <ProvenanceBadge
+            provenanceSource={article.provenance_source}
+            aiProvider={article.ai_provider}
+            aiModel={article.ai_model}
+            aiProcessedAt={article.ai_processed_at}
+            extractionQuality={article.extraction_quality}
+            showDetails
+          />
         </div>
         <h2 className="text-lg font-semibold text-slate-900">
           <Link

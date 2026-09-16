@@ -2,20 +2,16 @@
 
 ## Current Phase
 
-Milestone 91 — Temporal Knowledge Graph & Entity Evolution Intelligence: **COMPLETE**.
+Milestone 92 — Intelligence Quality, Provenance & Explainability: **COMPLETE**.
 
-M91 additions:
-- Added `RelationshipActivityStatus` enum (NEW, EMERGING, ACTIVE, STABLE, DECLINING, STALE)
-- Extended `Relationship` domain model with temporal fields: `first_observed_at`, `last_observed_at`, `valid_from`, `valid_to`, `observation_count`, `source_count`, `activity_score`, `activity_status`
-- Added `record_observation()` method for deterministic temporal updates without creating new rows
-- Added manual migration `030_add_temporal_graph_fields.py` with composite temporal indexes
-- Extended `RelationshipRepository` with `update_observation`, `list_for_entity_with_temporal`, `get_entity_relationship_history`
-- Added `TemporalGraphIntelligenceService` with deterministic activity scoring, status computation, entity evolution, change detection, and time-bounded filtering
-- Extended graph API with `/evolution`, `/history`, `/changes`, `/temporal-connections` endpoints and temporal filters on `/connections` and `/path`
-- Extended public relationship schema with temporal fields
-- Added frontend `RelationshipEvolutionSection` and `ConnectionHistorySection` components
-- Integrated `ConnectionHistorySection` into `StoryClusterPage`
-- 22 unit tests for `TemporalGraphIntelligenceService`, 5 graph route tests, all passing
+M92 additions:
+- Added `ProvenanceInfo` domain class and 9 factory functions (`for_article`, `for_claim`, `for_evidence`, `for_conflict`, `for_relationship`, `for_story_cluster`, `for_story_event`, `for_trend`, `for_digest`) inferring provenance from existing model metadata
+- Added `IntelligenceQualityService` with deterministic quality evaluation, `QualityFlag` enum (10 flags), and `QualityResult` dataclass
+- Added authenticated endpoints: `GET /intelligence/provenance/{entity_type}/{entity_id}` and `GET /intelligence/quality/{entity_type}/{entity_id}`
+- Extended public API schemas with provenance/quality fields for articles, claims, evidence, story clusters, trends, and relationships
+- Added frontend `IntelligenceQualityPanel` and `ProvenanceBadge` components
+- Integrated `ProvenanceBadge` into `ArticleCard` and `IntelligenceQualityPanel` into `StoryClusterPage`
+- 31 unit tests (13 provenance, 11 quality service, 7 API routes), all passing
 - All quality gates pass: ruff, mypy, pytest, TypeScript, frontend build
 
 ### Next Milestone
@@ -26,9 +22,9 @@ TBD
 
 ## Current Focus
 
-Milestone 91 — Temporal Knowledge Graph & Entity Evolution Intelligence: **Complete**.
+Milestone 92 — Intelligence Quality, Provenance & Explainability: **Complete**.
 
-M91 completed. The platform now provides deterministic temporal relationship intelligence on top of the M89/M90 graph foundation. All temporal signals are derived from existing relationship observation metadata without introducing new infrastructure or external data sources. Temporal features work with `AI_ENABLED=false` and remain separate from M87 recommendation scoring and M68 ranking.
+M92 completed. All intelligence outputs are now auditable, explainable, traceable, and quality-aware. Provenance is inferred from existing `ai_provider`, `ai_model`, `prompt_version`, `schema_version`, and `processing_metadata` fields without new database migrations. Quality scores are deterministic and bounded (0.0–1.0). The layer reuses existing M81 Evidence, M82 Conflicts, M84 Events, M89/M90/M91 graph systems, M68 Ranking, and M87 Recommendations. Works with `AI_ENABLED=false`.
 
 ---
 

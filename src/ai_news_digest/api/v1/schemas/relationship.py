@@ -26,6 +26,7 @@ class PublicRelationshipResponse(BaseModel):
     source_count: int = 0
     activity_status: str | None = None
     activity_score: float = 0.0
+    explanation: str = ""
 
 
 class PublicEntityRelationshipsResponse(BaseModel):

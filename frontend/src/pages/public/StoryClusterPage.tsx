@@ -7,6 +7,7 @@ import { Badge } from "../../components/ui/Badge";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Skeleton, StoryCardSkeleton } from "../../components/ui/Skeleton";
 import { ConnectionHistorySection } from "../../components/ConnectionHistorySection";
+import { IntelligenceQualityPanel } from "../../components/IntelligenceQualityPanel";
 import { formatDateTime } from "../../utils";
 import type { Conflict, StoryEvent, GraphConnection } from "../../types";
 
@@ -99,6 +100,11 @@ export function StoryClusterPage() {
                 Confidence: {cluster.confidence.toFixed(2)}
               </span>
             )}
+            {cluster.overall_quality_score != null && (
+              <span className="text-sm text-slate-500">
+                Quality: {(cluster.overall_quality_score * 100).toFixed(0)}%
+              </span>
+            )}
           </div>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
             {cluster.title}
@@ -106,6 +112,9 @@ export function StoryClusterPage() {
           <p className="mt-3 text-sm text-slate-500">
             {cluster.article_count} articles &middot; {cluster.source_count} sources &middot;{" "}
             Updated {formatDateTime(cluster.last_updated_at)}
+            {cluster.independent_source_count != null && cluster.independent_source_count !== cluster.source_count && (
+              <span> &middot; {cluster.independent_source_count} independent sources</span>
+            )}
           </p>
         </header>
 
@@ -117,6 +126,17 @@ export function StoryClusterPage() {
             <p className="mt-2 text-slate-800 leading-relaxed">{cluster.summary}</p>
           </div>
         )}
+
+        {(cluster.quality_flags && cluster.quality_flags.length > 0) || cluster.quality_explanation ? (
+          <div className="mt-8 max-w-3xl">
+            <IntelligenceQualityPanel
+              qualityFlags={cluster.quality_flags}
+              qualityExplanation={cluster.quality_explanation}
+              overallQualityScore={cluster.overall_quality_score}
+              provenanceComplete={cluster.provenance_complete}
+            />
+          </div>
+        ) : null}
 
         {cluster.what_changed && cluster.what_changed.length > 0 && (
           <div className="mt-8 max-w-3xl">
