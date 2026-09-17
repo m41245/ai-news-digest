@@ -484,7 +484,7 @@ class IntelligenceEvaluationService:
                     claim_repo = container.claim_repository
                     conflict_repo = container.conflict_repository
                     story_cluster_repo = container.story_cluster_repository
-                    trend_repo = container.trend_repo
+                    trend_repo = container.trend_repository
                     relationship_repo = container.relationship_repository
 
                     articles = await article_repo.list_recent(limit=500)

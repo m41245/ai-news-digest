@@ -1192,7 +1192,7 @@ async def list_public_companies(
         PublicCompanyResponse(
             id=str(company.id),
             name=company.name,
-            description=company.description,
+            description=None,
             article_count=getattr(company, "article_count", 0),
         )
         for company in companies
@@ -1213,7 +1213,7 @@ async def list_public_topics(
         PublicTopicResponse(
             id=str(topic.id),
             name=topic.name,
-            description=topic.description,
+            description=None,
             article_count=getattr(topic, "article_count", 0),
         )
         for topic in topics
