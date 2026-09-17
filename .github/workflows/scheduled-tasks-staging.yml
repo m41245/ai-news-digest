@@ -1,0 +1,82 @@
+name: Scheduled Tasks (Staging)
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Task to run"
+        required: true
+        type: choice
+        options:
+          - ingest
+          - summarize
+          - categorize
+          - analyze
+          - cluster
+          - timeline
+          - ranking
+          - conflict
+          - story-activity
+          - trend
+          - evaluation
+          - quality-gates
+          - digest
+          - deliver
+          - notifications-schedule
+          - notifications-scheduled
+          - notifications-immediate
+          - notifications-retry
+          - notifications-recover
+          - notifications-cleanup-deliveries
+          - notifications-cleanup
+          - cleanup-articles
+          - cleanup-digests
+
+permissions:
+  contents: read
+
+jobs:
+  staging-scheduled-task:
+    name: Run Staging Scheduled Task
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: staging-scheduler
+      cancel-in-progress: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "poetry"
+
+      - name: Install Poetry
+        run: |
+          pip install --upgrade pip
+          pip install "poetry==2.1.0"
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-ansi
+
+      - name: Run staging scheduled task
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          REDIS_URL: ${{ secrets.STAGING_REDIS_URL }}
+          CELERY_BROKER_URL: ${{ secrets.STAGING_CELERY_BROKER_URL }}
+          CELERY_RESULT_BACKEND: ${{ secrets.STAGING_CELERY_RESULT_BACKEND }}
+          JWT_SECRET_KEY: ${{ secrets.STAGING_JWT_SECRET_KEY }}
+          ENVIRONMENT: staging
+          DEBUG: "false"
+          AI_ENABLED: "false"
+          EMAIL_ENABLED: "false"
+          EMAIL_DEVELOPMENT_MODE: "false"
+          EMAIL_PROVIDER: console
+          LOG_LEVEL: INFO
+        run: |
+          set -euo pipefail
+          TASK="${{ github.event.inputs.task || 'ingest' }}"
+          echo "Running staging task: $TASK"
+          poetry run python scripts/scheduled/run_task.py "$TASK"
