@@ -374,6 +374,77 @@ For comprehensive operational procedures, see [`docs/RUNBOOK.md`](RUNBOOK.md), w
 
 ---
 
+## Local Staging Environment
+
+The repository includes a dedicated local staging Compose configuration
+(`docker-compose.staging.yml`) that is **fully isolated** from development.
+
+### Isolation Mechanism
+
+The staging Compose file uses an explicit project name:
+
+```text
+name: ai-news-digest-staging
+```
+
+This causes Docker Compose to create **separate named volumes** for staging:
+
+| Environment | PostgreSQL Volume | Redis Volume |
+|-------------|-------------------|--------------|
+| Development | `ai-news-digest_postgres_data` | `ai-news-digest_redis_data` |
+| Staging | `ai-news-digest-staging_postgres_data` | `ai-news-digest-staging_redis_data` |
+
+Staging and development can run simultaneously without data collision.
+
+### Staging Database
+
+- Database name: `ai_news_digest_staging`
+- Configured via `POSTGRES_DB` in `.env.staging`
+- Completely separate from the development `ai_news_digest` database
+
+### Staging Redis
+
+- Uses its own dedicated volume (`ai-news-digest-staging_redis_data`)
+- No keys from the development Redis instance are visible or shared
+
+### Email Safety
+
+Staging explicitly disables email delivery:
+
+```text
+EMAIL_ENABLED=false
+EMAIL_DEVELOPMENT_MODE=true
+EMAIL_PROVIDER=console
+```
+
+This prevents accidental real email delivery during validation.
+
+### Starting Staging
+
+```bash
+docker compose -f docker-compose.staging.yml --env-file .env.staging up -d
+```
+
+### Resetting Staging
+
+To intentionally reset the staging environment (does not affect development):
+
+```bash
+docker compose -f docker-compose.staging.yml --env-file .env.staging down
+docker volume rm ai-news-digest-staging_postgres_data ai-news-digest-staging_redis_data
+docker compose -f docker-compose.staging.yml --env-file .env.staging up -d
+```
+
+**Warning:** Do not use `docker compose down -v` from the repository root without
+specifying the staging file, as that targets the development Compose project
+and will delete development data.
+
+### Relationship to Step 2.2C
+
+Staging isolation is a prerequisite for Step 2.2C direct-runner pipeline validation.
+Once isolation is verified, the complete direct-runner pipeline can be safely executed
+against the staging environment without risking development or production data.
+
 ## Milestone 44 Hardening
 
 M44 adds production readiness hardening without breaking changes:

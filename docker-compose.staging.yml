@@ -1,5 +1,4 @@
-# Staging Docker Compose configuration
-# Windows-compatible: removed security_opt/cap_drop that fail on Docker Desktop
+name: ai-news-digest-staging
 
 services:
   postgres:
