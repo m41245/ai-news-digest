@@ -31,14 +31,6 @@ on:
           - notifications-cleanup
           - cleanup-articles
           - cleanup-digests
-      environment:
-        description: "Target environment"
-        required: false
-        type: choice
-        default: production
-        options:
-          - staging
-          - production
   schedule:
     # Production schedule in UTC.
     # Intended local time depends on DIGEST_TIMEZONE (default: UTC).

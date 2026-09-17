@@ -120,16 +120,14 @@ def test_workflow_does_not_pass_smtp_secrets_when_disabled() -> None:
     assert "EMAIL_RECIPIENTS" not in env
 
 
-def test_workflow_has_environment_input() -> None:
+def test_workflow_has_no_misleading_environment_input() -> None:
+    """The workflow must not have a misleading environment selector."""
     workflow = _load_workflow()
     triggers = workflow.get("on") or workflow.get(True) or {}
     dispatch = triggers.get("workflow_dispatch", {})
-    assert "environment" in dispatch.get("inputs", {}), "Workflow must have environment input"
-    env_input = dispatch["inputs"]["environment"]
-    assert env_input["type"] == "choice"
-    assert env_input["default"] == "production"
-    assert "staging" in env_input["options"]
-    assert "production" in env_input["options"]
+    assert "environment" not in dispatch.get("inputs", {}), (
+        "Workflow must not have an environment input that is never used"
+    )
 
 
 def test_workflow_uses_fail_fast_bash() -> None:
