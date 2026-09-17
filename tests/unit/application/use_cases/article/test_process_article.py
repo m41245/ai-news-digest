@@ -128,3 +128,25 @@ async def test_process_article_idempotent_when_already_categorized() -> None:
     assert result.status == ArticleStatus.CATEGORIZED
     summarize.execute.assert_not_awaited()
     categorize.execute.assert_not_awaited()
+
+
+async def test_process_article_skips_when_no_ai() -> None:
+    """When use cases are None, the article is persisted unchanged."""
+    article = Article.create(
+        title="T",
+        url="https://example.com/u",
+        summary="S",
+        content="C",
+        source_id=uuid4(),
+        published_at=datetime.now(UTC),
+    )
+    article.status = ArticleStatus.NEW
+
+    repository = AsyncMock()
+    repository.update.return_value = article
+
+    use_case = ProcessArticleUseCase(None, None, repository)
+    result = await use_case.execute(article)
+
+    assert result.status == ArticleStatus.NEW
+    repository.update.assert_awaited_once_with(article)

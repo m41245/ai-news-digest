@@ -96,6 +96,18 @@ async def test_summarize_article_failure_propagates(
         await process.summarize_article(article.id)
 
 
+async def test_summarize_article_no_provider(mock_container: MagicMock) -> None:
+    """When AI is disabled, summarize returns no_provider."""
+    article = make_article(ArticleStatus.NEW)
+    mock_container.article_repository.get_by_id.return_value = article
+    mock_container.summarize_article = None
+
+    with patch.object(process, "get_container", container_generator(mock_container)):
+        result = await process.summarize_article(article.id)
+
+    assert result == {"status": "no_provider"}
+
+
 # ----------------------------------------------------------------------
 # categorize_article
 # ----------------------------------------------------------------------
@@ -166,6 +178,18 @@ async def test_categorize_article_failure_propagates(
         pytest.raises(RuntimeError, match="boom"),
     ):
         await process.categorize_article(article.id)
+
+
+async def test_categorize_article_no_provider(mock_container: MagicMock) -> None:
+    """When AI is disabled, categorize returns no_provider."""
+    article = make_article(ArticleStatus.SUMMARIZED)
+    mock_container.article_repository.get_by_id.return_value = article
+    mock_container.categorize_article = None
+
+    with patch.object(process, "get_container", container_generator(mock_container)):
+        result = await process.categorize_article(article.id)
+
+    assert result == {"status": "no_provider"}
 
 
 # ----------------------------------------------------------------------
@@ -334,6 +358,18 @@ async def test_process_article_failure_propagates(mock_container: MagicMock) -> 
         pytest.raises(RuntimeError, match="boom"),
     ):
         await process.process_article(article.id)
+
+
+async def test_process_article_no_provider(mock_container: MagicMock) -> None:
+    """When AI is disabled, process_article returns no_provider."""
+    article = make_article(ArticleStatus.NEW)
+    mock_container.article_repository.get_by_id.return_value = article
+    mock_container.process_article = None
+
+    with patch.object(process, "get_container", container_generator(mock_container)):
+        result = await process.process_article(article.id)
+
+    assert result == {"status": "no_provider"}
 
 
 # ----------------------------------------------------------------------

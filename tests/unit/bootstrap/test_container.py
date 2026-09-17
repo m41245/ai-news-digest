@@ -214,15 +214,92 @@ def test_container_ingest_all_sources(container: Container) -> None:
 
 
 def test_container_summarize_article(container: Container) -> None:
-    """Test summarize_article property."""
+    """Test summarize_article property returns None when AI is disabled."""
+    use_case = container.summarize_article
+    assert use_case is None
+
+
+def test_container_summarize_article_ai_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test summarize_article property returns a use case when AI is enabled."""
+    from unittest.mock import MagicMock, patch
+
+    fake_settings = MagicMock()
+    fake_settings.ai_enabled = True
+    fake_settings.openai_enabled = True
+    fake_settings.openai_api_key = SecretStr("test-openai-key")
+    fake_settings.openai_priority = 1
+    fake_settings.openai_model = "gpt-4o-mini"
+    fake_settings.openai_timeout = 30
+    fake_settings.openai_max_retries = 3
+    fake_settings.ai_max_content_length = 8000
+    fake_settings.anthropic_enabled = False
+    fake_settings.anthropic_api_key = None
+    fake_settings.gemini_enabled = False
+    fake_settings.gemini_api_key = None
+    fake_settings.xai_enabled = False
+    fake_settings.xai_api_key = None
+
+    with (
+        patch(
+            "ai_news_digest.bootstrap.container.get_settings",
+            return_value=fake_settings,
+        ),
+        patch(
+            "ai_news_digest.bootstrap.container.LLMProviderFactory.create_openai_provider",
+            return_value=AIProvider(provider_id="openai", provider_name="openai"),
+        ),
+    ):
+        container = Container(MagicMock(spec=AsyncSession))
+
     use_case = container.summarize_article
     assert use_case is not None
 
 
 def test_container_categorize_article(container: Container) -> None:
-    """Test categorize_article property."""
+    """Test categorize_article property returns None when AI is disabled."""
+    use_case = container.categorize_article
+    assert use_case is None
+
+
+def test_container_categorize_article_ai_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test categorize_article property returns a use case when AI is enabled."""
+    from unittest.mock import MagicMock, patch
+
+    fake_settings = MagicMock()
+    fake_settings.ai_enabled = True
+    fake_settings.openai_enabled = True
+    fake_settings.openai_api_key = SecretStr("test-openai-key")
+    fake_settings.openai_priority = 1
+    fake_settings.openai_model = "gpt-4o-mini"
+    fake_settings.openai_timeout = 30
+    fake_settings.openai_max_retries = 3
+    fake_settings.anthropic_enabled = False
+    fake_settings.anthropic_api_key = None
+    fake_settings.gemini_enabled = False
+    fake_settings.gemini_api_key = None
+    fake_settings.xai_enabled = False
+    fake_settings.xai_api_key = None
+
+    with (
+        patch(
+            "ai_news_digest.bootstrap.container.get_settings",
+            return_value=fake_settings,
+        ),
+        patch(
+            "ai_news_digest.bootstrap.container.LLMProviderFactory.create_openai_provider",
+            return_value=AIProvider(provider_id="openai", provider_name="openai"),
+        ),
+    ):
+        container = Container(MagicMock(spec=AsyncSession))
+
     use_case = container.categorize_article
     assert use_case is not None
+
+
+def test_container_process_article_ai_disabled(container: Container) -> None:
+    """Test process_article property returns None when AI is disabled."""
+    use_case = container.process_article
+    assert use_case is None
 
 
 def test_container_generate_digest(container: Container) -> None:

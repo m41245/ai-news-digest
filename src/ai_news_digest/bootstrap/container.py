@@ -835,7 +835,9 @@ class Container:
         )
 
     @property
-    def summarize_article(self) -> SummarizeArticleUseCase:
+    def summarize_article(self) -> SummarizeArticleUseCase | None:
+        if not self._settings.ai_enabled:
+            return None
         return SummarizeArticleUseCase(
             provider_manager=self.provider_manager,
             article_repository=self.article_repository,
@@ -876,7 +878,9 @@ class Container:
         )
 
     @property
-    def categorize_article(self) -> CategorizeArticleUseCase:
+    def categorize_article(self) -> CategorizeArticleUseCase | None:
+        if not self._settings.ai_enabled:
+            return None
         return CategorizeArticleUseCase(
             provider_manager=self.provider_manager,
             article_repository=self.article_repository,
@@ -884,7 +888,9 @@ class Container:
         )
 
     @property
-    def process_article(self) -> ProcessArticleUseCase:
+    def process_article(self) -> ProcessArticleUseCase | None:
+        if not self._settings.ai_enabled:
+            return None
         return ProcessArticleUseCase(
             summarize_use_case=self.summarize_article,
             categorize_use_case=self.categorize_article,

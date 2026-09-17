@@ -79,6 +79,13 @@ async def _summarize_article_impl(article_id: UUID) -> dict[str, str]:
             return {"status": "already_processed"}
 
         use_case = container.summarize_article
+        if use_case is None:
+            logger.warning(
+                "No AI provider available for summarization",
+                article_id=str(article_id),
+            )
+            return {"status": "no_provider"}
+
         updated_article = await use_case.execute(article)
 
         logger.info(
@@ -125,6 +132,13 @@ async def _categorize_article_impl(article_id: UUID) -> dict[str, str]:
             return {"status": "not_ready"}
 
         use_case = container.categorize_article
+        if use_case is None:
+            logger.warning(
+                "No AI provider available for categorization",
+                article_id=str(article_id),
+            )
+            return {"status": "no_provider"}
+
         updated_article = await use_case.execute(article)
 
         logger.info(
@@ -171,6 +185,13 @@ async def _process_article_impl(article_id: UUID) -> dict[str, str]:
             return {"status": "already_processed"}
 
         use_case = container.process_article
+        if use_case is None:
+            logger.warning(
+                "No AI provider available for article processing",
+                article_id=str(article_id),
+            )
+            return {"status": "no_provider"}
+
         updated_article = await use_case.execute(article)
 
         logger.info(

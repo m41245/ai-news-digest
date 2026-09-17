@@ -17,12 +17,15 @@ class ProcessArticleUseCase:
     the result. Each stage is idempotent: an article that has already been
     summarized will not be summarized again, and an article that has already
     been categorized will not be categorized again.
+
+    When AI is disabled, the individual use cases may be ``None`` and the
+    article is persisted without AI processing.
     """
 
     def __init__(
         self,
-        summarize_use_case: SummarizeArticleUseCase,
-        categorize_use_case: CategorizeArticleUseCase,
+        summarize_use_case: SummarizeArticleUseCase | None,
+        categorize_use_case: CategorizeArticleUseCase | None,
         article_repository: ArticleRepository,
     ) -> None:
         self._summarize = summarize_use_case
@@ -36,10 +39,10 @@ class ProcessArticleUseCase:
         """Run summarize then categorize, persisting the final state."""
         from ai_news_digest.domain.enums.article_status import ArticleStatus
 
-        if article.status == ArticleStatus.NEW:
+        if article.status == ArticleStatus.NEW and self._summarize is not None:
             article = await self._summarize.execute(article)
 
-        if article.status == ArticleStatus.SUMMARIZED:
+        if article.status == ArticleStatus.SUMMARIZED and self._categorize is not None:
             article = await self._categorize.execute(article)
 
         return await self._article_repository.update(article)

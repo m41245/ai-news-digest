@@ -119,6 +119,30 @@ async def test_run_task_logs_failure() -> None:
     assert mock_error.call_args.kwargs["task"] == "ingest"
 
 
+@pytest.mark.asyncio
+async def test_run_task_summarize_no_provider_returns_zero() -> None:
+    fake_impl = AsyncMock(return_value={"status": "no_provider"})
+    with patch.object(run_task_module, "_import_impl", return_value=fake_impl):
+        result = await run_task("summarize")
+    assert result == 0
+
+
+@pytest.mark.asyncio
+async def test_run_task_categorize_no_provider_returns_zero() -> None:
+    fake_impl = AsyncMock(return_value={"status": "no_provider"})
+    with patch.object(run_task_module, "_import_impl", return_value=fake_impl):
+        result = await run_task("categorize")
+    assert result == 0
+
+
+@pytest.mark.asyncio
+async def test_run_task_analyze_no_provider_returns_zero() -> None:
+    fake_impl = AsyncMock(return_value={"status": "no_provider"})
+    with patch.object(run_task_module, "_import_impl", return_value=fake_impl):
+        result = await run_task("analyze")
+    assert result == 0
+
+
 def test_main_parses_task_argument() -> None:
     with patch.object(run_task_module, "run_task", new_callable=AsyncMock) as mock_run:
         mock_run.return_value = 0
