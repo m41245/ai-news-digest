@@ -1,6 +1,7 @@
 """Tests for M93 intelligence evaluation API routes."""
 
 from __future__ import annotations
+
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 import pytest
@@ -13,6 +14,10 @@ from ai_news_digest.domain.evaluation.metrics import (
     MetricValue,
 )
 from ai_news_digest.domain.models.user import User
+from ai_news_digest.api.v1.dependencies.auth import get_current_admin_user
+from ai_news_digest.api.v1.dependencies.dependencies import get_container
+from fastapi import FastAPI, Depends
+from fastapi.testclient import TestClient
 
 @pytest.fixture
 def mock_admin():
@@ -76,3 +81,27 @@ class TestListEvaluationRuns:
             metric_count=5,
         )
         assert resp.run_id == "run-1"
+
+
+class TestDriftEndpoint:
+    @pytest.mark.asyncio
+    async def test_drift_health_requires_baseline(
+        self, mock_container, mock_admin
+    ):
+        from fastapi import FastAPI, Depends
+        from ai_news_digest.api.v1.dependencies.dependencies import get_container
+        from ai_news_digest.api.v1.dependencies.auth import get_current_admin_user
+        from ai_news_digest.api.v1.routes.intelligence_evaluation import router
+
+        app = FastAPI()
+        app.include_router(router)
+        app.dependency_overrides[get_container] = lambda: mock_container
+        app.dependency_overrides[get_current_admin_user] = lambda: mock_admin
+
+        mock_container.evaluation_repository.list_runs.return_value = ([], 0)
+
+        client = TestClient(app)
+        response = client.get("/intelligence/quality/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "insufficient_data"

@@ -105,10 +105,7 @@ class GetPersonalizedFeedUseCase:
         all_cluster_ids = [cid for cid in cluster_map if cid is not None]
         clusters: list[StoryCluster] = []
         if all_cluster_ids:
-            for cid in all_cluster_ids:
-                cluster = await self._story_cluster_repository.get_by_id(cid)
-                if cluster is not None:
-                    clusters.append(cluster)
+            clusters = await self._story_cluster_repository.get_by_ids(all_cluster_ids)
         cluster_by_id = {c.id: c for c in clusters}
 
         feed_items: list[PersonalizedFeedItemResponse] = []

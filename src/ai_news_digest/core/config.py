@@ -765,7 +765,7 @@ class Settings(BaseSettings):
     )
 
     quality_gate_warning_margin: float = Field(
-        default=0.0,
+        default=0.1,
         ge=0.0,
         le=0.5,
         description="Fraction below threshold that yields WARN instead of FAIL. 0.0 disables WARN.",

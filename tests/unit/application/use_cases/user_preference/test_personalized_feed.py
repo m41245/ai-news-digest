@@ -195,8 +195,8 @@ async def test_story_level_deduplication(
     mock_repositories["article"].list_personalized_feed_story_candidates = AsyncMock(
         return_value=[article1, article2, standalone]
     )
-    mock_repositories["story_cluster"].get_by_id = AsyncMock(
-        return_value=_make_story_cluster(cluster_id)
+    mock_repositories["story_cluster"].get_by_ids = AsyncMock(
+        return_value=[_make_story_cluster(cluster_id)]
     )
     mock_repositories["source"].list_all = AsyncMock(return_value=[])
     mock_repositories["category"].list_all = AsyncMock(return_value=[])
@@ -281,7 +281,7 @@ async def test_ranking_uses_centralized_weights(
     mock_repositories["article"].list_personalized_feed_story_candidates = AsyncMock(
         return_value=[article]
     )
-    mock_repositories["story_cluster"].get_by_id = AsyncMock(return_value=cluster)
+    mock_repositories["story_cluster"].get_by_ids = AsyncMock(return_value=[cluster])
     mock_repositories["source"].list_all = AsyncMock(return_value=[source])
     mock_repositories["category"].list_all = AsyncMock(return_value=[])
 
@@ -350,7 +350,7 @@ async def test_preferred_source_types_are_ranking_signal_not_filter(
     mock_repositories["article"].list_personalized_feed_story_candidates = AsyncMock(
         return_value=[article]
     )
-    mock_repositories["story_cluster"].get_by_id = AsyncMock(return_value=None)
+    mock_repositories["story_cluster"].get_by_ids = AsyncMock(return_value=None)
     mock_repositories["source"].list_all = AsyncMock(return_value=[source])
     mock_repositories["category"].list_all = AsyncMock(return_value=[])
 
@@ -379,7 +379,7 @@ async def test_contradiction_signals_detected(
         return_value=[article1, article2]
     )
     cluster = _make_story_cluster(cluster_id)
-    mock_repositories["story_cluster"].get_by_id = AsyncMock(return_value=cluster)
+    mock_repositories["story_cluster"].get_by_ids = AsyncMock(return_value=[cluster])
     mock_repositories["source"].list_all = AsyncMock(return_value=[])
     mock_repositories["category"].list_all = AsyncMock(return_value=[])
 
@@ -405,7 +405,7 @@ async def test_ranking_explanation_has_at_least_one_reason(
     mock_repositories["article"].list_personalized_feed_story_candidates = AsyncMock(
         return_value=[article]
     )
-    mock_repositories["story_cluster"].get_by_id = AsyncMock(return_value=None)
+    mock_repositories["story_cluster"].get_by_ids = AsyncMock(return_value=None)
     mock_repositories["source"].list_all = AsyncMock(return_value=[])
     mock_repositories["category"].list_all = AsyncMock(return_value=[])
 
@@ -497,7 +497,7 @@ async def test_tie_breaking_stability(
     mock_repositories["article"].list_personalized_feed_story_candidates = AsyncMock(
         return_value=[article1, article2]
     )
-    mock_repositories["story_cluster"].get_by_id = AsyncMock(return_value=None)
+    mock_repositories["story_cluster"].get_by_ids = AsyncMock(return_value=None)
     mock_repositories["source"].list_all = AsyncMock(return_value=[])
     mock_repositories["category"].list_all = AsyncMock(return_value=[])
 
@@ -527,3 +527,59 @@ async def test_empty_page_returns_no_items(
     assert response.items == []
     assert response.offset == 10
     assert response.limit == 10
+
+
+@pytest.mark.asyncio
+async def test_feed_loads_clusters_in_batch(
+    use_case: GetPersonalizedFeedUseCase,
+    mock_repositories: dict[str, Any],
+) -> None:
+    user = _make_user()
+    cluster_id = uuid4()
+    article = _make_article(uuid4(), uuid4(), cluster_id=cluster_id)
+
+    profile = UserPreferenceProfile(user_id=user.id)
+    mock_repositories["preference"].get_by_user_id = AsyncMock(return_value=profile)
+    mock_repositories["article"].list_personalized_feed_story_candidates = AsyncMock(
+        return_value=[article]
+    )
+    mock_repositories["story_cluster"].get_by_ids = AsyncMock(
+        return_value=[_make_story_cluster(cluster_id)]
+    )
+    mock_repositories["source"].list_all = AsyncMock(return_value=[])
+    mock_repositories["category"].list_all = AsyncMock(return_value=[])
+
+    await use_case.execute(user, page=1, page_size=20)
+
+    mock_repositories["story_cluster"].get_by_ids.assert_awaited_once()
+    call_args = mock_repositories["story_cluster"].get_by_ids.call_args
+    assert list(call_args.args[0]) == [cluster_id]
+
+
+@pytest.mark.asyncio
+async def test_feed_batches_multiple_cluster_ids(
+    use_case: GetPersonalizedFeedUseCase,
+    mock_repositories: dict[str, Any],
+) -> None:
+    user = _make_user()
+    cluster_a = uuid4()
+    cluster_b = uuid4()
+    article_a = _make_article(uuid4(), uuid4(), cluster_id=cluster_a)
+    article_b = _make_article(uuid4(), uuid4(), cluster_id=cluster_b)
+
+    profile = UserPreferenceProfile(user_id=user.id)
+    mock_repositories["preference"].get_by_user_id = AsyncMock(return_value=profile)
+    mock_repositories["article"].list_personalized_feed_story_candidates = AsyncMock(
+        return_value=[article_a, article_b]
+    )
+    mock_repositories["story_cluster"].get_by_ids = AsyncMock(
+        return_value=[_make_story_cluster(cluster_a), _make_story_cluster(cluster_b)]
+    )
+    mock_repositories["source"].list_all = AsyncMock(return_value=[])
+    mock_repositories["category"].list_all = AsyncMock(return_value=[])
+
+    await use_case.execute(user, page=1, page_size=20)
+
+    mock_repositories["story_cluster"].get_by_ids.assert_awaited_once()
+    call_args = mock_repositories["story_cluster"].get_by_ids.call_args
+    assert set(call_args.args[0]) == {cluster_a, cluster_b}

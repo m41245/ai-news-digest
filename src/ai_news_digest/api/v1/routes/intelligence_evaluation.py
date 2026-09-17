@@ -299,7 +299,7 @@ async def get_quality_health(
 
     baseline_mv: list[MetricValue] = []
     signals: list[Any] = []
-    if len(runs) >= 2 or True:
+    if len(runs) >= 2:
         baseline_runs, _ = await repo.list_runs(limit=2, scope=scope)
         if len(baseline_runs) >= 2:
             baseline_run = baseline_runs[1]

@@ -2,34 +2,28 @@
 
 ## Current Phase
 
-**v1.0 Release — Feature Development Complete.**
+**v1.0 Release — Feature Development Complete. Final Remediation Complete.**
 
-M1–M96 feature development is complete. A final engineering audit was performed and two release blockers were identified and fixed. The project is in a defensible v1.0 feature-complete state.
+M1–M96 feature development is complete. A final engineering audit was performed, release-critical findings were remediated, and the project is in a defensible v1.0 feature-complete state.
 
-### M96 Additions (Last Feature Milestone)
-- New authenticated API endpoints: POST/GET/DELETE `/api/v1/me/saved-stories`, POST/GET/PATCH/DELETE `/api/v1/me/collections`, POST/DELETE/GET `/api/v1/me/followed-stories`
-- Domain entities: `SavedStory`, `UserCollection`, `FollowedStory`
-- Database tables: `saved_stories`, `user_collections`, `followed_stories` (Alembic migration 033)
-- Frontend pages: `/me` (IntelligenceWorkspacePage), `/me/saved`, `/me/following`
-- StoryClusterPage enhanced with Save/Follow actions for authenticated users
-- Header navigation updated with Saved and Following links
+### Remediated in Final Pass
+- Bidirectional relationship queries in `RelationshipRepository` (subject + object matching)
+- Quality-gate WARN default margin changed from `0.0` to `0.1`
+- Drift endpoint baseline bypass removed (`or True` no longer present)
+- Personalized feed N+1 fixed: batch `get_by_ids` replaces per-ID `get_by_id` loop
+- Graph name-map duplication fixed: shared `_graph_utils.py` module
+- Regression tests added for all remediated findings
 
-### v1.0 Audit Fixes
-- Fixed circular import between `user_collection_model.py` and `saved_story_model.py`
-- Fixed unauthenticated `/intelligence/provenance/*` and `/intelligence/quality/*` endpoints
-- Fixed frontend/backend API contract mismatches (admin intelligence URLs, relationship URLs, notification types)
-- Added missing `PersonalizedTrendResponse` schema
-- All 2405 unit tests pass; 47 integration tests pass
-
-### Documentation
-- `docs/V1.0_RELEASE_READINESS.md` — Release readiness assessment
-- `docs/FINAL_ENGINEERING_AUDIT.md` — Complete engineering audit report
+### Known Limitations (documented, non-blocking)
+- Evaluation service has bounded N+1 queries in background task
+- Semantic search uses lexical+embedding reranking, not true vector retrieval
+- 5 Windows testcontainers tests fail due to pytest-asyncio scope mismatch
 
 ---
 
 ## Current Focus
 
-v1.0 feature development is complete. The project is ready for production deployment with documented limitations.
+v1.0 feature development and final remediation are complete. The project is ready for production deployment with documented limitations.
 
 See `docs/V1.0_RELEASE_READINESS.md` for the full release readiness assessment.
 

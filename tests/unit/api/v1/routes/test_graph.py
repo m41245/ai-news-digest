@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from ai_news_digest.api.middleware.exception_handler import setup_exception_handlers
 from ai_news_digest.api.v1.dependencies.dependencies import get_container
+from ai_news_digest.api.v1.routes._graph_utils import build_graph_name_map
 from ai_news_digest.api.v1.routes.graph import router
 from ai_news_digest.domain.enums.entity_type import EntityType
 from ai_news_digest.domain.enums.relationship_status import RelationshipStatus
@@ -160,6 +161,80 @@ class TestGraphRoutes:
             assert response.status_code == 200
             data = response.json()
             assert data["length"] == 0
+
+
+class TestBuildGraphNameMap:
+    """Tests for the shared build_graph_name_map helper."""
+
+    @pytest.mark.asyncio
+    async def test_builds_empty_map_for_no_relationships(self) -> None:
+        container = MagicMock()
+        container.company_repository.list_by_ids = AsyncMock(return_value=[])
+        container.topic_repository.list_by_ids = AsyncMock(return_value=[])
+        container.category_repository.list_by_ids = AsyncMock(return_value=[])
+        container.story_cluster_repository.get_by_ids = AsyncMock(return_value=[])
+
+        name_map = await build_graph_name_map(container, [])
+        assert name_map == {}
+
+    @pytest.mark.asyncio
+    async def test_maps_company_topic_category_story(self) -> None:
+        company_id = uuid4()
+        topic_id = uuid4()
+        category_id = uuid4()
+        story_id = uuid4()
+
+        company = MagicMock()
+        company.id = str(company_id)
+        company.name = "Acme"
+        topic = MagicMock()
+        topic.id = str(topic_id)
+        topic.name = "AI"
+        category = MagicMock()
+        category.id = str(category_id)
+        category.name = "Tech"
+        cluster = MagicMock()
+        cluster.id = str(story_id)
+        cluster.title = "Story"
+
+        container = MagicMock()
+        container.company_repository.list_by_ids = AsyncMock(return_value=[company])
+        container.topic_repository.list_by_ids = AsyncMock(return_value=[topic])
+        container.category_repository.list_by_ids = AsyncMock(return_value=[category])
+        container.story_cluster_repository.get_by_ids = AsyncMock(return_value=[cluster])
+
+        rel = MagicMock()
+        rel.object_entity_type.value = "company"
+        rel.object_entity_id = company_id
+        rel.subject_entity_type.value = "topic"
+        rel.subject_entity_id = topic_id
+
+        name_map = await build_graph_name_map(container, [rel])
+        assert name_map[f"company:{company_id}"] == "Acme"
+        assert name_map[f"topic:{topic_id}"] == "AI"
+
+    @pytest.mark.asyncio
+    async def test_deduplicates_ids_before_query(self) -> None:
+        company_id = uuid4()
+        company = MagicMock()
+        company.id = str(company_id)
+        company.name = "Acme"
+
+        container = MagicMock()
+        container.company_repository.list_by_ids = AsyncMock(return_value=[company])
+        container.topic_repository.list_by_ids = AsyncMock(return_value=[])
+        container.category_repository.list_by_ids = AsyncMock(return_value=[])
+        container.story_cluster_repository.get_by_ids = AsyncMock(return_value=[])
+
+        rel = MagicMock()
+        rel.object_entity_type.value = "company"
+        rel.object_entity_id = company_id
+        rel.subject_entity_type.value = "company"
+        rel.subject_entity_id = company_id
+
+        name_map = await build_graph_name_map(container, [rel, rel])
+        container.company_repository.list_by_ids.assert_awaited_once()
+        assert name_map[f"company:{company_id}"] == "Acme"
 
 
 __all__ = ["TestGraphRoutes"]
