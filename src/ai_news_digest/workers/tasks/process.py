@@ -264,7 +264,9 @@ async def _analyze_article_impl(article_id: UUID) -> dict[str, str]:
     return {"status": "not_found"}
 
 
-async def _summarize_pending_articles_impl() -> dict[str, int]:
+async def _summarize_pending_articles_impl(
+    execute_directly: bool = False,
+) -> dict[str, int]:
     """
     Typed implementation function for batch article summarization.
     """
@@ -284,7 +286,10 @@ async def _summarize_pending_articles_impl() -> dict[str, int]:
         )
 
         for article in pending_articles:
-            summarize_article.delay(article.id)
+            if execute_directly:
+                await _summarize_article_impl(article.id)
+            else:
+                summarize_article.delay(article.id)
 
         return {
             "queued": len(pending_articles),
@@ -293,7 +298,9 @@ async def _summarize_pending_articles_impl() -> dict[str, int]:
     return {"processed": 0}
 
 
-async def _categorize_pending_articles_impl() -> dict[str, int]:
+async def _categorize_pending_articles_impl(
+    execute_directly: bool = False,
+) -> dict[str, int]:
     """
     Typed implementation function for batch article categorization.
     """
@@ -315,7 +322,10 @@ async def _categorize_pending_articles_impl() -> dict[str, int]:
         )
 
         for article in ready_articles:
-            categorize_article.delay(article.id)
+            if execute_directly:
+                await _categorize_article_impl(article.id)
+            else:
+                categorize_article.delay(article.id)
 
         return {
             "queued": len(ready_articles),
@@ -447,7 +457,9 @@ async def analyze_pending_articles() -> dict[str, int]:
     )
 
 
-async def _analyze_pending_articles_impl() -> dict[str, int]:
+async def _analyze_pending_articles_impl(
+    execute_directly: bool = False,
+) -> dict[str, int]:
     """
     Typed implementation function for batch article analysis.
     """
@@ -469,7 +481,10 @@ async def _analyze_pending_articles_impl() -> dict[str, int]:
         )
 
         for article in categorized_articles:
-            analyze_article.delay(article.id)
+            if execute_directly:
+                await _analyze_article_impl(article.id)
+            else:
+                analyze_article.delay(article.id)
 
         return {
             "queued": len(categorized_articles),

@@ -77,7 +77,9 @@ async def _cluster_article_impl(article_id: UUID) -> dict[str, str]:
     return {"status": "not_found"}
 
 
-async def _cluster_pending_articles_impl() -> dict[str, int]:
+async def _cluster_pending_articles_impl(
+    execute_directly: bool = False,
+) -> dict[str, int]:
     """
     Typed implementation function for batch article clustering.
     """
@@ -109,7 +111,10 @@ async def _cluster_pending_articles_impl() -> dict[str, int]:
         )
 
         for article in candidates:
-            cluster_article.delay(article.id)
+            if execute_directly:
+                await _cluster_article_impl(article.id)
+            else:
+                cluster_article.delay(article.id)
 
         return {
             "queued": len(candidates),

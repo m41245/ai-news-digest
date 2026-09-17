@@ -227,6 +227,71 @@ For manual migrations:
 poetry run alembic upgrade head
 ```
 
+## Direct Task Runner (Zero-Budget Alternative to Celery Beat)
+
+`scripts/scheduled/run_task.py` provides a direct execution path for all 21 scheduled tasks outside Celery. It is invoked by GitHub Actions workflows and calls the same underlying task implementations used by Celery.
+
+### Supported Tasks
+
+| Task Name | Implementation | Async |
+|-----------|---------------|-------|
+| `ingest` | `_fetch_all_sources_impl` | Yes |
+| `summarize` | `_summarize_pending_articles_impl` | Yes |
+| `categorize` | `_categorize_pending_articles_impl` | Yes |
+| `analyze` | `_analyze_pending_articles_impl` | Yes |
+| `cluster` | `_cluster_pending_articles_impl` | Yes |
+| `timeline` | `_generate_timeline_impl` | Yes |
+| `ranking` | `_rank_stories_impl` | Yes |
+| `conflict` | `_detect_claim_conflicts_impl` | Yes |
+| `story-activity` | `_detect_story_activity_impl` | Yes |
+| `trend` | `_detect_trends_impl` | Yes |
+| `evaluation` | `_run_intelligence_evaluation_impl` | Yes |
+| `quality-gates` | `_evaluate_quality_gates_impl` | Yes |
+| `digest` | `_generate_daily_digest_impl` | Yes |
+| `deliver` | `_send_latest_digest_impl` | Yes |
+| `notifications-schedule` | `_schedule_notifications_impl` | Yes |
+| `notifications-scheduled` | `_process_scheduled_deliveries_impl` | Yes |
+| `notifications-immediate` | `_process_immediate_deliveries_impl` | Yes |
+| `notifications-retry` | `_retry_failed_deliveries_impl` | Yes |
+| `notifications-recover` | `_recover_stuck_deliveries_impl` | Yes |
+| `notifications-cleanup-deliveries` | `_cleanup_old_deliveries_impl` | Yes |
+| `notifications-cleanup` | `cleanup_old_notifications` | Yes |
+
+### How Direct Execution Differs from Celery
+
+- **No message broker required**: The direct runner executes task logic in-process via `asyncio.run()`. It does not require `REDIS_URL` or `CELERY_BROKER_URL`.
+- **No retry semantics**: Celery provides automatic retries with exponential backoff. The direct runner does not retry on failure. A failed task returns exit code 1.
+- **No task chaining**: Batch tasks (`summarize`, `categorize`, `analyze`, `cluster`) execute individual articles inline rather than queueing Celery tasks via `.delay()`.
+- **Shared business logic**: Both execution paths invoke the same `_impl` functions. No business logic is duplicated.
+- **Celery remains intact**: The Celery Worker, Celery Beat, and all task wrappers remain unchanged. The direct runner is an additional execution path only.
+
+### Concurrency Considerations
+
+- The direct runner executes one task at a time per GitHub Actions job.
+- **Do not use a shared `concurrency` group** across independent tasks, as this could cause unrelated scheduled tasks to cancel each other.
+- If concurrency protection is added in the future, group by task name (e.g., `scheduled-task-${{ inputs.task }}`) rather than a single generic group.
+
+### Retry Limitations
+
+- Celery retry configuration (max retries, backoff delays, soft/hard time limits) is defined on individual Celery task wrappers.
+- The direct runner has no built-in retry mechanism.
+- If GitHub Actions retry is added later, ensure it cannot create duplicate side effects (e.g., duplicate emails or notifications).
+
+### Email Delivery Async Fix
+
+`_get_user_email` in `delivery_service.py` was previously a synchronous function that always returned `None`, breaking email delivery from async contexts. It has been converted to an `async def` that correctly awaits the user repository lookup.
+
+### Staging Validation Requirement
+
+Automatic GitHub Actions scheduling (`on.schedule`) remains **disabled** until staging validation is completed. The workflow is currently manual-only (`workflow_dispatch`). Production scheduling continues to operate via Celery Beat on Render.
+
+### Why Automatic GitHub Scheduling Is Not Enabled Yet
+
+- Staging validation of the complete direct-runner pipeline has not been performed.
+- Celery retry semantics are not fully reproduced.
+- Concurrency and cancellation behavior need validation.
+- The zero-budget architecture is not yet production-ready.
+
 ## Limitations
 
 ### Database

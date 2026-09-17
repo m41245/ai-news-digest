@@ -22,6 +22,7 @@ from ai_news_digest.domain.enums.notification import (
     NotificationType,
 )
 from ai_news_digest.domain.models.notification import Notification, NotificationDelivery
+from ai_news_digest.domain.models.user import User
 from ai_news_digest.infrastructure.email.errors import (
     EmailConnectionError,
     EmailInvalidRecipientError,
@@ -278,3 +279,73 @@ __all__ = [
     "test_retries_with_exponential_backoff_on_timeout",
     "test_updates_status_atomically",
 ]
+
+
+def _make_user(email: str) -> User:
+    return User(
+        id=uuid4(),
+        email=email,
+        hashed_password="hashed",
+        is_active=True,
+        is_admin=False,
+        created_at=datetime.now(UTC),
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_user_email_returns_email_for_existing_user() -> None:
+    user_repo = AsyncMock()
+    user = _make_user("user@example.com")
+    user_repo.get_by_id.return_value = user
+
+    service = NotificationDeliveryService(
+        delivery_repo=AsyncMock(),
+        user_repo=user_repo,
+    )
+
+    result = await service._get_user_email(user.id)
+    assert result == "user@example.com"
+    user_repo.get_by_id.assert_awaited_once_with(user.id)
+
+
+@pytest.mark.asyncio
+async def test_get_user_email_returns_none_for_missing_user() -> None:
+    user_repo = AsyncMock()
+    user_repo.get_by_id.return_value = None
+
+    service = NotificationDeliveryService(
+        delivery_repo=AsyncMock(),
+        user_repo=user_repo,
+    )
+
+    result = await service._get_user_email(uuid4())
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_user_email_returns_none_when_no_repo() -> None:
+    service = NotificationDeliveryService(
+        delivery_repo=AsyncMock(),
+        user_repo=None,
+    )
+
+    result = await service._get_user_email(uuid4())
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_user_email_does_not_block_event_loop() -> None:
+    user_repo = AsyncMock()
+    user = _make_user("user@example.com")
+    user_repo.get_by_id.return_value = user
+
+    service = NotificationDeliveryService(
+        delivery_repo=AsyncMock(),
+        user_repo=user_repo,
+    )
+
+    async def _in_running_loop() -> str | None:
+        return await service._get_user_email(user.id)
+
+    result = await _in_running_loop()
+    assert result == "user@example.com"

@@ -183,7 +183,7 @@ class NotificationDeliveryService:
         app_name = getattr(settings, "app_name", "AI News Digest")
 
         if delivery.channel == DeliveryChannel.EMAIL:
-            user_email = self._get_user_email(notification.user_id)
+            user_email = await self._get_user_email(notification.user_id)
             if not user_email:
                 raise ValueError(f"No email address for user {notification.user_id}")
 
@@ -221,18 +221,13 @@ class NotificationDeliveryService:
                 notification_id=str(delivery.notification_id),
             )
 
-    def _get_user_email(self, user_id: UUID) -> str | None:
+    async def _get_user_email(self, user_id: UUID) -> str | None:
         if self._user_repo is None:
             return None
-        import asyncio
-
-        try:
-            loop = asyncio.get_running_loop()
-            if loop.is_running():
-                return None
-        except RuntimeError:
-            pass
-        return None
+        user = await self._user_repo.get_by_id(user_id)
+        if user is None:
+            return None
+        return user.email
 
 
 __all__ = ["NotificationDeliveryService"]

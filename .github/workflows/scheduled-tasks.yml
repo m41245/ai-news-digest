@@ -12,6 +12,14 @@ on:
           - summarize
           - categorize
           - analyze
+          - cluster
+          - timeline
+          - ranking
+          - conflict
+          - story-activity
+          - trend
+          - evaluation
+          - quality-gates
           - digest
           - deliver
           - notifications-schedule
