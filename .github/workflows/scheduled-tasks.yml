@@ -31,12 +31,47 @@ on:
           - notifications-cleanup
           - cleanup-articles
           - cleanup-digests
+      environment:
+        description: "Target environment"
+        required: false
+        type: choice
+        default: production
+        options:
+          - staging
+          - production
+  schedule:
+    # Production schedule in UTC.
+    # Intended local time depends on DIGEST_TIMEZONE (default: UTC).
+    # These triggers are prepared but disabled by default.
+    # Activate by setting repository variable ENABLE_PRODUCTION_SCHEDULE=true.
+    - cron: "0 6 * * *"    # daily-rss-ingestion
+    - cron: "30 6 * * *"   # daily-article-summarization
+    - cron: "0 7 * * *"    # daily-article-categorization
+    - cron: "30 7 * * *"   # daily-article-analysis
+    - cron: "0 8 * * *"    # daily-story-clustering
+    - cron: "5 8 * * *"    # daily-story-ranking
+    - cron: "7 8 * * *"    # daily-story-timeline-generation
+    - cron: "10 8 * * *"   # daily-story-activity-detection
+    - cron: "12 8 * * *"   # daily-trend-detection
+    - cron: "15 8 * * *"   # daily-digest-generation
+    - cron: "30 8 * * *"   # daily-email-delivery
+    - cron: "0 9 * * *"    # daily-conflict-detection
+    - cron: "0 2 * * *"    # notification-cleanup-notifications
+    - cron: "0 3 * * *"    # notification-cleanup-deliveries
+    - cron: "0 3 * * *"    # daily-intelligence-evaluation
+    - cron: "0 4 * * *"    # daily-quality-gate-evaluation
+
+permissions:
+  contents: read
 
 jobs:
   scheduled-task:
     name: Run Scheduled Task
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
+    concurrency:
+      group: production-scheduler
+      cancel-in-progress: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -64,19 +99,40 @@ jobs:
           JWT_SECRET_KEY: ${{ secrets.FREE_JWT_SECRET_KEY }}
           ENVIRONMENT: production
           DEBUG: "false"
-          OPENAI_API_KEY: ${{ secrets.FREE_OPENAI_API_KEY }}
-          OPENAI_ENABLED: ${{ secrets.FREE_OPENAI_ENABLED || 'false' }}
-          ANTHROPIC_API_KEY: ${{ secrets.FREE_ANTHROPIC_API_KEY }}
-          ANTHROPIC_ENABLED: ${{ secrets.FREE_ANTHROPIC_ENABLED || 'false' }}
-          SMTP_HOST: ${{ secrets.FREE_SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.FREE_SMTP_PORT }}
-          SMTP_USER: ${{ secrets.FREE_SMTP_USER }}
-          SMTP_PASSWORD: ${{ secrets.FREE_SMTP_PASSWORD }}
-          EMAIL_FROM: ${{ secrets.FREE_EMAIL_FROM }}
-          EMAIL_RECIPIENTS: ${{ secrets.FREE_EMAIL_RECIPIENTS }}
+          AI_ENABLED: "false"
+          EMAIL_ENABLED: "false"
           EMAIL_DEVELOPMENT_MODE: "false"
+          EMAIL_PROVIDER: console
           LOG_LEVEL: INFO
         run: |
-          TASK="${{ github.event.inputs.task || 'ingest' }}"
-          echo "Running task: $TASK"
-          poetry run python scripts/scheduled/run_task.py "$TASK"
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            if [ "${{ vars.ENABLE_PRODUCTION_SCHEDULE }}" != "true" ]; then
+              echo "Production schedule is disabled."
+              echo "Set repository variable ENABLE_PRODUCTION_SCHEDULE=true to activate."
+              exit 0
+            fi
+            echo "Running morning pipeline (scheduled)"
+            poetry run python scripts/scheduled/run_task.py ingest
+            poetry run python scripts/scheduled/run_task.py summarize
+            poetry run python scripts/scheduled/run_task.py categorize
+            poetry run python scripts/scheduled/run_task.py analyze
+            poetry run python scripts/scheduled/run_task.py cluster
+            poetry run python scripts/scheduled/run_task.py ranking
+            poetry run python scripts/scheduled/run_task.py timeline
+            poetry run python scripts/scheduled/run_task.py story-activity
+            poetry run python scripts/scheduled/run_task.py trend
+            poetry run python scripts/scheduled/run_task.py digest
+            poetry run python scripts/scheduled/run_task.py deliver
+            poetry run python scripts/scheduled/run_task.py conflict
+            poetry run python scripts/scheduled/run_task.py evaluation
+            poetry run python scripts/scheduled/run_task.py quality-gates
+            poetry run python scripts/scheduled/run_task.py cleanup-articles
+            poetry run python scripts/scheduled/run_task.py cleanup-digests
+            poetry run python scripts/scheduled/run_task.py notifications-cleanup-deliveries
+            poetry run python scripts/scheduled/run_task.py notifications-cleanup
+          else
+            TASK="${{ github.event.inputs.task || 'ingest' }}"
+            echo "Running task: $TASK"
+            poetry run python scripts/scheduled/run_task.py "$TASK"
+          fi
