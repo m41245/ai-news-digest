@@ -13,6 +13,14 @@ from celery.signals import task_postrun, task_prerun, task_retry
 from ai_news_digest.core.config import settings
 from ai_news_digest.core.metrics import record_celery_task_retry
 
+
+def _normalize_redis_url(url: str) -> str:
+    if url.startswith("rediss://") and "ssl_cert_reqs" not in url:
+        separator = "&" if "?" in url else "?"
+        return url + separator + "ssl_cert_reqs=CERT_REQUIRED"
+    return url
+
+
 if TYPE_CHECKING:
 
     class Task:
@@ -103,8 +111,8 @@ def log_task_retry(
 
 celery_app = Celery(
     "ai_news_digest",
-    broker=settings.celery_broker_url,
-    backend=settings.celery_result_backend,
+    broker=_normalize_redis_url(settings.celery_broker_url),
+    backend=_normalize_redis_url(settings.celery_result_backend),
     include=[
         "ai_news_digest.workers.tasks.ingest",
         "ai_news_digest.workers.tasks.process",

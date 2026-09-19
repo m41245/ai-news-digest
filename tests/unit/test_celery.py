@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from ai_news_digest.workers.celery_app import celery_app
+from ai_news_digest.workers.celery_app import _normalize_redis_url, celery_app
 from ai_news_digest.workers.tasks.cleanup import (
     cleanup_old_articles,
     cleanup_old_digests,
@@ -265,3 +265,29 @@ class TestRetryMetrics:
 
         mock_record.assert_called_once_with("test.task")
         mock_loop.create_task.assert_called_once()
+
+
+class TestNormalizeRedisUrl:
+    """Tests for rediss:// URL normalization for Celery 5.6.x compatibility."""
+
+    def test_plain_redis_url_unchanged(self) -> None:
+        url = "redis://localhost:6379/0"
+        assert _normalize_redis_url(url) == url
+
+    def test_rediss_url_without_query_gets_cert_reqs(self) -> None:
+        url = "rediss://default:token@upstash-host:6379/0"
+        result = _normalize_redis_url(url)
+        assert result == url + "?ssl_cert_reqs=CERT_REQUIRED"
+
+    def test_rediss_url_with_existing_query_gets_ampersand_cert_reqs(self) -> None:
+        url = "rediss://default:token@upstash-host:6379/0?foo=bar"
+        result = _normalize_redis_url(url)
+        assert result == url + "&ssl_cert_reqs=CERT_REQUIRED"
+
+    def test_rediss_url_with_existing_cert_reqs_unchanged(self) -> None:
+        url = "rediss://default:token@upstash-host:6379/0?ssl_cert_reqs=CERT_REQUIRED"
+        assert _normalize_redis_url(url) == url
+
+    def test_rediss_url_with_different_cert_reqs_unchanged(self) -> None:
+        url = "rediss://default:token@upstash-host:6379/0?ssl_cert_reqs=CERT_OPTIONAL"
+        assert _normalize_redis_url(url) == url
