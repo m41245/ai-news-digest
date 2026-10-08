@@ -172,3 +172,23 @@ def test_staging_workflow_job_has_bounded_timeout() -> None:
     timeout = job.get("timeout-minutes")
     assert timeout is not None
     assert 10 <= timeout <= 120
+
+
+def test_staging_workflow_uses_pip_install() -> None:
+    workflow_str = _WORKFLOW_PATH.read_text(encoding="utf-8")
+    assert "pip install -e ." in workflow_str
+
+
+def test_staging_workflow_does_not_use_poetry_install() -> None:
+    workflow_str = _WORKFLOW_PATH.read_text(encoding="utf-8")
+    assert "poetry install" not in workflow_str
+
+
+def test_staging_workflow_does_not_use_poetry_run() -> None:
+    workflow_str = _WORKFLOW_PATH.read_text(encoding="utf-8")
+    assert "poetry run" not in workflow_str
+
+
+def test_staging_workflow_does_not_reference_poetry() -> None:
+    workflow_str = _WORKFLOW_PATH.read_text(encoding="utf-8")
+    assert "poetry" not in workflow_str
