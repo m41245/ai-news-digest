@@ -299,24 +299,35 @@ async def _summarize_pending_articles_impl(
 
         if not pending_articles:
             logger.info("No pending articles found for summarization")
-            return {"processed": 0}
+            return {"processed": 0, "failed": 0}
 
         logger.info(
             "Found pending articles for summarization",
             count=len(pending_articles),
         )
 
+        failed = 0
         for article in pending_articles:
             if execute_directly:
-                await _summarize_article_impl(article.id)
+                try:
+                    await _summarize_article_impl(article.id)
+                except Exception as exc:
+                    logger.error(
+                        "Unexpected failure processing article during batch summarization",
+                        article_id=str(article.id),
+                        error=str(exc),
+                        exc_info=True,
+                    )
+                    failed += 1
             else:
                 summarize_article.delay(article.id)
 
         return {
             "queued": len(pending_articles),
+            "failed": failed,
         }
 
-    return {"processed": 0}
+    return {"processed": 0, "failed": 0}
 
 
 async def _categorize_pending_articles_impl(
@@ -335,24 +346,35 @@ async def _categorize_pending_articles_impl(
 
         if not ready_articles:
             logger.info("No ready articles found for categorization")
-            return {"processed": 0}
+            return {"processed": 0, "failed": 0}
 
         logger.info(
             "Found ready articles for categorization",
             count=len(ready_articles),
         )
 
+        failed = 0
         for article in ready_articles:
             if execute_directly:
-                await _categorize_article_impl(article.id)
+                try:
+                    await _categorize_article_impl(article.id)
+                except Exception as exc:
+                    logger.error(
+                        "Unexpected failure processing article during batch categorization",
+                        article_id=str(article.id),
+                        error=str(exc),
+                        exc_info=True,
+                    )
+                    failed += 1
             else:
                 categorize_article.delay(article.id)
 
         return {
             "queued": len(ready_articles),
+            "failed": failed,
         }
 
-    return {"processed": 0}
+    return {"processed": 0, "failed": 0}
 
 
 @celery_app.task(
@@ -494,24 +516,35 @@ async def _analyze_pending_articles_impl(
 
         if not categorized_articles:
             logger.info("No categorized articles found for analysis")
-            return {"queued": 0}
+            return {"queued": 0, "failed": 0}
 
         logger.info(
             "Found categorized articles for analysis",
             count=len(categorized_articles),
         )
 
+        failed = 0
         for article in categorized_articles:
             if execute_directly:
-                await _analyze_article_impl(article.id)
+                try:
+                    await _analyze_article_impl(article.id)
+                except Exception as exc:
+                    logger.error(
+                        "Unexpected failure processing article during batch analysis",
+                        article_id=str(article.id),
+                        error=str(exc),
+                        exc_info=True,
+                    )
+                    failed += 1
             else:
                 analyze_article.delay(article.id)
 
         return {
             "queued": len(categorized_articles),
+            "failed": failed,
         }
 
-    return {"queued": 0}
+    return {"queued": 0, "failed": 0}
 
 
 async def _extract_claims_impl(article_id: UUID) -> dict[str, str]:

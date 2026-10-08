@@ -66,6 +66,8 @@ def mock_container() -> MagicMock:
         "summarize_article",
         "categorize_article",
         "process_article",
+        "analyze_article",
+        "analyze_and_materialize",
         "generate_digest",
         "generate_intelligent_digest",
         "deliver_digest",
