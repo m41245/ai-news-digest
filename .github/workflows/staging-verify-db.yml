@@ -1,0 +1,38 @@
+name: Staging Database Verification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-staging-db:
+    name: Verify Staging Database (read-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: staging-verify-db
+      cancel-in-progress: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -e .
+
+      - name: Run read-only staging database verification
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          ENVIRONMENT: staging
+          DEBUG: "false"
+          AI_ENABLED: "false"
+          EMAIL_ENABLED: "false"
+        run: |
+          set -euo pipefail
+          python scripts/verify_staging_db.py
