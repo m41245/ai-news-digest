@@ -15,8 +15,10 @@ from ai_news_digest.workers.celery_app import celery_app
 logger = get_logger(__name__)
 
 _BATCH_SIZE = 1000
+_RECONCILE_BATCH_LIMIT = 100
 _TASK_NAME_CLEANUP_ARTICLES = "workers.tasks.cleanup.cleanup_old_articles"
 _TASK_NAME_CLEANUP_DIGESTS = "workers.tasks.cleanup.cleanup_old_digests"
+_TASK_NAME_RECONCILE_RESERVATIONS = "workers.tasks.cleanup.reconcile_reservations"
 
 
 @celery_app.task(
@@ -115,4 +117,56 @@ async def cleanup_old_digests(days: int = 90) -> dict[str, int]:
         await record_celery_task_duration(_TASK_NAME_CLEANUP_DIGESTS, time.monotonic() - start)
 
 
-__all__ = ["cleanup_old_articles", "cleanup_old_digests"]
+@celery_app.task(
+    name="workers.tasks.cleanup.reconcile_reservations",
+    max_retries=3,
+    default_retry_delay=60,
+)
+async def reconcile_reservations(max_age_seconds: int = 86400) -> dict[str, int]:
+    """Expire stale reservations and release their capacity.
+
+    Calls ``reconcile_reservations`` on the provider quota registry to
+    transition old pending reservations to expired and then release them,
+    freeing reserved capacity (both provider-window counters and global
+    budget) back to the available pool.
+    """
+    start = time.monotonic()
+    try:
+        reconciled = 0
+        async for container in get_container():
+            quota_registry = container.provider_quota_registry
+            if quota_registry is None:
+                logger.info("Quota registry unavailable — skipping reservation reconciliation")
+                break
+
+            reconciled = await quota_registry.reconcile_reservations(
+                max_age_seconds=max_age_seconds, batch_limit=_RECONCILE_BATCH_LIMIT
+            )
+            break
+
+        logger.info(
+            "Reservation reconciliation completed: %d reservations reconciled",
+            reconciled,
+        )
+
+        await record_celery_task_success(_TASK_NAME_RECONCILE_RESERVATIONS)
+        return {
+            "reconciled": reconciled,
+            "max_age_seconds": max_age_seconds,
+        }
+    except Exception as exc:
+        logger.error(
+            "Reservation reconciliation failed",
+            max_age_seconds=max_age_seconds,
+            error=str(exc),
+            exc_info=True,
+        )
+        await record_celery_task_failure(_TASK_NAME_RECONCILE_RESERVATIONS)
+        raise
+    finally:
+        await record_celery_task_duration(
+            _TASK_NAME_RECONCILE_RESERVATIONS, time.monotonic() - start
+        )
+
+
+__all__ = ["cleanup_old_articles", "cleanup_old_digests", "reconcile_reservations"]

@@ -288,6 +288,14 @@ celery_app.conf.update(
                 "send_events": True,
             },
         },
+        "quota-reconcile-reservations": {
+            "task": "workers.tasks.cleanup.reconcile_reservations",
+            "schedule": crontab(minute="*/15"),
+            "options": {
+                "expires": 900,
+                "send_events": True,
+            },
+        },
         "daily-conflict-detection": {
             "task": "workers.tasks.conflict.detect_claim_conflicts",
             "schedule": crontab(hour=9, minute=0),

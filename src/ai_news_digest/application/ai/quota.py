@@ -108,24 +108,33 @@ class GlobalBudgetState:
     monthly_budget: Decimal = Decimal("0")
     daily_spend: Decimal = Decimal("0")
     monthly_spend: Decimal = Decimal("0")
+    reserved_daily_cost: Decimal = Decimal("0")
+    reserved_monthly_cost: Decimal = Decimal("0")
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     budget_read_failed: bool = False
 
     @property
     def daily_remaining(self) -> Decimal:
-        return max(Decimal("0"), self.daily_budget - self.daily_spend)
+        return max(Decimal("0"), self.daily_budget - self.daily_spend - self.reserved_daily_cost)
 
     @property
     def monthly_remaining(self) -> Decimal:
-        return max(Decimal("0"), self.monthly_budget - self.monthly_spend)
+        return max(
+            Decimal("0"),
+            self.monthly_budget - self.monthly_spend - self.reserved_monthly_cost,
+        )
 
     @property
     def daily_exhausted(self) -> bool:
-        return self.daily_budget > 0 and self.daily_spend >= self.daily_budget
+        return self.daily_budget > 0 and (
+            self.daily_spend + self.reserved_daily_cost >= self.daily_budget
+        )
 
     @property
     def monthly_exhausted(self) -> bool:
-        return self.monthly_budget > 0 and self.monthly_spend >= self.monthly_budget
+        return self.monthly_budget > 0 and (
+            self.monthly_spend + self.reserved_monthly_cost >= self.monthly_budget
+        )
 
 
 @dataclass(slots=True)
@@ -138,6 +147,84 @@ class QuotaExhaustionInfo:
     exhausted_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
+class ReservationStatus(StrEnum):
+    """States a reservation can be in during its lifecycle."""
+
+    PENDING = "pending"
+    SETTLED = "settled"
+    RELEASED = "released"
+    EXPIRED = "expired"
+
+
+@dataclass(slots=True)
+class QuotaReservationRequest:
+    """Parameters for an atomic capacity reservation."""
+
+    provider_id: str
+    reservation_id: str
+    window: QuotaWindow
+    request_count: int = 1
+    input_tokens: int = 0
+    output_tokens: int = 0
+    total_tokens: int = 0
+    estimated_cost: Decimal = Decimal("0")
+    cost_known: bool = False
+    limit: QuotaLimit | None = None
+    daily_budget: Decimal = Decimal("0")
+    monthly_budget: Decimal = Decimal("0")
+
+
+@dataclass(slots=True)
+class QuotaReservationResult:
+    """Result of an atomic reservation attempt."""
+
+    reserved: bool
+    reservation_id: str
+    reason: str = ""
+    remaining_requests: int | None = None
+    remaining_tokens: int | None = None
+    remaining_cost: Decimal | None = None
+    budget_exceeded: bool = False
+
+
+@dataclass(slots=True)
+class ReservationState:
+    """Snapshot of a reservation's current state."""
+
+    reservation_id: str
+    provider_id: str
+    window: QuotaWindow
+    status: ReservationStatus = ReservationStatus.PENDING
+    request_count: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    total_tokens: int = 0
+    estimated_cost: Decimal = Decimal("0")
+    actual_cost: Decimal | None = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    expired_at: datetime | None = None
+
+
+@dataclass(slots=True)
+class SettlementResult:
+    """Result of a reservation settlement attempt."""
+
+    settled: bool
+    reservation_id: str
+    reason: str = ""
+    actual_cost: Decimal | None = None
+
+
+@dataclass(slots=True)
+class ReleaseResult:
+    """Result of a reservation release attempt."""
+
+    released: bool
+    reservation_id: str
+    reason: str = ""
+
+
 __all__ = [
     "GlobalBudgetState",
     "ProviderQuotaConfig",
@@ -145,5 +232,11 @@ __all__ = [
     "QuotaEligibility",
     "QuotaExhaustionInfo",
     "QuotaLimit",
+    "QuotaReservationRequest",
+    "QuotaReservationResult",
     "QuotaWindow",
+    "ReleaseResult",
+    "ReservationState",
+    "ReservationStatus",
+    "SettlementResult",
 ]

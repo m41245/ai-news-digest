@@ -101,8 +101,9 @@ ignore = [
 known-first-party = ["ai_news_digest"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101", "S104"]
+"tests/**/*.py" = ["S101", "S104", "E501"]
 "migrations/versions/*.py" = ["E501", "W291"]
+"src/ai_news_digest/infrastructure/quota/redis_provider_quota_registry.py" = ["E501"]
 "src/ai_news_digest/application/services/rss/exceptions.py" = ["N818"]
 "src/ai_news_digest/api/v1/routes/auth.py" = ["S105"]
 "src/ai_news_digest/api/v1/schemas/auth.py" = ["S105"]
@@ -186,8 +187,6 @@ module = [
     "ai_news_digest.application.use_cases.user_preference.unmute_company",
     "ai_news_digest.application.use_cases.user_preference.unmute_topic",
     "ai_news_digest.application.use_cases.user_preference.update_preferences",
-    "ai_news_digest.application.services.notifications.*",
-    "ai_news_digest.application.services.graph_intelligence.graph_intelligence_service",
     "ai_news_digest.infrastructure.database.mappers.notification_mapper",
     "ai_news_digest.infrastructure.database.repositories.notification_repository",
     "ai_news_digest.workers.tasks.notifications",

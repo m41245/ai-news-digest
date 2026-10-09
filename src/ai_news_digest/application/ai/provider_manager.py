@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import time
+import uuid
 from collections.abc import Iterable
 from decimal import Decimal
 from typing import Any
@@ -15,6 +17,7 @@ from ai_news_digest.application.ai.models import (
     RoutingDecision,
 )
 from ai_news_digest.application.ai.provider_health import (
+    FailureCategory,
     classify_failure,
 )
 from ai_news_digest.application.ai.provider_health_registry import ProviderHealthRegistry
@@ -26,6 +29,8 @@ from ai_news_digest.application.ai.quota import (
     ProviderQuotaConfig,
     ProviderUsage,
     QuotaLimit,
+    QuotaReservationRequest,
+    QuotaReservationResult,
     QuotaWindow,
 )
 from ai_news_digest.core.config import get_settings
@@ -115,20 +120,51 @@ class ProviderManager:
             provider_name = provider.provider_name
             record_ai_request(provider_name)
             start = time.monotonic()
+
+            reservation_id = self._generate_reservation_id(provider_id, request)
+            reservation = await self._reserve_capacity(provider_id, request, reservation_id)
+
+            if reservation is not None and not reservation.reserved:
+                record_ai_failure(provider_name)
+                if reservation.budget_exceeded:
+                    logger.info(
+                        "Provider skipped: reservation rejected",
+                        provider_id=provider_id,
+                        reason=reservation.reason,
+                    )
+                else:
+                    logger.warning(
+                        "Provider skipped: reservation failed",
+                        provider_id=provider_id,
+                        reason=reservation.reason,
+                    )
+                last_exception = ExternalServiceError(
+                    f"Capacity reservation failed for provider '{provider_id}': "
+                    f"{reservation.reason}"
+                )
+                continue
+
             try:
                 response = await provider.generate(request)
             except Exception as exc:
                 record_ai_failure(provider_name)
                 last_exception = exc
                 await self._record_failure(provider_id, exc)
+                if reservation is not None:
+                    await self._handle_provider_failure(provider_id, reservation_id, exc)
                 continue
 
             record_ai_latency(provider_name, time.monotonic() - start)
             await self._record_success(provider_id)
-            await self._finalize_usage(provider_id, request, response)
+            if reservation is not None:
+                await self._settle_reservation(provider_id, request, response, reservation_id)
             return response
 
-        raise ExternalServiceError("Every AI provider failed.") from last_exception
+        if last_exception is not None:
+            raise ExternalServiceError(
+                f"Every AI provider failed: {last_exception}"
+            ) from last_exception
+        raise ExternalServiceError("Every AI provider failed.")
 
     async def route(
         self,
@@ -383,29 +419,117 @@ class ProviderManager:
         provider = self._registry.get(provider_id)
         return provider.provider_config
 
-    async def _reserve_quota(self, provider_id: str, request: AIRequest) -> None:
-        if self._quota_registry is None:
-            return
-        try:
-            config = self._get_provider_config(provider_id)
-            cost_est = estimate_request_cost(request, config)
-            usage = ProviderUsage(
-                provider_id=provider_id,
-                request_count=1,
-                input_tokens=cost_est.input_tokens,
-                output_tokens=cost_est.output_tokens,
-                total_tokens=cost_est.total_tokens,
-                estimated_cost=Decimal(str(cost_est.estimated_cost)),
-                cost_known=cost_est.cost_known,
-                usage_known=False,
-            )
-            await self._quota_registry.record_usage(usage)
-        except Exception as exc:
-            logger.warning("Failed to reserve quota", provider_id=provider_id, error=str(exc))
+    def _generate_reservation_id(self, provider_id: str, request: AIRequest) -> str:
+        """Generate a stable, deterministic reservation identifier.
 
-    async def _finalize_usage(
-        self, provider_id: str, request: AIRequest, response: AIResponse
+        Reuses ``metadata['request_id']`` when present, otherwise derives a
+        fingerprint from the request content.  The ID is namespaced by
+        provider and quota window so that retries of the same request to
+        the same provider remain idempotent while genuinely separate
+        provider attempts receive distinct reservations.
+        """
+        request_ref = request.metadata.get("request_id") if request.metadata else None
+        if not request_ref:
+            content = f"{request.system_prompt}:{request.user_prompt}:{request.max_tokens}"
+            request_ref = hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
+        return str(
+            uuid.uuid5(uuid.NAMESPACE_DNS, f"{provider_id}:{request_ref}:{QuotaWindow.DAY.value}")
+        )
+
+    async def _reserve_capacity(
+        self,
+        provider_id: str,
+        request: AIRequest,
+        reservation_id: str,
+    ) -> QuotaReservationResult | None:
+        """Atomically check limits and reserve capacity for a provider request.
+
+        Returns ``None`` when no limits are configured (registry unavailable
+        or no quota/budget limits).  Returns a :class:`QuotaReservationResult`
+        when limits exist — ``reserved=True`` on success, ``reserved=False``
+        on rejection or failure (fail-closed).
+        """
+        if self._quota_registry is None:
+            return None
+
+        settings = get_settings()
+        provider = self._registry.get(provider_id)
+        provider_config = provider.provider_config
+
+        cost_est = estimate_request_cost(request, provider_config)
+
+        if settings.ai_max_estimated_request_cost > 0:
+            if not cost_est.cost_known:
+                return QuotaReservationResult(
+                    reserved=False,
+                    reservation_id=reservation_id,
+                    reason="cost_unknown",
+                )
+            if cost_est.estimated_cost > settings.ai_max_estimated_request_cost:
+                return QuotaReservationResult(
+                    reserved=False,
+                    reservation_id=reservation_id,
+                    reason="cost_exceeded",
+                )
+
+        quota_config: ProviderQuotaConfig | None = None
+        try:
+            quota_config = await self._quota_registry.get_provider_quota(provider_id)
+        except Exception as exc:
+            logger.warning(
+                "Failed to load provider quota config",
+                provider_id=provider_id,
+                error=str(exc),
+            )
+        if (quota_config is None or not quota_config.limits) and isinstance(
+            provider_config, ProviderConfig
+        ):
+            quota_config = build_quota_config_from_provider_config(provider_id, provider_config)
+        if quota_config is None or not quota_config.limits:
+            return None
+
+        global_budget = await self._get_global_budget()
+
+        limit = quota_config.limit_for(QuotaWindow.DAY) or quota_config.limits[0]
+
+        reserve_req = QuotaReservationRequest(
+            provider_id=provider_id,
+            reservation_id=reservation_id,
+            window=QuotaWindow.DAY,
+            request_count=1,
+            input_tokens=cost_est.input_tokens,
+            output_tokens=cost_est.output_tokens,
+            total_tokens=cost_est.total_tokens,
+            estimated_cost=Decimal(str(cost_est.estimated_cost)),
+            cost_known=cost_est.cost_known,
+            limit=limit,
+            daily_budget=global_budget.daily_budget,
+            monthly_budget=global_budget.monthly_budget,
+        )
+
+        try:
+            return await self._quota_registry.reserve_capacity(reserve_req)
+        except Exception as exc:
+            logger.warning(
+                "Failed to reserve capacity",
+                provider_id=provider_id,
+                reservation_id=reservation_id,
+                error=str(exc),
+            )
+            return QuotaReservationResult(
+                reserved=False,
+                reservation_id=reservation_id,
+                reason="reserve_failed",
+            )
+
+    async def _settle_reservation(
+        self,
+        provider_id: str,
+        request: AIRequest,
+        response: AIResponse,
+        reservation_id: str,
     ) -> None:
+        """Settle a reservation with actual usage from a successful provider call."""
         if self._quota_registry is None:
             return
         try:
@@ -425,19 +549,65 @@ class ProviderManager:
                 estimated_cost=Decimal(str(actual_cost)),
                 cost_known=cost_known,
                 usage_known=True,
+                window=QuotaWindow.DAY,
             )
-            await self._quota_registry.record_usage(usage)
-            await self._quota_registry.update_global_budget(actual_cost)
+            result = await self._quota_registry.settle_reservation(
+                reservation_id, usage, actual_cost=actual_cost
+            )
+            if not result.settled:
+                logger.warning(
+                    "Reservation settlement failed — capacity retained",
+                    provider_id=provider_id,
+                    reservation_id=reservation_id,
+                    reason=result.reason,
+                )
         except Exception as exc:
-            logger.warning("Failed to finalize usage", provider_id=provider_id, error=str(exc))
+            logger.warning(
+                "Failed to settle reservation",
+                provider_id=provider_id,
+                reservation_id=reservation_id,
+                error=str(exc),
+            )
 
-    async def _release_reservation(self, provider_id: str, request: AIRequest) -> None:
-        # _reserve_quota is not invoked in the current flow, so there is no
-        # reservation to release.  Calling reset_provider_quota here would
-        # delete all recorded usage for the provider, allowing subsequent
-        # requests to silently bypass configured limits.  Retained as a
-        # documented no-op for forward compatibility.
-        return
+    async def _handle_provider_failure(
+        self,
+        provider_id: str,
+        reservation_id: str,
+        exc: Exception,
+    ) -> None:
+        """Release a reservation on safe failures or retain it on indeterminate outcomes."""
+        if self._quota_registry is None:
+            return
+        category = classify_failure(exc)
+        safe_release_categories = frozenset(
+            {
+                FailureCategory.PROVIDER_UNAVAILABLE,
+                FailureCategory.AUTHENTICATION_FAILURE,
+                FailureCategory.CONFIGURATION_ERROR,
+                FailureCategory.UNSUPPORTED_CAPABILITY,
+                FailureCategory.INVALID_REQUEST,
+                FailureCategory.RATE_LIMITED,
+            }
+        )
+        if category in safe_release_categories:
+            try:
+                await self._quota_registry.release_reservation(reservation_id)
+            except Exception as exc2:
+                logger.warning(
+                    "Failed to release reservation after safe failure",
+                    provider_id=provider_id,
+                    reservation_id=reservation_id,
+                    error=str(exc2),
+                )
+        else:
+            logger.warning(
+                "Provider failure with indeterminate billing outcome; "
+                "reservation retained for reconciliation",
+                provider_id=provider_id,
+                reservation_id=reservation_id,
+                failure_category=category,
+                error=str(exc),
+            )
 
     async def _record_success(self, provider_id: str) -> None:
         if self._health_registry is None:

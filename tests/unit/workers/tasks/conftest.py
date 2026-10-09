@@ -62,6 +62,7 @@ def mock_container() -> MagicMock:
         "digest_repository",
         "delivery_repository",
         "source_repository",
+        "provider_quota_registry",
         "ingest_all_sources",
         "summarize_article",
         "categorize_article",

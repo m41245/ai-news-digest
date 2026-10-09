@@ -36,7 +36,10 @@ from ai_news_digest.application.ai.quota import (
     ProviderQuotaConfig,
     QuotaEligibility,
     QuotaLimit,
+    QuotaReservationResult,
     QuotaWindow,
+    ReleaseResult,
+    SettlementResult,
 )
 from ai_news_digest.core.config import Settings
 
@@ -83,6 +86,31 @@ def _make_quota_registry() -> MagicMock:
     registry.record_usage = AsyncMock()
     registry.update_global_budget = AsyncMock()
     registry.reset_provider_quota = AsyncMock()
+    registry.reserve_capacity = AsyncMock(
+        return_value=QuotaReservationResult(
+            reserved=True,
+            reservation_id="test-reservation",
+            reason="reserved",
+        )
+    )
+    registry.settle_reservation = AsyncMock(
+        return_value=SettlementResult(
+            settled=True,
+            reservation_id="test-reservation",
+            reason="settled",
+        )
+    )
+    registry.release_reservation = AsyncMock(
+        return_value=ReleaseResult(
+            released=True,
+            reservation_id="test-reservation",
+            reason="released",
+        )
+    )
+    registry.get_reservation = AsyncMock(return_value=None)
+    registry.list_outstanding_reservations = AsyncMock(return_value=[])
+    registry.expire_reservations = AsyncMock(return_value=0)
+    registry.reconcile_reservations = AsyncMock(return_value=0)
     return registry
 
 
@@ -293,8 +321,8 @@ class TestProviderManagerQuotaRouting:
         request = AIRequest(system_prompt="s", user_prompt="u")
         await provider_manager.generate(request, capability="summarization")
 
-        quota_registry.record_usage.assert_called()
-        quota_registry.update_global_budget.assert_called()
+        quota_registry.reserve_capacity.assert_awaited()
+        quota_registry.settle_reservation.assert_awaited()
 
     async def test_generate_does_not_reset_quota_on_failure(
         self,
@@ -1271,11 +1299,13 @@ class TestRedisFailureSafetyGuards:
         capability_registry: CapabilityRegistry,
         decision_engine: DecisionEngine,
     ) -> None:
-        """When usage/spend recording fails, the request still succeeds
-        (fail-open for accounting only -- the request itself is not blocked)."""
+        """When settlement fails, the request still succeeds.
+
+        Settlement failure is logged; the reservation stays pending (capacity
+        is retained) rather than being freed back to the available pool.
+        """
         quota_registry = _make_quota_registry()
-        quota_registry.record_usage = AsyncMock(side_effect=RuntimeError("write failed"))
-        quota_registry.update_global_budget = AsyncMock(side_effect=RuntimeError("write failed"))
+        quota_registry.settle_reservation = AsyncMock(side_effect=RuntimeError("write failed"))
         provider_manager = ProviderManager(
             provider_registry,
             capability_registry,
@@ -1766,22 +1796,24 @@ class TestProviderLimitsReachQuotaCheck:
 
 
 class TestConcurrentQuotaChecks:
-    """Tests for concurrent quota checking (Audit C).
+    """Tests for concurrent quota checking and reservation.
 
-    The current architecture separates check_quota_eligibility (read) from
-    record_usage (write).  Multiple concurrent requests can all pass the
-    eligibility check before any of them records usage, creating a race
-    condition.  This test documents that limitation.
+    The reservation flow separates the eligibility *check* (in ``route()``,
+    via ``check_quota_eligibility``) from the atomic *reserve* (in
+    ``generate()``, via ``reserve_capacity``).  This preserves the read
+    pre-filter while making the actual capacity commitment atomic in the
+    Redis Lua-script layer.
     """
 
-    async def test_check_and_record_are_separate_operations(
+    async def test_check_and_reserve_are_sequential_per_request(
         self,
         provider_registry: ProviderRegistry,
         capability_registry: CapabilityRegistry,
         decision_engine: DecisionEngine,
     ) -> None:
-        """Verify that check_quota_eligibility and record_usage are distinct
-        calls, with the check preceding the record for each individual request."""
+        """Verify that check_quota_eligibility (in route) and reserve_capacity
+        (in generate) are distinct calls, with the check preceding the reserve
+        for each individual request."""
         quota_registry = _make_quota_registry()
         manager = ProviderManager(
             provider_registry,
@@ -1813,41 +1845,51 @@ class TestConcurrentQuotaChecks:
         request = AIRequest(system_prompt="s", user_prompt="u")
         await manager.generate(request, capability="summarization")
 
-        # For a single request, check happens before record.
         check_count = quota_registry.check_quota_eligibility.await_count
-        record_count = quota_registry.record_usage.await_count
+        reserve_count = quota_registry.reserve_capacity.await_count
         assert check_count == 1
-        assert record_count == 1
+        assert reserve_count == 1
 
-    async def test_concurrent_requests_all_pass_check_before_any_recording(
+    async def test_concurrent_requests_compete_via_reservation(
         self,
         provider_registry: ProviderRegistry,
         capability_registry: CapabilityRegistry,
         decision_engine: DecisionEngine,
     ) -> None:
-        """Document the race condition: N concurrent requests all pass the
-        eligibility check before any records usage.
-
-        This is a known limitation -- strict spend enforcement requires
-        atomicity between check and record, which the current architecture
-        does not provide."""
+        """Concurrent requests each go through route() (check) and generate()
+        (reserve), with the reservation being the atomic gatekeeper in the
+        Redis Lua-script layer."""
         import asyncio
 
         quota_registry = _make_quota_registry()
 
         check_calls: list[int] = []
-        record_calls: list[int] = []
+        reserve_calls: list[int] = []
+        settle_calls: list[int] = []
 
         async def _check(*args: object, **kwargs: object) -> QuotaEligibility:
-            check_calls.append(len(record_calls))
+            check_calls.append(len(reserve_calls))
             return QuotaEligibility(eligible=True, reason="eligible")
 
-        async def _record(*args: object, **kwargs: object) -> None:
-            record_calls.append(len(check_calls))
+        async def _reserve(*args: object, **kwargs: object) -> QuotaReservationResult:
+            reserve_calls.append(len(settle_calls))
+            return QuotaReservationResult(
+                reserved=True,
+                reservation_id="test-reservation",
+                reason="reserved",
+            )
+
+        async def _settle(*args: object, **kwargs: object) -> SettlementResult:
+            settle_calls.append(1)
+            return SettlementResult(
+                settled=True,
+                reservation_id="test-reservation",
+                reason="settled",
+            )
 
         quota_registry.check_quota_eligibility = AsyncMock(side_effect=_check)
-        quota_registry.record_usage = AsyncMock(side_effect=_record)
-        quota_registry.update_global_budget = AsyncMock()
+        quota_registry.reserve_capacity = AsyncMock(side_effect=_reserve)
+        quota_registry.settle_reservation = AsyncMock(side_effect=_settle)
 
         manager = ProviderManager(
             provider_registry,
@@ -1882,7 +1924,8 @@ class TestConcurrentQuotaChecks:
         )
 
         assert len(check_calls) == 5
-        assert len(record_calls) == 5
+        assert len(reserve_calls) == 5
+        assert len(settle_calls) == 5
 
     async def test_provider_retry_does_not_bypass_quota_guard(
         self,
@@ -1925,6 +1968,8 @@ class TestConcurrentQuotaChecks:
 
         # Quota check is called once (in route()), not once per retry.
         assert quota_registry.check_quota_eligibility.await_count == 1
+        # Reservation is also called once per generate() (atomic gatekeeper).
+        assert quota_registry.reserve_capacity.await_count == 1
 
 
 __all__ = [

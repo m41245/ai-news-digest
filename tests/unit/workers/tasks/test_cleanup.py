@@ -142,12 +142,59 @@ async def test_cleanup_old_digests_none_deleted(
     assert mock_container.digest_repository.delete_older_than.call_args.kwargs["limit"] == 1000
 
 
+async def test_reconcile_reservations_calls_registry(
+    mock_container: MagicMock,
+) -> None:
+    """The reconcile task delegates to the quota registry."""
+    mock_container.provider_quota_registry.reconcile_reservations.return_value = 3
+
+    with patch.object(cleanup, "get_container", container_generator(mock_container)):
+        result = await cleanup.reconcile_reservations(max_age_seconds=3600)
+
+    assert result == {"reconciled": 3, "max_age_seconds": 3600}
+    mock_container.provider_quota_registry.reconcile_reservations.assert_awaited_once_with(
+        max_age_seconds=3600, batch_limit=cleanup._RECONCILE_BATCH_LIMIT
+    )
+
+
+async def test_reconcile_reservations_no_registry_is_noop(
+    mock_container: MagicMock,
+) -> None:
+    """When the quota registry is unavailable the task returns zero reconciled."""
+    mock_container.provider_quota_registry = None
+
+    with patch.object(cleanup, "get_container", container_generator(mock_container)):
+        result = await cleanup.reconcile_reservations(max_age_seconds=3600)
+
+    assert result == {"reconciled": 0, "max_age_seconds": 3600}
+
+
+async def test_reconcile_reservations_default_max_age(
+    mock_container: MagicMock,
+) -> None:
+    """The default max_age_seconds is 86400 (24 hours)."""
+    mock_container.provider_quota_registry.reconcile_reservations.return_value = 0
+
+    with patch.object(cleanup, "get_container", container_generator(mock_container)):
+        result = await cleanup.reconcile_reservations()
+
+    assert result == {"reconciled": 0, "max_age_seconds": 86400}
+    mock_container.provider_quota_registry.reconcile_reservations.assert_awaited_once_with(
+        max_age_seconds=86400, batch_limit=cleanup._RECONCILE_BATCH_LIMIT
+    )
+
+
 def test_cleanup_task_registration() -> None:
     """Both cleanup tasks are registered with the expected names and retries."""
     assert cleanup.cleanup_old_articles.name == "workers.tasks.cleanup.cleanup_old_articles"
     assert cleanup.cleanup_old_digests.name == "workers.tasks.cleanup.cleanup_old_digests"
+    assert cleanup.reconcile_reservations.name == "workers.tasks.cleanup.reconcile_reservations"
 
-    for task in (cleanup.cleanup_old_articles, cleanup.cleanup_old_digests):
+    for task in (
+        cleanup.cleanup_old_articles,
+        cleanup.cleanup_old_digests,
+        cleanup.reconcile_reservations,
+    ):
         assert task.name in celery_app.tasks
         assert task.max_retries == 3
         assert task.default_retry_delay == 60
