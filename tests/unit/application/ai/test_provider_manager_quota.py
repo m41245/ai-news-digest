@@ -4,6 +4,7 @@ Unit tests for M79 quota-aware provider routing.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 from decimal import Decimal
@@ -48,9 +49,7 @@ def provider_registry() -> ProviderRegistry:
 @pytest.fixture
 def capability_registry() -> CapabilityRegistry:
     registry = CapabilityRegistry()
-    registry.register_capability(
-        Capability(id="summarization", name="Summarization")
-    )
+    registry.register_capability(Capability(id="summarization", name="Summarization"))
     return registry
 
 
@@ -176,11 +175,17 @@ class TestProviderManagerQuotaRouting:
         )
 
         exhausted = _make_provider(
-            "openai", "OpenAI", {"summarization"}, priority=100,
+            "openai",
+            "OpenAI",
+            {"summarization"},
+            priority=100,
             provider_config=ProviderConfig(provider_name="openai", api_key="test"),
         )
         available = _make_provider(
-            "anthropic", "Anthropic", {"summarization"}, priority=50,
+            "anthropic",
+            "Anthropic",
+            {"summarization"},
+            priority=50,
             provider_config=ProviderConfig(provider_name="anthropic", api_key="test"),
         )
         _register_providers(provider_registry, capability_registry, exhausted, available)
@@ -214,7 +219,10 @@ class TestProviderManagerQuotaRouting:
         )
 
         provider = _make_provider(
-            "openai", "OpenAI", {"summarization"}, priority=100,
+            "openai",
+            "OpenAI",
+            {"summarization"},
+            priority=100,
             provider_config=ProviderConfig(provider_name="openai", api_key="test"),
         )
         _register_providers(provider_registry, capability_registry, provider)
@@ -239,7 +247,10 @@ class TestProviderManagerQuotaRouting:
         )
 
         provider = _make_provider(
-            "openai", "OpenAI", {"summarization"}, priority=100,
+            "openai",
+            "OpenAI",
+            {"summarization"},
+            priority=100,
             provider_config=ProviderConfig(provider_name="openai", api_key="test"),
         )
         _register_providers(provider_registry, capability_registry, provider)
@@ -264,7 +275,10 @@ class TestProviderManagerQuotaRouting:
         )
 
         provider = _make_provider(
-            "openai", "OpenAI", {"summarization"}, priority=100,
+            "openai",
+            "OpenAI",
+            {"summarization"},
+            priority=100,
             provider_config=ProviderConfig(provider_name="openai", api_key="test"),
         )
         _register_providers(provider_registry, capability_registry, provider)
@@ -282,7 +296,7 @@ class TestProviderManagerQuotaRouting:
         quota_registry.record_usage.assert_called()
         quota_registry.update_global_budget.assert_called()
 
-    async def test_generate_releases_reservation_on_failure(
+    async def test_generate_does_not_reset_quota_on_failure(
         self,
         provider_registry: ProviderRegistry,
         capability_registry: CapabilityRegistry,
@@ -297,11 +311,17 @@ class TestProviderManagerQuotaRouting:
         )
 
         failing = _make_provider(
-            "openai", "OpenAI", {"summarization"}, priority=100,
+            "openai",
+            "OpenAI",
+            {"summarization"},
+            priority=100,
             provider_config=ProviderConfig(provider_name="openai", api_key="test"),
         )
         succeeding = _make_provider(
-            "anthropic", "Anthropic", {"summarization"}, priority=50,
+            "anthropic",
+            "Anthropic",
+            {"summarization"},
+            priority=50,
             provider_config=ProviderConfig(provider_name="anthropic", api_key="test"),
         )
         _register_providers(provider_registry, capability_registry, failing, succeeding)
@@ -315,9 +335,13 @@ class TestProviderManagerQuotaRouting:
         )
 
         request = AIRequest(system_prompt="s", user_prompt="u")
-        await provider_manager.generate(request, capability="summarization")
+        response = await provider_manager.generate(request, capability="summarization")
 
-        quota_registry.reset_provider_quota.assert_called_with("openai")
+        assert response.provider == "anthropic"
+        # reset_provider_quota must NOT be called on provider failure --
+        # deleting usage counters would allow subsequent requests to
+        # silently bypass configured per-provider limits.
+        quota_registry.reset_provider_quota.assert_not_called()
 
     async def test_route_quota_exclusion_in_decision(
         self,
@@ -337,7 +361,10 @@ class TestProviderManagerQuotaRouting:
         )
 
         exhausted = _make_provider(
-            "openai", "OpenAI", {"summarization"}, priority=100,
+            "openai",
+            "OpenAI",
+            {"summarization"},
+            priority=100,
             provider_config=ProviderConfig(provider_name="openai", api_key="test"),
         )
         _register_providers(provider_registry, capability_registry, exhausted)
@@ -352,7 +379,20 @@ class TestProviderManagerQuotaRouting:
 
 @contextmanager
 def _patched_settings(**kwargs: object) -> Iterator[Settings]:
-    custom = Settings(ai_enabled=True, **kwargs)
+    """Patch get_settings with a Settings instance that has the given values.
+
+    pydantic-settings v2 ignores init-kwargs for fields that declare a
+    ``validation_alias``.  We work around this by mapping each keyword to its
+    alias (when one exists) so the value is accepted by the constructor.
+    """
+    init_kwargs: dict[str, object] = {"ai_enabled": True}
+    for key, value in kwargs.items():
+        field = Settings.model_fields.get(key)
+        if field and field.validation_alias and isinstance(field.validation_alias, str):
+            init_kwargs[field.validation_alias] = value
+        else:
+            init_kwargs[key] = value
+    custom = Settings(**init_kwargs)
     with patch(
         "ai_news_digest.application.ai.provider_manager.get_settings",
         return_value=custom,
@@ -386,11 +426,11 @@ class TestProviderManagerSettingsEnforcement:
         decision_engine: DecisionEngine,
     ) -> None:
         with _patched_settings(ai_max_estimated_request_cost=0.005):
-            manager = ProviderManager(
-                provider_registry, capability_registry, decision_engine
-            )
+            manager = ProviderManager(provider_registry, capability_registry, decision_engine)
             provider = _make_provider(
-                "openai", "OpenAI", {"summarization"},
+                "openai",
+                "OpenAI",
+                {"summarization"},
                 provider_config=self._pricing_config(),
             )
             _register_providers(provider_registry, capability_registry, provider)
@@ -411,11 +451,11 @@ class TestProviderManagerSettingsEnforcement:
         decision_engine: DecisionEngine,
     ) -> None:
         with _patched_settings(ai_max_estimated_request_cost=0.01):
-            manager = ProviderManager(
-                provider_registry, capability_registry, decision_engine
-            )
+            manager = ProviderManager(provider_registry, capability_registry, decision_engine)
             provider = _make_provider(
-                "openai", "OpenAI", {"summarization"},
+                "openai",
+                "OpenAI",
+                {"summarization"},
                 provider_config=self._pricing_config(),
             )
             _register_providers(provider_registry, capability_registry, provider)
@@ -431,11 +471,11 @@ class TestProviderManagerSettingsEnforcement:
         decision_engine: DecisionEngine,
     ) -> None:
         with _patched_settings(ai_max_estimated_request_cost=0.02):
-            manager = ProviderManager(
-                provider_registry, capability_registry, decision_engine
-            )
+            manager = ProviderManager(provider_registry, capability_registry, decision_engine)
             provider = _make_provider(
-                "openai", "OpenAI", {"summarization"},
+                "openai",
+                "OpenAI",
+                {"summarization"},
                 provider_config=self._pricing_config(),
             )
             _register_providers(provider_registry, capability_registry, provider)
@@ -463,21 +503,17 @@ class TestProviderManagerSettingsEnforcement:
             limit: QuotaLimit | None = None,
         ) -> QuotaEligibility:
             captured.append(limit)
-            return QuotaEligibility(
-                eligible=False, reason="request_quota_exhausted"
-            )
+            return QuotaEligibility(eligible=False, reason="request_quota_exhausted")
 
         quota_registry.check_quota_eligibility = AsyncMock(side_effect=_check)
         manager = ProviderManager(
-            provider_registry, capability_registry, decision_engine,
+            provider_registry,
+            capability_registry,
+            decision_engine,
             quota_registry=quota_registry,
         )
-        config = ProviderConfig(
-            provider_name="openai", api_key="test", request_limit=5
-        )
-        provider = _make_provider(
-            "openai", "OpenAI", {"summarization"}, provider_config=config
-        )
+        config = ProviderConfig(provider_name="openai", api_key="test", request_limit=5)
+        provider = _make_provider("openai", "OpenAI", {"summarization"}, provider_config=config)
         _register_providers(provider_registry, capability_registry, provider)
 
         decision = await manager.route(
@@ -515,15 +551,13 @@ class TestProviderManagerSettingsEnforcement:
 
         quota_registry.check_quota_eligibility = AsyncMock(side_effect=_check)
         manager = ProviderManager(
-            provider_registry, capability_registry, decision_engine,
+            provider_registry,
+            capability_registry,
+            decision_engine,
             quota_registry=quota_registry,
         )
-        config = ProviderConfig(
-            provider_name="openai", api_key="test", token_limit=4000
-        )
-        provider = _make_provider(
-            "openai", "OpenAI", {"summarization"}, provider_config=config
-        )
+        config = ProviderConfig(provider_name="openai", api_key="test", token_limit=4000)
+        provider = _make_provider("openai", "OpenAI", {"summarization"}, provider_config=config)
         _register_providers(provider_registry, capability_registry, provider)
 
         decision = await manager.route(
@@ -559,15 +593,13 @@ class TestProviderManagerSettingsEnforcement:
 
         quota_registry.check_quota_eligibility = AsyncMock(side_effect=_check)
         manager = ProviderManager(
-            provider_registry, capability_registry, decision_engine,
+            provider_registry,
+            capability_registry,
+            decision_engine,
             quota_registry=quota_registry,
         )
-        config = ProviderConfig(
-            provider_name="openai", api_key="test", cost_limit=5.0
-        )
-        provider = _make_provider(
-            "openai", "OpenAI", {"summarization"}, provider_config=config
-        )
+        config = ProviderConfig(provider_name="openai", api_key="test", cost_limit=5.0)
+        provider = _make_provider("openai", "OpenAI", {"summarization"}, provider_config=config)
         _register_providers(provider_registry, capability_registry, provider)
 
         decision = await manager.route(
@@ -602,19 +634,17 @@ class TestProviderManagerSettingsEnforcement:
         ) -> QuotaEligibility:
             captured.append(pid)
             if limit is not None and limit.request_limit == 3:
-                return QuotaEligibility(
-                    eligible=False, reason="request_quota_exhausted"
-                )
+                return QuotaEligibility(eligible=False, reason="request_quota_exhausted")
             return QuotaEligibility(eligible=True, reason="eligible")
 
         quota_registry.check_quota_eligibility = AsyncMock(side_effect=_check)
         manager = ProviderManager(
-            provider_registry, capability_registry, decision_engine,
+            provider_registry,
+            capability_registry,
+            decision_engine,
             quota_registry=quota_registry,
         )
-        config = ProviderConfig(
-            provider_name=provider_id, api_key="test", request_limit=3
-        )
+        config = ProviderConfig(provider_name=provider_id, api_key="test", request_limit=3)
         provider = _make_provider(
             provider_id, provider_id.title(), {"summarization"}, provider_config=config
         )
@@ -639,11 +669,15 @@ class TestProviderManagerSettingsEnforcement:
             return_value=GlobalBudgetState(daily_spend=Decimal("10.0"))
         )
         manager = ProviderManager(
-            provider_registry, capability_registry, decision_engine,
+            provider_registry,
+            capability_registry,
+            decision_engine,
             quota_registry=quota_registry,
         )
         provider = _make_provider(
-            "openai", "OpenAI", {"summarization"},
+            "openai",
+            "OpenAI",
+            {"summarization"},
             provider_config=ProviderConfig(provider_name="openai", api_key="test"),
         )
         _register_providers(provider_registry, capability_registry, provider)
@@ -667,11 +701,15 @@ class TestProviderManagerSettingsEnforcement:
             return_value=GlobalBudgetState(monthly_spend=Decimal("10.0"))
         )
         manager = ProviderManager(
-            provider_registry, capability_registry, decision_engine,
+            provider_registry,
+            capability_registry,
+            decision_engine,
             quota_registry=quota_registry,
         )
         provider = _make_provider(
-            "openai", "OpenAI", {"summarization"},
+            "openai",
+            "OpenAI",
+            {"summarization"},
             provider_config=ProviderConfig(provider_name="openai", api_key="test"),
         )
         _register_providers(provider_registry, capability_registry, provider)
@@ -695,11 +733,15 @@ class TestProviderManagerSettingsEnforcement:
             return_value=GlobalBudgetState(daily_spend=Decimal("3.0"))
         )
         manager = ProviderManager(
-            provider_registry, capability_registry, decision_engine,
+            provider_registry,
+            capability_registry,
+            decision_engine,
             quota_registry=quota_registry,
         )
         provider = _make_provider(
-            "openai", "OpenAI", {"summarization"},
+            "openai",
+            "OpenAI",
+            {"summarization"},
             provider_config=ProviderConfig(provider_name="openai", api_key="test"),
         )
         _register_providers(provider_registry, capability_registry, provider)
@@ -724,11 +766,15 @@ class TestProviderManagerSettingsEnforcement:
             )
         )
         manager = ProviderManager(
-            provider_registry, capability_registry, decision_engine,
+            provider_registry,
+            capability_registry,
+            decision_engine,
             quota_registry=quota_registry,
         )
         provider = _make_provider(
-            "openai", "OpenAI", {"summarization"},
+            "openai",
+            "OpenAI",
+            {"summarization"},
             provider_config=ProviderConfig(provider_name="openai", api_key="test"),
         )
         _register_providers(provider_registry, capability_registry, provider)
@@ -774,13 +820,13 @@ class TestProviderManagerSettingsEnforcement:
 
         quota_registry.check_quota_eligibility = AsyncMock(side_effect=_check)
         manager = ProviderManager(
-            provider_registry, capability_registry, decision_engine,
+            provider_registry,
+            capability_registry,
+            decision_engine,
             quota_registry=quota_registry,
         )
         # Settings-derived limit (3) must NOT be used; admin (1000) takes over.
-        settings_config = ProviderConfig(
-            provider_name="openai", api_key="test", request_limit=3
-        )
+        settings_config = ProviderConfig(provider_name="openai", api_key="test", request_limit=3)
         provider = _make_provider(
             "openai", "OpenAI", {"summarization"}, provider_config=settings_config
         )
@@ -816,11 +862,15 @@ class TestProviderManagerSettingsEnforcement:
 
         quota_registry.check_quota_eligibility = AsyncMock(side_effect=_check)
         manager = ProviderManager(
-            provider_registry, capability_registry, decision_engine,
+            provider_registry,
+            capability_registry,
+            decision_engine,
             quota_registry=quota_registry,
         )
         provider = _make_provider(
-            "openai", "OpenAI", {"summarization"},
+            "openai",
+            "OpenAI",
+            {"summarization"},
             provider_config=ProviderConfig(provider_name="openai", api_key="test"),
         )
         _register_providers(provider_registry, capability_registry, provider)
@@ -859,15 +909,13 @@ class TestProviderManagerSettingsEnforcement:
 
         quota_registry.check_quota_eligibility = AsyncMock(side_effect=_check)
         manager = ProviderManager(
-            provider_registry, capability_registry, decision_engine,
+            provider_registry,
+            capability_registry,
+            decision_engine,
             quota_registry=quota_registry,
         )
-        config = ProviderConfig(
-            provider_name="openai", api_key="test", request_limit=7
-        )
-        provider = _make_provider(
-            "openai", "OpenAI", {"summarization"}, provider_config=config
-        )
+        config = ProviderConfig(provider_name="openai", api_key="test", request_limit=7)
+        provider = _make_provider("openai", "OpenAI", {"summarization"}, provider_config=config)
         _register_providers(provider_registry, capability_registry, provider)
 
         decision = await manager.route(
@@ -895,27 +943,28 @@ class TestProviderManagerSettingsEnforcement:
         registry._client = mock_client
 
         manager = ProviderManager(
-            provider_registry, capability_registry, decision_engine,
+            provider_registry,
+            capability_registry,
+            decision_engine,
             quota_registry=registry,
         )
         provider = _make_provider(
-            "openai", "OpenAI", {"summarization"},
+            "openai",
+            "OpenAI",
+            {"summarization"},
             provider_config=self._pricing_config(request_limit=0),
         )
         _register_providers(provider_registry, capability_registry, provider)
 
         with _patched_settings(ai_max_estimated_request_cost=0.005):
-            decision = await manager.route(
-                self._costly_request(), capability="summarization"
-            )
+            decision = await manager.route(self._costly_request(), capability="summarization")
 
         assert decision.selected_provider_id is None
         assert any(
-            "budget_per_request_exceeded" in reason
-            for _, reason in decision.quota_exclusions
+            "budget_per_request_exceeded" in reason for _, reason in decision.quota_exclusions
         )
 
-    async def test_redis_error_fail_open_for_usage_check(
+    async def test_redis_error_fail_closed_for_usage_check(
         self,
         provider_registry: ProviderRegistry,
         capability_registry: CapabilityRegistry,
@@ -932,22 +981,27 @@ class TestProviderManagerSettingsEnforcement:
         registry._client = mock_client
 
         manager = ProviderManager(
-            provider_registry, capability_registry, decision_engine,
+            provider_registry,
+            capability_registry,
+            decision_engine,
             quota_registry=registry,
         )
-        config = ProviderConfig(
-            provider_name="openai", api_key="test", request_limit=5
-        )
-        provider = _make_provider(
-            "openai", "OpenAI", {"summarization"}, provider_config=config
-        )
+        config = ProviderConfig(provider_name="openai", api_key="test", request_limit=5)
+        provider = _make_provider("openai", "OpenAI", {"summarization"}, provider_config=config)
         _register_providers(provider_registry, capability_registry, provider)
 
         decision = await manager.route(
             AIRequest(system_prompt="s", user_prompt="u"), capability="summarization"
         )
 
-        assert decision.selected_provider_id == "openai"
+        # When Redis is unavailable and a per-provider limit is configured
+        # (from settings), the request must fail closed because the limit
+        # cannot be verified against live usage.
+        assert decision.selected_provider_id is None
+        assert any(
+            pid == "openai" and reason == "budget_quota_check_failed"
+            for pid, reason in decision.quota_exclusions
+        )
 
 
 class TestBuildQuotaConfigFromProviderConfig:
@@ -959,15 +1013,16 @@ class TestBuildQuotaConfigFromProviderConfig:
 
     def test_zero_limits_are_unlimited(self) -> None:
         config = ProviderConfig(
-            provider_name="openai", api_key="test",
-            request_limit=0, token_limit=0, cost_limit=0.0,
+            provider_name="openai",
+            api_key="test",
+            request_limit=0,
+            token_limit=0,
+            cost_limit=0.0,
         )
         assert build_quota_config_from_provider_config("openai", config) is None
 
     def test_request_limit_becomes_quota_limit(self) -> None:
-        config = ProviderConfig(
-            provider_name="openai", api_key="test", request_limit=100
-        )
+        config = ProviderConfig(provider_name="openai", api_key="test", request_limit=100)
         result = build_quota_config_from_provider_config("openai", config)
         assert result is not None
         assert result.provider_id == "openai"
@@ -980,8 +1035,11 @@ class TestBuildQuotaConfigFromProviderConfig:
 
     def test_all_limits_become_quota_limit(self) -> None:
         config = ProviderConfig(
-            provider_name="anthropic", api_key="test",
-            request_limit=50, token_limit=100000, cost_limit=25.0,
+            provider_name="anthropic",
+            api_key="test",
+            request_limit=50,
+            token_limit=100000,
+            cost_limit=25.0,
         )
         result = build_quota_config_from_provider_config("anthropic", config)
         assert result is not None
@@ -999,14 +1057,14 @@ class TestBuildQuotaConfigFromProviderConfig:
             QuotaLimit(window=QuotaWindow.DAY, cost_limit=Decimal("-1"))
 
     def test_negative_settings_rejected_by_validation(self) -> None:
-        with pytest.raises(ValidationError):
+        env = {"AI_MONTHLY_COST_BUDGET": "-1.0"}
+        with patch.dict(os.environ, env), pytest.raises(ValidationError):
             Settings(
                 database_url="postgresql://test",
                 redis_url="redis://test",
                 celery_broker_url="redis://broker",
                 celery_result_backend="redis://backend",
                 jwt_secret_key="a" * 64,
-                ai_monthly_cost_budget=-1.0,
             )
 
 
@@ -1023,11 +1081,11 @@ class TestAiDisabledBehavior:
             "ai_news_digest.application.ai.provider_manager.get_settings",
             return_value=Settings(ai_enabled=False),
         ):
-            manager = ProviderManager(
-                provider_registry, capability_registry, decision_engine
-            )
+            manager = ProviderManager(provider_registry, capability_registry, decision_engine)
             provider = _make_provider(
-                "openai", "OpenAI", {"summarization"},
+                "openai",
+                "OpenAI",
+                {"summarization"},
                 provider_config=ProviderConfig(provider_name="openai", api_key="test"),
             )
             _register_providers(provider_registry, capability_registry, provider)
@@ -1040,9 +1098,843 @@ class TestAiDisabledBehavior:
         assert decision.reason == "AI is disabled"
 
 
+class TestRedisFailureSafetyGuards:
+    """Tests for safety-critical behavior when the quota Redis is unavailable.
+
+    Audit A findings:
+    - Per-request cost cap is settings-based and enforced independently of Redis.
+    - Per-provider limits rely on Redis for usage accounting; when Redis is
+      down the limit cannot be verified, so requests must fail closed.
+    - Global budget spend accounting relies on Redis; when Redis is down and
+      a budget is configured, requests must fail closed.
+    """
+
+    async def test_quota_check_raises_exception_fails_closed(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        """When check_quota_eligibility raises, the provider is excluded."""
+        quota_registry = _make_quota_registry()
+        quota_registry.get_provider_quota = AsyncMock(return_value=None)
+        quota_registry.check_quota_eligibility = AsyncMock(
+            side_effect=RuntimeError("connection lost")
+        )
+        manager = ProviderManager(
+            provider_registry,
+            capability_registry,
+            decision_engine,
+            quota_registry=quota_registry,
+        )
+        config = ProviderConfig(provider_name="openai", api_key="test", request_limit=5)
+        provider = _make_provider("openai", "OpenAI", {"summarization"}, provider_config=config)
+        _register_providers(provider_registry, capability_registry, provider)
+
+        decision = await manager.route(
+            AIRequest(system_prompt="s", user_prompt="u"), capability="summarization"
+        )
+
+        assert decision.selected_provider_id is None
+        assert any(
+            pid == "openai" and reason == "budget_quota_check_failed"
+            for pid, reason in decision.quota_exclusions
+        )
+
+    async def test_quota_check_redis_error_fails_closed(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        """When check_quota_eligibility returns quota_check_failed reason,
+        the provider is excluded (fail-closed)."""
+        quota_registry = _make_quota_registry()
+        quota_registry.get_provider_quota = AsyncMock(return_value=None)
+        quota_registry.check_quota_eligibility = AsyncMock(
+            return_value=QuotaEligibility(eligible=True, reason="quota_check_failed")
+        )
+        manager = ProviderManager(
+            provider_registry,
+            capability_registry,
+            decision_engine,
+            quota_registry=quota_registry,
+        )
+        config = ProviderConfig(provider_name="openai", api_key="test", request_limit=5)
+        provider = _make_provider("openai", "OpenAI", {"summarization"}, provider_config=config)
+        _register_providers(provider_registry, capability_registry, provider)
+
+        decision = await manager.route(
+            AIRequest(system_prompt="s", user_prompt="u"), capability="summarization"
+        )
+
+        assert decision.selected_provider_id is None
+        assert any(
+            pid == "openai" and reason == "budget_quota_check_failed"
+            for pid, reason in decision.quota_exclusions
+        )
+
+    async def test_quota_check_unknown_result_fails_closed(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        """When check_quota_eligibility returns unknown_check_result, fail closed."""
+        quota_registry = _make_quota_registry()
+        quota_registry.get_provider_quota = AsyncMock(return_value=None)
+        quota_registry.check_quota_eligibility = AsyncMock(
+            return_value=QuotaEligibility(eligible=True, reason="unknown_check_result")
+        )
+        manager = ProviderManager(
+            provider_registry,
+            capability_registry,
+            decision_engine,
+            quota_registry=quota_registry,
+        )
+        config = ProviderConfig(provider_name="openai", api_key="test", request_limit=5)
+        provider = _make_provider("openai", "OpenAI", {"summarization"}, provider_config=config)
+        _register_providers(provider_registry, capability_registry, provider)
+
+        decision = await manager.route(
+            AIRequest(system_prompt="s", user_prompt="u"), capability="summarization"
+        )
+
+        assert decision.selected_provider_id is None
+
+    async def test_global_budget_read_failure_fails_closed_with_budget(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        """When get_global_budget fails and a budget is configured in settings,
+        routing must fail closed."""
+        quota_registry = _make_quota_registry()
+        quota_registry.get_global_budget = AsyncMock(side_effect=RuntimeError("redis down"))
+        manager = ProviderManager(
+            provider_registry,
+            capability_registry,
+            decision_engine,
+            quota_registry=quota_registry,
+        )
+        provider = _make_provider(
+            "openai",
+            "OpenAI",
+            {"summarization"},
+            provider_config=ProviderConfig(provider_name="openai", api_key="test"),
+        )
+        _register_providers(provider_registry, capability_registry, provider)
+
+        with _patched_settings(ai_daily_cost_budget=5.0):
+            decision = await manager.route(
+                AIRequest(system_prompt="s", user_prompt="u"), capability="summarization"
+            )
+
+        assert decision.selected_provider_id is None
+        assert decision.reason == "Global AI budget unavailable (quota store failure)"
+        assert decision.budget_excluded is True
+
+    async def test_global_budget_read_failure_allows_when_no_budget(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        """When get_global_budget fails and no budget is configured, requests may proceed."""
+        quota_registry = _make_quota_registry()
+        quota_registry.get_global_budget = AsyncMock(side_effect=RuntimeError("redis down"))
+        manager = ProviderManager(
+            provider_registry,
+            capability_registry,
+            decision_engine,
+            quota_registry=quota_registry,
+        )
+        provider = _make_provider(
+            "openai",
+            "OpenAI",
+            {"summarization"},
+            provider_config=ProviderConfig(provider_name="openai", api_key="test"),
+        )
+        _register_providers(provider_registry, capability_registry, provider)
+
+        with _patched_settings():
+            decision = await manager.route(
+                AIRequest(system_prompt="s", user_prompt="u"), capability="summarization"
+            )
+
+        assert decision.selected_provider_id == "openai"
+
+    async def test_spend_accounting_failure_does_not_block_request(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        """When usage/spend recording fails, the request still succeeds
+        (fail-open for accounting only -- the request itself is not blocked)."""
+        quota_registry = _make_quota_registry()
+        quota_registry.record_usage = AsyncMock(side_effect=RuntimeError("write failed"))
+        quota_registry.update_global_budget = AsyncMock(side_effect=RuntimeError("write failed"))
+        provider_manager = ProviderManager(
+            provider_registry,
+            capability_registry,
+            decision_engine,
+            quota_registry=quota_registry,
+        )
+        provider = _make_provider(
+            "openai",
+            "OpenAI",
+            {"summarization"},
+            priority=100,
+            provider_config=ProviderConfig(
+                provider_name="openai",
+                api_key="test",
+                input_cost_per_1k_tokens=0.01,
+                output_cost_per_1k_tokens=0.02,
+            ),
+        )
+        _register_providers(provider_registry, capability_registry, provider)
+        provider.generate.return_value = AIResponse(
+            provider="openai",
+            model="gpt-4",
+            content="ok",
+            usage=AIUsage(prompt_tokens=10, completion_tokens=5),
+            latency_ms=100.0,
+        )
+
+        request = AIRequest(system_prompt="s", user_prompt="u")
+        response = await provider_manager.generate(request, capability="summarization")
+
+        assert response.content == "ok"
+
+
+class TestBudgetBoundarySemantics:
+    """Tests for daily and monthly budget boundary behaviour (Audit B)."""
+
+    async def test_daily_budget_exactly_exhausted_blocks(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        quota_registry = _make_quota_registry()
+        quota_registry.get_global_budget = AsyncMock(
+            return_value=GlobalBudgetState(
+                daily_budget=Decimal("10.0"),
+                daily_spend=Decimal("10.0"),
+            )
+        )
+        manager = ProviderManager(
+            provider_registry,
+            capability_registry,
+            decision_engine,
+            quota_registry=quota_registry,
+        )
+        provider = _make_provider(
+            "openai",
+            "OpenAI",
+            {"summarization"},
+            provider_config=ProviderConfig(provider_name="openai", api_key="test"),
+        )
+        _register_providers(provider_registry, capability_registry, provider)
+
+        with _patched_settings(ai_daily_cost_budget=10.0):
+            decision = await manager.route(
+                AIRequest(system_prompt="s", user_prompt="u"), capability="summarization"
+            )
+
+        assert decision.selected_provider_id is None
+        assert decision.reason == "Global AI budget exhausted"
+        assert decision.budget_excluded is True
+
+    async def test_daily_budget_just_below_eligible(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        quota_registry = _make_quota_registry()
+        quota_registry.get_global_budget = AsyncMock(
+            return_value=GlobalBudgetState(
+                daily_budget=Decimal("10.0"),
+                daily_spend=Decimal("9.99"),
+            )
+        )
+        manager = ProviderManager(
+            provider_registry,
+            capability_registry,
+            decision_engine,
+            quota_registry=quota_registry,
+        )
+        provider = _make_provider(
+            "openai",
+            "OpenAI",
+            {"summarization"},
+            provider_config=ProviderConfig(provider_name="openai", api_key="test"),
+        )
+        _register_providers(provider_registry, capability_registry, provider)
+
+        with _patched_settings(ai_daily_cost_budget=10.0):
+            decision = await manager.route(
+                AIRequest(system_prompt="s", user_prompt="u"), capability="summarization"
+            )
+
+        assert decision.selected_provider_id == "openai"
+
+    async def test_daily_budget_above_exhausted_blocks(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        quota_registry = _make_quota_registry()
+        quota_registry.get_global_budget = AsyncMock(
+            return_value=GlobalBudgetState(
+                daily_budget=Decimal("10.0"),
+                daily_spend=Decimal("15.0"),
+            )
+        )
+        manager = ProviderManager(
+            provider_registry,
+            capability_registry,
+            decision_engine,
+            quota_registry=quota_registry,
+        )
+        provider = _make_provider(
+            "openai",
+            "OpenAI",
+            {"summarization"},
+            provider_config=ProviderConfig(provider_name="openai", api_key="test"),
+        )
+        _register_providers(provider_registry, capability_registry, provider)
+
+        with _patched_settings(ai_daily_cost_budget=10.0):
+            decision = await manager.route(
+                AIRequest(system_prompt="s", user_prompt="u"), capability="summarization"
+            )
+
+        assert decision.selected_provider_id is None
+        assert decision.budget_excluded is True
+
+    async def test_monthly_budget_exactly_exhausted_blocks(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        quota_registry = _make_quota_registry()
+        quota_registry.get_global_budget = AsyncMock(
+            return_value=GlobalBudgetState(
+                monthly_budget=Decimal("100.0"),
+                monthly_spend=Decimal("100.0"),
+            )
+        )
+        manager = ProviderManager(
+            provider_registry,
+            capability_registry,
+            decision_engine,
+            quota_registry=quota_registry,
+        )
+        provider = _make_provider(
+            "openai",
+            "OpenAI",
+            {"summarization"},
+            provider_config=ProviderConfig(provider_name="openai", api_key="test"),
+        )
+        _register_providers(provider_registry, capability_registry, provider)
+
+        with _patched_settings(ai_monthly_cost_budget=100.0):
+            decision = await manager.route(
+                AIRequest(system_prompt="s", user_prompt="u"), capability="summarization"
+            )
+
+        assert decision.selected_provider_id is None
+        assert decision.reason == "Global AI budget exhausted"
+        assert decision.budget_excluded is True
+
+    async def test_monthly_budget_just_below_eligible(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        quota_registry = _make_quota_registry()
+        quota_registry.get_global_budget = AsyncMock(
+            return_value=GlobalBudgetState(
+                monthly_budget=Decimal("100.0"),
+                monthly_spend=Decimal("99.99"),
+            )
+        )
+        manager = ProviderManager(
+            provider_registry,
+            capability_registry,
+            decision_engine,
+            quota_registry=quota_registry,
+        )
+        provider = _make_provider(
+            "openai",
+            "OpenAI",
+            {"summarization"},
+            provider_config=ProviderConfig(provider_name="openai", api_key="test"),
+        )
+        _register_providers(provider_registry, capability_registry, provider)
+
+        with _patched_settings(ai_monthly_cost_budget=100.0):
+            decision = await manager.route(
+                AIRequest(system_prompt="s", user_prompt="u"), capability="summarization"
+            )
+
+        assert decision.selected_provider_id == "openai"
+
+    async def test_zero_budget_means_unlimited(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        """Zero budget setting means unlimited -- no budget enforcement."""
+        quota_registry = _make_quota_registry()
+        quota_registry.get_global_budget = AsyncMock(
+            return_value=GlobalBudgetState(daily_spend=Decimal("99999.0"))
+        )
+        manager = ProviderManager(
+            provider_registry,
+            capability_registry,
+            decision_engine,
+            quota_registry=quota_registry,
+        )
+        provider = _make_provider(
+            "openai",
+            "OpenAI",
+            {"summarization"},
+            provider_config=ProviderConfig(provider_name="openai", api_key="test"),
+        )
+        _register_providers(provider_registry, capability_registry, provider)
+
+        with _patched_settings():
+            decision = await manager.route(
+                AIRequest(system_prompt="s", user_prompt="u"), capability="summarization"
+            )
+
+        assert decision.selected_provider_id == "openai"
+
+    async def test_redis_budget_zero_falls_back_to_settings(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        """Redis budget=0 (unset) falls back to settings budget."""
+        quota_registry = _make_quota_registry()
+        quota_registry.get_global_budget = AsyncMock(
+            return_value=GlobalBudgetState(
+                daily_budget=Decimal("0"),  # Redis budget unset
+                daily_spend=Decimal("6.0"),
+            )
+        )
+        manager = ProviderManager(
+            provider_registry,
+            capability_registry,
+            decision_engine,
+            quota_registry=quota_registry,
+        )
+        provider = _make_provider(
+            "openai",
+            "OpenAI",
+            {"summarization"},
+            provider_config=ProviderConfig(provider_name="openai", api_key="test"),
+        )
+        _register_providers(provider_registry, capability_registry, provider)
+
+        with _patched_settings(ai_daily_cost_budget=5.0):
+            decision = await manager.route(
+                AIRequest(system_prompt="s", user_prompt="u"), capability="summarization"
+            )
+
+        # Settings budget=5.0, Redis spend=6.0 > 5.0 -> exhausted
+        assert decision.selected_provider_id is None
+        assert decision.budget_excluded is True
+
+    async def test_redis_budget_nonzero_overrides_settings(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        """A non-zero Redis budget takes precedence over settings budget."""
+        quota_registry = _make_quota_registry()
+        quota_registry.get_global_budget = AsyncMock(
+            return_value=GlobalBudgetState(
+                daily_budget=Decimal("20.0"),  # Redis override
+                daily_spend=Decimal("5.0"),
+            )
+        )
+        manager = ProviderManager(
+            provider_registry,
+            capability_registry,
+            decision_engine,
+            quota_registry=quota_registry,
+        )
+        provider = _make_provider(
+            "openai",
+            "OpenAI",
+            {"summarization"},
+            provider_config=ProviderConfig(provider_name="openai", api_key="test"),
+        )
+        _register_providers(provider_registry, capability_registry, provider)
+
+        # Settings says budget=5.0 but Redis says 20.0 -- Redis wins.
+        with _patched_settings(ai_daily_cost_budget=5.0):
+            decision = await manager.route(
+                AIRequest(system_prompt="s", user_prompt="u"), capability="summarization"
+            )
+
+        # spend=5.0, Redis budget=20.0 -> NOT exhausted
+        assert decision.selected_provider_id == "openai"
+
+
+class TestPerRequestCostCapUnknownPricing:
+    """Tests for per-request cost cap when pricing is unknown (Audit E)."""
+
+    async def test_unknown_pricing_with_cap_fails_closed(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        """When a per-request cap is configured but pricing is unknown,
+        the request must fail closed rather than bypass the cap."""
+        manager = ProviderManager(provider_registry, capability_registry, decision_engine)
+        # ProviderConfig without pricing (input_cost/output_cost are 0)
+        config = ProviderConfig(provider_name="openai", api_key="test")
+        provider = _make_provider("openai", "OpenAI", {"summarization"}, provider_config=config)
+        _register_providers(provider_registry, capability_registry, provider)
+
+        with _patched_settings(ai_max_estimated_request_cost=0.05):
+            decision = await manager.route(
+                AIRequest(system_prompt="s", user_prompt="u"), capability="summarization"
+            )
+
+        assert decision.selected_provider_id is None
+        assert any(
+            pid == "openai" and reason == "budget_per_request_cost_unknown"
+            for pid, reason in decision.quota_exclusions
+        )
+
+    async def test_unknown_pricing_without_cap_allows(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        """When no per-request cap is configured and pricing is unknown,
+        the request may proceed (no hard cap to enforce)."""
+        manager = ProviderManager(provider_registry, capability_registry, decision_engine)
+        config = ProviderConfig(provider_name="openai", api_key="test")
+        provider = _make_provider("openai", "OpenAI", {"summarization"}, provider_config=config)
+        _register_providers(provider_registry, capability_registry, provider)
+
+        with _patched_settings():
+            decision = await manager.route(
+                AIRequest(system_prompt="s", user_prompt="u"), capability="summarization"
+            )
+
+        assert decision.selected_provider_id == "openai"
+
+    async def test_known_pricing_at_exact_cap_is_eligible(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        """Estimated cost exactly at the cap is eligible (<= comparison)."""
+        manager = ProviderManager(provider_registry, capability_registry, decision_engine)
+        config = ProviderConfig(
+            provider_name="openai",
+            api_key="test",
+            input_cost_per_1k_tokens=0.01,
+            output_cost_per_1k_tokens=0.02,
+        )
+        provider = _make_provider("openai", "OpenAI", {"summarization"}, provider_config=config)
+        _register_providers(provider_registry, capability_registry, provider)
+
+        # 4000 chars -> 1000 tokens; cost = 1000/1000 * 0.01 = 0.01
+        request = AIRequest(system_prompt="a" * 4000, user_prompt="", max_tokens=0)
+        with _patched_settings(ai_max_estimated_request_cost=0.01):
+            decision = await manager.route(request, capability="summarization")
+
+        assert decision.selected_provider_id == "openai"
+
+    async def test_known_pricing_above_cap_exceeds(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        """Estimated cost above the cap is rejected."""
+        manager = ProviderManager(provider_registry, capability_registry, decision_engine)
+        config = ProviderConfig(
+            provider_name="openai",
+            api_key="test",
+            input_cost_per_1k_tokens=0.01,
+            output_cost_per_1k_tokens=0.02,
+        )
+        provider = _make_provider("openai", "OpenAI", {"summarization"}, provider_config=config)
+        _register_providers(provider_registry, capability_registry, provider)
+
+        # cost = 0.01; cap = 0.005
+        request = AIRequest(system_prompt="a" * 4000, user_prompt="", max_tokens=0)
+        with _patched_settings(ai_max_estimated_request_cost=0.005):
+            decision = await manager.route(request, capability="summarization")
+
+        assert decision.selected_provider_id is None
+        assert any(
+            pid == "openai" and "budget_per_request" in reason
+            for pid, reason in decision.quota_exclusions
+        )
+
+
+class TestProviderLimitsReachQuotaCheck:
+    """Verify settings-defined provider limits are forwarded to the quota check."""
+
+    @pytest.mark.parametrize(
+        "provider_id,name",
+        [
+            ("openai", "OpenAI"),
+            ("anthropic", "Anthropic"),
+            ("gemini", "Gemini"),
+            ("grok", "xAI"),
+        ],
+    )
+    async def test_settings_limits_passed_for_all_providers(
+        self,
+        provider_id,
+        name,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        quota_registry = _make_quota_registry()
+        quota_registry.get_provider_quota = AsyncMock(return_value=None)
+
+        captured: list[QuotaLimit | None] = []
+
+        async def _check(
+            pid: str,
+            window: QuotaWindow,
+            **kwargs: object,
+        ) -> QuotaEligibility:
+            captured.append(kwargs.get("limit"))
+            return QuotaEligibility(eligible=True, reason="eligible")
+
+        quota_registry.check_quota_eligibility = AsyncMock(side_effect=_check)
+        manager = ProviderManager(
+            provider_registry,
+            capability_registry,
+            decision_engine,
+            quota_registry=quota_registry,
+        )
+
+        limits_map = {
+            "openai": (100, 100000, 5.0),
+            "anthropic": (50, 200000, 10.0),
+            "gemini": (200, 50000, 3.0),
+            "grok": (75, 150000, 7.0),
+        }
+        req_limit, tok_limit, cost_limit = limits_map[provider_id]
+        config = ProviderConfig(
+            provider_name=provider_id,
+            api_key="test",
+            request_limit=req_limit,
+            token_limit=tok_limit,
+            cost_limit=cost_limit,
+        )
+        provider = _make_provider(provider_id, name, {"summarization"}, provider_config=config)
+        _register_providers(provider_registry, capability_registry, provider)
+
+        await manager.route(
+            AIRequest(system_prompt="s", user_prompt="u"), capability="summarization"
+        )
+
+        assert captured
+        limit = captured[0]
+        assert limit is not None
+        assert limit.request_limit == req_limit
+        assert limit.token_limit == tok_limit
+        assert limit.cost_limit == Decimal(str(cost_limit))
+
+
+class TestConcurrentQuotaChecks:
+    """Tests for concurrent quota checking (Audit C).
+
+    The current architecture separates check_quota_eligibility (read) from
+    record_usage (write).  Multiple concurrent requests can all pass the
+    eligibility check before any of them records usage, creating a race
+    condition.  This test documents that limitation.
+    """
+
+    async def test_check_and_record_are_separate_operations(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        """Verify that check_quota_eligibility and record_usage are distinct
+        calls, with the check preceding the record for each individual request."""
+        quota_registry = _make_quota_registry()
+        manager = ProviderManager(
+            provider_registry,
+            capability_registry,
+            decision_engine,
+            quota_registry=quota_registry,
+        )
+        provider = _make_provider(
+            "openai",
+            "OpenAI",
+            {"summarization"},
+            priority=100,
+            provider_config=ProviderConfig(
+                provider_name="openai",
+                api_key="test",
+                input_cost_per_1k_tokens=0.01,
+                output_cost_per_1k_tokens=0.02,
+            ),
+        )
+        _register_providers(provider_registry, capability_registry, provider)
+        provider.generate.return_value = AIResponse(
+            provider="openai",
+            model="gpt-4",
+            content="ok",
+            usage=AIUsage(prompt_tokens=10, completion_tokens=5),
+            latency_ms=100.0,
+        )
+
+        request = AIRequest(system_prompt="s", user_prompt="u")
+        await manager.generate(request, capability="summarization")
+
+        # For a single request, check happens before record.
+        check_count = quota_registry.check_quota_eligibility.await_count
+        record_count = quota_registry.record_usage.await_count
+        assert check_count == 1
+        assert record_count == 1
+
+    async def test_concurrent_requests_all_pass_check_before_any_recording(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        """Document the race condition: N concurrent requests all pass the
+        eligibility check before any records usage.
+
+        This is a known limitation -- strict spend enforcement requires
+        atomicity between check and record, which the current architecture
+        does not provide."""
+        import asyncio
+
+        quota_registry = _make_quota_registry()
+
+        check_calls: list[int] = []
+        record_calls: list[int] = []
+
+        async def _check(*args: object, **kwargs: object) -> QuotaEligibility:
+            check_calls.append(len(record_calls))
+            return QuotaEligibility(eligible=True, reason="eligible")
+
+        async def _record(*args: object, **kwargs: object) -> None:
+            record_calls.append(len(check_calls))
+
+        quota_registry.check_quota_eligibility = AsyncMock(side_effect=_check)
+        quota_registry.record_usage = AsyncMock(side_effect=_record)
+        quota_registry.update_global_budget = AsyncMock()
+
+        manager = ProviderManager(
+            provider_registry,
+            capability_registry,
+            decision_engine,
+            quota_registry=quota_registry,
+        )
+        provider = _make_provider(
+            "openai",
+            "OpenAI",
+            {"summarization"},
+            priority=100,
+            provider_config=ProviderConfig(
+                provider_name="openai",
+                api_key="test",
+                input_cost_per_1k_tokens=0.01,
+                output_cost_per_1k_tokens=0.02,
+            ),
+        )
+        _register_providers(provider_registry, capability_registry, provider)
+        provider.generate.return_value = AIResponse(
+            provider="openai",
+            model="gpt-4",
+            content="ok",
+            usage=AIUsage(prompt_tokens=10, completion_tokens=5),
+            latency_ms=100.0,
+        )
+
+        request = AIRequest(system_prompt="s", user_prompt="u")
+        await asyncio.gather(
+            *[manager.generate(request, capability="summarization") for _ in range(5)]
+        )
+
+        assert len(check_calls) == 5
+        assert len(record_calls) == 5
+
+    async def test_provider_retry_does_not_bypass_quota_guard(
+        self,
+        provider_registry: ProviderRegistry,
+        capability_registry: CapabilityRegistry,
+        decision_engine: DecisionEngine,
+    ) -> None:
+        """Retries happen inside provider.generate(); the quota guard in
+        route() is not re-evaluated on retry, so it cannot be bypassed."""
+        quota_registry = _make_quota_registry()
+        manager = ProviderManager(
+            provider_registry,
+            capability_registry,
+            decision_engine,
+            quota_registry=quota_registry,
+        )
+        provider = _make_provider(
+            "openai",
+            "OpenAI",
+            {"summarization"},
+            priority=100,
+            provider_config=ProviderConfig(
+                provider_name="openai",
+                api_key="test",
+                input_cost_per_1k_tokens=0.01,
+                output_cost_per_1k_tokens=0.02,
+            ),
+        )
+        _register_providers(provider_registry, capability_registry, provider)
+        provider.generate.return_value = AIResponse(
+            provider="openai",
+            model="gpt-4",
+            content="ok",
+            usage=AIUsage(prompt_tokens=10, completion_tokens=5),
+            latency_ms=100.0,
+        )
+
+        request = AIRequest(system_prompt="s", user_prompt="u")
+        await manager.generate(request, capability="summarization")
+
+        # Quota check is called once (in route()), not once per retry.
+        assert quota_registry.check_quota_eligibility.await_count == 1
+
+
 __all__ = [
     "TestAiDisabledBehavior",
+    "TestBudgetBoundarySemantics",
     "TestBuildQuotaConfigFromProviderConfig",
+    "TestConcurrentQuotaChecks",
+    "TestPerRequestCostCapUnknownPricing",
+    "TestProviderLimitsReachQuotaCheck",
     "TestProviderManagerQuotaRouting",
     "TestProviderManagerSettingsEnforcement",
+    "TestRedisFailureSafetyGuards",
 ]

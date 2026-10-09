@@ -109,6 +109,7 @@ class GlobalBudgetState:
     daily_spend: Decimal = Decimal("0")
     monthly_spend: Decimal = Decimal("0")
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    budget_read_failed: bool = False
 
     @property
     def daily_remaining(self) -> Decimal:

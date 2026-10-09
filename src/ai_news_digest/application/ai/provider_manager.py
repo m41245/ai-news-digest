@@ -121,7 +121,6 @@ class ProviderManager:
                 record_ai_failure(provider_name)
                 last_exception = exc
                 await self._record_failure(provider_id, exc)
-                await self._release_reservation(provider_id, request)
                 continue
 
             record_ai_latency(provider_name, time.monotonic() - start)
@@ -161,6 +160,19 @@ class ProviderManager:
         budget_excluded = False
 
         global_budget = await self._get_global_budget()
+        if global_budget.budget_read_failed and (
+            global_budget.daily_budget > 0 or global_budget.monthly_budget > 0
+        ):
+            return RoutingDecision(
+                selected_provider_id=None,
+                capability=capability,
+                candidate_provider_ids=[],
+                rejected_provider_ids=[],
+                attempted_provider_ids=[],
+                fallback_used=False,
+                reason="Global AI budget unavailable (quota store failure)",
+                budget_excluded=True,
+            )
         if global_budget.daily_exhausted or global_budget.monthly_exhausted:
             return RoutingDecision(
                 selected_provider_id=None,
@@ -286,10 +298,9 @@ class ProviderManager:
         cost_est = None
         if settings.ai_max_estimated_request_cost > 0:
             cost_est = estimate_request_cost(request, provider_config)
-            if (
-                cost_est.cost_known
-                and cost_est.estimated_cost > settings.ai_max_estimated_request_cost
-            ):
+            if not cost_est.cost_known:
+                return False, "budget_per_request_cost_unknown"
+            if cost_est.estimated_cost > settings.ai_max_estimated_request_cost:
                 return False, "budget_per_request_exceeded"
 
         if self._quota_registry is None:
@@ -313,15 +324,25 @@ class ProviderManager:
 
         if quota_config is not None and quota_config.limits:
             for limit in quota_config.limits:
-                eligibility = await self._quota_registry.check_quota_eligibility(
-                    provider.id,
-                    limit.window,
-                    estimated_tokens=cost_est.total_tokens,
-                    estimated_cost=cost_est.estimated_cost,
-                    limit=limit,
-                )
+                try:
+                    eligibility = await self._quota_registry.check_quota_eligibility(
+                        provider.id,
+                        limit.window,
+                        estimated_tokens=cost_est.total_tokens,
+                        estimated_cost=cost_est.estimated_cost,
+                        limit=limit,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "Quota check raised",
+                        provider_id=provider.id,
+                        error=str(exc),
+                    )
+                    return False, "budget_quota_check_failed"
                 if not eligibility.eligible:
                     return False, eligibility.reason
+                if eligibility.reason in ("quota_check_failed", "unknown_check_result"):
+                    return False, "budget_quota_check_failed"
 
         return True, "eligible"
 
@@ -332,7 +353,7 @@ class ProviderManager:
             state = await self._quota_registry.get_global_budget()
         except Exception as exc:
             logger.warning("Failed to get global budget", error=str(exc))
-            state = GlobalBudgetState()
+            state = GlobalBudgetState(budget_read_failed=True)
         settings = get_settings()
         # Settings are the authoritative source for configured budgets; Redis
         # holds live spend accounting. A non-zero Redis budget (explicitly
@@ -355,6 +376,7 @@ class ProviderManager:
             daily_spend=state.daily_spend,
             monthly_spend=state.monthly_spend,
             updated_at=state.updated_at,
+            budget_read_failed=state.budget_read_failed,
         )
 
     def _get_provider_config(self, provider_id: str) -> Any:
@@ -390,10 +412,9 @@ class ProviderManager:
             config = self._get_provider_config(provider_id)
             input_cost = float(getattr(config, "input_cost_per_1k_tokens", 0.0) or 0.0)
             output_cost = float(getattr(config, "output_cost_per_1k_tokens", 0.0) or 0.0)
-            actual_cost = (
-                (response.usage.prompt_tokens / 1000.0) * input_cost
-                + (response.usage.completion_tokens / 1000.0) * output_cost
-            )
+            actual_cost = (response.usage.prompt_tokens / 1000.0) * input_cost + (
+                response.usage.completion_tokens / 1000.0
+            ) * output_cost
             cost_known = input_cost > 0 or output_cost > 0
             usage = ProviderUsage(
                 provider_id=provider_id,
@@ -411,12 +432,12 @@ class ProviderManager:
             logger.warning("Failed to finalize usage", provider_id=provider_id, error=str(exc))
 
     async def _release_reservation(self, provider_id: str, request: AIRequest) -> None:
-        if self._quota_registry is None:
-            return
-        try:
-            await self._quota_registry.reset_provider_quota(provider_id)
-        except Exception as exc:
-            logger.warning("Failed to release reservation", provider_id=provider_id, error=str(exc))
+        # _reserve_quota is not invoked in the current flow, so there is no
+        # reservation to release.  Calling reset_provider_quota here would
+        # delete all recorded usage for the provider, allowing subsequent
+        # requests to silently bypass configured limits.  Retained as a
+        # documented no-op for forward compatibility.
+        return
 
     async def _record_success(self, provider_id: str) -> None:
         if self._health_registry is None:
@@ -442,4 +463,3 @@ class ProviderManager:
                 provider_id=provider_id,
                 error=str(exc2),
             )
-

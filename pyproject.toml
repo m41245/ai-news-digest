@@ -230,6 +230,8 @@ module = [
     "tests.conftest",
     "tests.integration.conftest",
     "tests.integration.test_migrations",
+    "tests.unit.application.ai.test_provider_manager_quota",
+    "tests.unit.application.ai.test_quota_config",
 ]
 disable_error_code = ["import-untyped", "no-untyped-def"]
 
