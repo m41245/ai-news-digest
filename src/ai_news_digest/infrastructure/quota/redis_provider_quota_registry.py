@@ -259,14 +259,17 @@ class RedisProviderQuotaRegistry(ProviderQuotaRegistry):
         window: QuotaWindow,
         estimated_tokens: int = 0,
         estimated_cost: float = 0.0,
+        limit: QuotaLimit | None = None,
     ) -> QuotaEligibility:
-        quota = await self.get_provider_quota(provider_id)
-        if quota is None or not quota.limits:
-            return QuotaEligibility(eligible=True, reason="no_quota_configured")
-
-        limit = quota.limit_for(window)
+        quota: ProviderQuotaConfig | None = None
         if limit is None:
-            return QuotaEligibility(eligible=True, reason="no_limit_for_window")
+            quota = await self.get_provider_quota(provider_id)
+            if quota is None or not quota.limits:
+                return QuotaEligibility(eligible=True, reason="no_quota_configured")
+
+            limit = quota.limit_for(window)
+            if limit is None:
+                return QuotaEligibility(eligible=True, reason="no_limit_for_window")
 
         client = await self._get_client()
         key = _provider_usage_key(provider_id, window)

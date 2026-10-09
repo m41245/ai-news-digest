@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import Any
 
 from ai_news_digest.application.ai.capability_registry import CapabilityRegistry
+from ai_news_digest.application.ai.config import ProviderConfig
 from ai_news_digest.application.ai.cost import estimate_request_cost
 from ai_news_digest.application.ai.decision_engine import DecisionEngine
 from ai_news_digest.application.ai.models import (
@@ -22,7 +23,10 @@ from ai_news_digest.application.ai.provider_registry import ProviderRegistry
 from ai_news_digest.application.ai.providers.base import AIProvider
 from ai_news_digest.application.ai.quota import (
     GlobalBudgetState,
+    ProviderQuotaConfig,
     ProviderUsage,
+    QuotaLimit,
+    QuotaWindow,
 )
 from ai_news_digest.core.config import get_settings
 from ai_news_digest.core.exceptions import ExternalServiceError
@@ -34,6 +38,39 @@ from ai_news_digest.core.metrics import (
 )
 
 logger = get_logger(__name__)
+
+
+def build_quota_config_from_provider_config(
+    provider_id: str,
+    config: ProviderConfig,
+) -> ProviderQuotaConfig | None:
+    """Build a :class:`ProviderQuotaConfig` from a provider's settings config.
+
+    Settings express 0 (or 0.0) as "no limit" / unlimited. This maps a
+    zero limit to ``None`` so that an absent limit is never interpreted as
+    an arbitrary positive cap. Returns ``None`` when no limit is configured,
+    leaving the provider without quota enforcement from settings.
+
+    The DAY window is used because provider settings expose a single value
+    per dimension (no window selector) and daily usage is the primary
+    accounting window recorded by :class:`ProviderUsage`.
+    """
+    request_limit = config.request_limit if config.request_limit > 0 else None
+    token_limit = config.token_limit if config.token_limit > 0 else None
+    cost_limit = Decimal(str(config.cost_limit)) if config.cost_limit > 0 else None
+    if request_limit is None and token_limit is None and cost_limit is None:
+        return None
+    return ProviderQuotaConfig(
+        provider_id=provider_id,
+        limits=[
+            QuotaLimit(
+                window=QuotaWindow.DAY,
+                request_limit=request_limit,
+                token_limit=token_limit,
+                cost_limit=cost_limit,
+            )
+        ],
+    )
 
 
 class ProviderManager:
@@ -237,34 +274,54 @@ class ProviderManager:
         ):
             return False, "circuit_open"
 
-        if self._quota_registry is not None and request is not None:
-            settings = get_settings()
-            cost_est = estimate_request_cost(request, provider.provider_config)
+        if request is None:
+            return True, "eligible"
+
+        settings = get_settings()
+        provider_config = provider.provider_config
+
+        # Per-request estimated-cost cap: a hard guard sourced from settings.
+        # Enforced independently of the quota registry so the ceiling still
+        # applies when Redis (usage accounting) is unavailable.
+        cost_est = None
+        if settings.ai_max_estimated_request_cost > 0:
+            cost_est = estimate_request_cost(request, provider_config)
             if (
-                settings.ai_max_estimated_request_cost > 0
-                and cost_est.cost_known
+                cost_est.cost_known
                 and cost_est.estimated_cost > settings.ai_max_estimated_request_cost
             ):
                 return False, "budget_per_request_exceeded"
 
-            try:
-                quota_config = await self._quota_registry.get_provider_quota(provider.id)
-            except Exception as exc:
-                logger.warning(
-                    "Failed to load provider quota", provider_id=provider.id, error=str(exc)
-                )
-                quota_config = None
+        if self._quota_registry is None:
+            return True, "eligible"
 
-            if quota_config is not None:
-                for limit in quota_config.limits:
-                    eligibility = await self._quota_registry.check_quota_eligibility(
-                        provider.id,
-                        limit.window,
-                        estimated_tokens=cost_est.total_tokens,
-                        estimated_cost=cost_est.estimated_cost,
-                    )
-                    if not eligibility.eligible:
-                        return False, eligibility.reason
+        if cost_est is None:
+            cost_est = estimate_request_cost(request, provider_config)
+
+        # Per-provider limits. Settings (ProviderConfig) are the authoritative
+        # source of limit configuration; an explicitly administered Redis quota
+        # (get_provider_quota) takes precedence and overrides settings. Live
+        # usage accounting remains in Redis via check_quota_eligibility.
+        try:
+            quota_config = await self._quota_registry.get_provider_quota(provider.id)
+        except Exception as exc:
+            logger.warning("Failed to load provider quota", provider_id=provider.id, error=str(exc))
+            quota_config = None
+
+        if quota_config is None and isinstance(provider_config, ProviderConfig):
+            quota_config = build_quota_config_from_provider_config(provider.id, provider_config)
+
+        if quota_config is not None and quota_config.limits:
+            for limit in quota_config.limits:
+                eligibility = await self._quota_registry.check_quota_eligibility(
+                    provider.id,
+                    limit.window,
+                    estimated_tokens=cost_est.total_tokens,
+                    estimated_cost=cost_est.estimated_cost,
+                    limit=limit,
+                )
+                if not eligibility.eligible:
+                    return False, eligibility.reason
 
         return True, "eligible"
 
@@ -272,10 +329,33 @@ class ProviderManager:
         if self._quota_registry is None:
             return GlobalBudgetState()
         try:
-            return await self._quota_registry.get_global_budget()
+            state = await self._quota_registry.get_global_budget()
         except Exception as exc:
             logger.warning("Failed to get global budget", error=str(exc))
-            return GlobalBudgetState()
+            state = GlobalBudgetState()
+        settings = get_settings()
+        # Settings are the authoritative source for configured budgets; Redis
+        # holds live spend accounting. A non-zero Redis budget (explicitly
+        # administered) takes precedence over settings; a zero/unset Redis
+        # budget falls back to the settings value. This avoids overwriting an
+        # administrated budget while still making plain configuration effective.
+        daily_budget = (
+            state.daily_budget
+            if state.daily_budget > 0
+            else Decimal(str(settings.ai_daily_cost_budget))
+        )
+        monthly_budget = (
+            state.monthly_budget
+            if state.monthly_budget > 0
+            else Decimal(str(settings.ai_monthly_cost_budget))
+        )
+        return GlobalBudgetState(
+            daily_budget=daily_budget,
+            monthly_budget=monthly_budget,
+            daily_spend=state.daily_spend,
+            monthly_spend=state.monthly_spend,
+            updated_at=state.updated_at,
+        )
 
     def _get_provider_config(self, provider_id: str) -> Any:
         provider = self._registry.get(provider_id)

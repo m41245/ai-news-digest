@@ -230,3 +230,87 @@ async def test_redis_error_handled_gracefully(quota_registry: RedisProviderQuota
     result = await quota_registry.check_quota_eligibility("openai", QuotaWindow.DAY)
     assert result.eligible is True
     assert result.reason == "no_quota_configured"
+
+
+@pytest.mark.asyncio
+async def test_check_quota_with_explicit_limit_skips_quota_read(
+    quota_registry: RedisProviderQuotaRegistry,
+) -> None:
+    """An explicit limit avoids a redundant quota-config read from Redis."""
+    mock_client = AsyncMock()
+    mock_client.eval.return_value = "eligible"
+    quota_registry._client = mock_client
+
+    limit = QuotaLimit(
+        window=QuotaWindow.DAY, request_limit=42, token_limit=420, cost_limit=Decimal("1.5")
+    )
+    result = await quota_registry.check_quota_eligibility(
+        "openai", QuotaWindow.DAY, estimated_tokens=10, estimated_cost=0.1, limit=limit
+    )
+
+    assert result.eligible is True
+    assert result.reason == "eligible"
+    # No quota-config hash lookup should have happened for an explicit limit.
+    assert mock_client.hgetall.call_count == 0
+    args = mock_client.eval.call_args.args
+    # eval(lua, numkeys=1, key, request_limit, token_limit, cost_limit, tokens, cost)
+    assert args[3] == str(limit.request_limit)
+    assert args[4] == str(limit.token_limit)
+    assert args[5] == str(limit.cost_limit)
+
+
+@pytest.mark.asyncio
+async def test_check_quota_with_explicit_limit_reports_exhaustion(
+    quota_registry: RedisProviderQuotaRegistry,
+) -> None:
+    mock_client = AsyncMock()
+    mock_client.eval.return_value = "cost_exhausted"
+    quota_registry._client = mock_client
+
+    limit = QuotaLimit(window=QuotaWindow.DAY, cost_limit=Decimal("1.0"))
+    result = await quota_registry.check_quota_eligibility(
+        "openai", QuotaWindow.DAY, estimated_tokens=0, estimated_cost=0.5, limit=limit
+    )
+
+    assert result.eligible is False
+    assert result.reason == "cost_quota_exhausted"
+    assert result.limit is limit
+
+
+@pytest.mark.asyncio
+async def test_check_quota_with_explicit_limit_fails_open_on_redis_error(
+    quota_registry: RedisProviderQuotaRegistry,
+) -> None:
+    mock_client = AsyncMock()
+    mock_client.eval.side_effect = RedisError("connection lost")
+    quota_registry._client = mock_client
+
+    limit = QuotaLimit(window=QuotaWindow.DAY, request_limit=5)
+    result = await quota_registry.check_quota_eligibility(
+        "openai", QuotaWindow.DAY, estimated_tokens=1, estimated_cost=0.0, limit=limit
+    )
+
+    assert result.eligible is True
+    assert result.reason == "quota_check_failed"
+
+
+__all__ = [
+    "test_check_quota_eligible_when_no_limits",
+    "test_check_quota_eligible_when_under_limit",
+    "test_check_quota_excluded_when_request_limit_exhausted",
+    "test_check_quota_with_explicit_limit_fails_open_on_redis_error",
+    "test_check_quota_with_explicit_limit_reports_exhaustion",
+    "test_check_quota_with_explicit_limit_skips_quota_read",
+    "test_get_global_budget_defaults",
+    "test_get_provider_quota_returns_none_when_absent",
+    "test_provider_quota_key",
+    "test_provider_usage_key",
+    "test_record_usage_success",
+    "test_redis_error_handled_gracefully",
+    "test_set_and_get_provider_quota",
+    "test_update_global_budget",
+    "test_window_id_day",
+    "test_window_id_hour",
+    "test_window_id_minute",
+    "test_window_id_month",
+]

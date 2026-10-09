@@ -7,6 +7,7 @@ from ai_news_digest.application.ai.quota import (
     ProviderQuotaConfig,
     ProviderUsage,
     QuotaEligibility,
+    QuotaLimit,
     QuotaWindow,
 )
 
@@ -41,8 +42,16 @@ class ProviderQuotaRegistry(ABC):
         window: QuotaWindow,
         estimated_tokens: int = 0,
         estimated_cost: float = 0.0,
+        limit: QuotaLimit | None = None,
     ) -> QuotaEligibility:
-        """Check whether a provider has remaining quota for the given window."""
+        """Check whether a provider has remaining quota for the given window.
+
+        When ``limit`` is omitted, the limit for ``window`` is loaded from the
+        registry's stored quota configuration. When provided, the supplied limit
+        is used directly and the registry performs only the usage-accounting
+        check against Redis. This lets callers driven by settings-defined limits
+        enforce them without first persisting them to Redis.
+        """
 
     @abstractmethod
     async def get_global_budget(self) -> GlobalBudgetState:
