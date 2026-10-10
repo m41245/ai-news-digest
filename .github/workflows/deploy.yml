@@ -81,9 +81,9 @@ jobs:
     needs: [preflight]
     if: always()
     outputs:
-      backend-image: ${{ steps.meta.outputs.tags }}
+      backend-image: ${{ steps.meta-backend.outputs.tags }}
       backend-digest: ${{ steps.push-backend.outputs.digest }}
-      frontend-image: ${{ steps.meta.outputs.tags }}
+      frontend-image: ${{ steps.meta-frontend.outputs.tags }}
       frontend-digest: ${{ steps.push-frontend.outputs.digest }}
       deployment-environment: ${{ needs.preflight.outputs.deploy_environment }}
     steps:
@@ -110,13 +110,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
+      - name: Extract backend metadata
+        id: meta-backend
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ghcr.io/${{ github.repository }}
-            ghcr.io/${{ github.repository }}-frontend
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=tag,suffix={{sha}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+
+      - name: Extract frontend metadata
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}-frontend
           tags: |
             type=ref,event=tag,suffix={{sha}}
             type=semver,pattern={{version}}
@@ -129,8 +138,8 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
@@ -142,8 +151,8 @@ jobs:
         with:
           context: ./frontend
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
@@ -199,12 +208,40 @@ jobs:
           username: ${{ secrets.PROD_DEPLOY_USERNAME }}
           key: ${{ secrets.PROD_DEPLOY_SSH_KEY }}
           port: ${{ secrets.PROD_DEPLOY_PORT || 22 }}
+          envs: |
+            GHCR_TOKEN=${{ secrets.GITHUB_TOKEN }}
           script: |
-            set -e
+            set -euo pipefail
             IMAGE_TAG="${{ github.ref_name }}"
             echo "Deploying production image: $IMAGE_TAG"
             cd /opt/ai-news-digest
-            export IMAGE_TAG="$IMAGE_TAG"
+
+            # Use the exact image digests produced by the build job.
+            # Digests are immutable and uniquely identify the built image,
+            # preventing a silent fallback to the Compose 'latest' default.
+            DOCKER_IMAGE="ghcr.io/${{ github.repository }}@${{ needs.build-and-push.outputs.backend-digest }}"
+            FRONTEND_IMAGE="ghcr.io/${{ github.repository }}-frontend@${{ needs.build-and-push.outputs.frontend-digest }}"
+
+            # Fail fast if the build job did not produce image digests.
+            if [ -z "${{ needs.build-and-push.outputs.backend-digest }}" ] || [ -z "${{ needs.build-and-push.outputs.frontend-digest }}" ]; then
+              echo "ERROR: Required image digests are missing from build job outputs."
+              echo "  DOCKER_IMAGE: $DOCKER_IMAGE"
+              echo "  FRONTEND_IMAGE: $FRONTEND_IMAGE"
+              echo "Refusing to deploy: would fall back to 'latest'."
+              exit 1
+            fi
+
+            export DOCKER_IMAGE
+            export FRONTEND_IMAGE
+
+            # Authenticate to GHCR on the remote host.
+            printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+            echo "Pulling backend image: $DOCKER_IMAGE"
+            docker pull "$DOCKER_IMAGE"
+            echo "Pulling frontend image: $FRONTEND_IMAGE"
+            docker pull "$FRONTEND_IMAGE"
+
             docker compose -f docker-compose.prod.yml --env-file .env.prod.local up -d --force-recreate
             echo "Waiting for health checks..."
             sleep 30
@@ -220,11 +257,23 @@ jobs:
           username: ${{ secrets.PROD_DEPLOY_USERNAME }}
           key: ${{ secrets.PROD_DEPLOY_SSH_KEY }}
           port: ${{ secrets.PROD_DEPLOY_PORT || 22 }}
+          envs: |
+            GHCR_TOKEN=${{ secrets.GITHUB_TOKEN }}
           script: |
-            set -e
+            set -euo pipefail
             echo "Deployment failed. Initiating rollback..."
             cd /opt/ai-news-digest
-            export IMAGE_TAG="${{ needs.preflight.outputs.deploy_environment == 'production' && 'v1.0.0' || 'staging-latest' }}"
+            ROLLBACK_TAG="${{ needs.preflight.outputs.deploy_environment == 'production' && 'v1.0.0' || 'staging-latest' }}"
+            DOCKER_IMAGE="ghcr.io/${{ github.repository }}:$ROLLBACK_TAG"
+            FRONTEND_IMAGE="ghcr.io/${{ github.repository }}-frontend:$ROLLBACK_TAG"
+            export DOCKER_IMAGE
+            export FRONTEND_IMAGE
+            echo "Rolling back to: backend=$DOCKER_IMAGE frontend=$FRONTEND_IMAGE"
+
+            printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            docker pull "$DOCKER_IMAGE"
+            docker pull "$FRONTEND_IMAGE"
+
             docker compose -f docker-compose.prod.yml --env-file .env.prod.local up -d --force-recreate
             echo "Rollback completed. Verify health manually."
 

@@ -29,6 +29,9 @@ jobs:
     name: Build and Push Staging
     runs-on: ubuntu-latest
     needs: [preflight]
+    outputs:
+      backend-image: ${{ steps.push-backend.outputs.digest }}
+      frontend-image: ${{ steps.push-frontend.outputs.digest }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -53,13 +56,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
+      - name: Extract backend metadata
+        id: meta-backend
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ghcr.io/${{ github.repository }}
-            ghcr.io/${{ github.repository }}-frontend
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=sha,suffix=staging
+            type=raw,value=staging-latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+
+      - name: Extract frontend metadata
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}-frontend
           tags: |
             type=ref,event=sha,suffix=staging
             type=raw,value=staging-latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
@@ -70,8 +80,8 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
@@ -83,8 +93,8 @@ jobs:
         with:
           context: ./frontend
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
@@ -95,11 +105,97 @@ jobs:
           echo "Backend image digest: ${{ steps.push-backend.outputs.digest }}"
           echo "Frontend image digest: ${{ steps.push-frontend.outputs.digest }}"
 
+      - name: Verify migration integrity of backend image
+        id: verify-migrations
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${{ github.repository }}:${{ github.sha }}-staging"
+          echo "Inspecting backend image: $IMAGE"
+
+          if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+            docker pull "$IMAGE"
+          fi
+
+          # Capture migration file names from the image and repository.
+          # Each command substitution's exit status is checked explicitly via
+          # || { ...; exit 1; } so that a failed docker run cannot be silently
+          # swallowed by the sort pipeline (even with pipefail, command
+          # substitution assignment failures need explicit guards).
+          IMAGE_MIGRATIONS="$(docker run --rm --entrypoint sh "$IMAGE" -c 'for f in /app/migrations/versions/*.py; do basename "$f"; done' | sort)" || {
+            echo "::error::Failed to inspect migration files from backend image"
+            exit 1
+          }
+          REPO_MIGRATIONS="$(for f in migrations/versions/*.py; do basename "$f"; done | sort)" || {
+            echo "::error::Failed to enumerate migration files from repository checkout"
+            exit 1
+          }
+
+          echo "Repository migration files:"
+          printf '%s\n' "$REPO_MIGRATIONS"
+          echo "Image migration files:"
+          printf '%s\n' "$IMAGE_MIGRATIONS"
+
+          if [ -z "$IMAGE_MIGRATIONS" ] || [ "$IMAGE_MIGRATIONS" != "$REPO_MIGRATIONS" ]; then
+            echo "::error::Backend image migration files do not match the repository checkout"
+            diff <(printf '%s\n' "$REPO_MIGRATIONS") <(printf '%s\n' "$IMAGE_MIGRATIONS") || true
+            exit 1
+          fi
+
+          # Alembic heads: sort -u deduplicates identical output, but if alembic
+          # reports multiple distinct heads, we must explicitly reject them.
+          IMAGE_HEAD="$(docker run --rm --entrypoint python "$IMAGE" -m alembic heads | sort -u)" || {
+            echo "::error::Failed to inspect Alembic heads from backend image"
+            exit 1
+          }
+          if [ -z "$IMAGE_HEAD" ]; then
+            echo "::error::Could not inspect Alembic head from backend image"
+            exit 1
+          fi
+
+          IMAGE_HEAD_COUNT="$(printf '%s\n' "$IMAGE_HEAD" | grep -c '.' || true)"
+          if [ "$IMAGE_HEAD_COUNT" -gt 1 ]; then
+            echo "::error::Backend image has multiple Alembic heads ($IMAGE_HEAD_COUNT). Multiple heads are not allowed."
+            printf '%s\n' "$IMAGE_HEAD"
+            exit 1
+          fi
+
+          REPO_HEAD="$(docker run --rm --entrypoint python \
+            -v "${{ github.workspace }}/migrations:/app/migrations:ro" \
+            "$IMAGE" -m alembic heads | sort -u)" || {
+            echo "::error::Failed to compute Alembic heads from repository checkout"
+            exit 1
+          }
+          if [ -z "$REPO_HEAD" ]; then
+            echo "::error::Could not compute Alembic head from repository checkout"
+            exit 1
+          fi
+
+          REPO_HEAD_COUNT="$(printf '%s\n' "$REPO_HEAD" | grep -c '.' || true)"
+          if [ "$REPO_HEAD_COUNT" -gt 1 ]; then
+            echo "::error::Repository has multiple Alembic heads ($REPO_HEAD_COUNT). Multiple heads are not allowed."
+            printf '%s\n' "$REPO_HEAD"
+            exit 1
+          fi
+
+          echo "Repository Alembic head: $REPO_HEAD"
+          echo "Image Alembic head: $IMAGE_HEAD"
+
+          if [ "$IMAGE_HEAD" != "$REPO_HEAD" ]; then
+            echo "::error::Backend image Alembic head does not match the repository"
+            echo "Repository head: $REPO_HEAD"
+            echo "Image head: $IMAGE_HEAD"
+            exit 1
+          fi
+
+          echo "Migration integrity verified: $IMAGE_HEAD"
+
   deploy:
     name: Deploy to Staging
     runs-on: ubuntu-latest
     needs: [build-and-push]
     if: always() && needs.build-and-push.result == 'success'
+    outputs:
+      deploy-executed: ${{ steps.verify.outputs.deploy-executed }}
     environment:
       name: staging
     steps:
@@ -107,35 +203,169 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Verify staging deployment target
+        id: verify
         run: |
           if [ -z "${{ secrets.STAGING_DEPLOY_HOST }}" ]; then
             echo "STAGING_DEPLOY_HOST secret is not configured."
             echo "Staging images have been built and pushed to GHCR."
             echo "Deploy manually using:"
             echo "  docker compose -f docker-compose.prod.yml --env-file .env.prod.local up -d"
+            echo "deploy-executed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          echo "deploy-executed=true" >> "$GITHUB_OUTPUT"
           echo "STAGING_DEPLOY_HOST is configured. Proceeding with automated deployment."
 
       - name: Deploy to staging host
-        if: ${{ secrets.STAGING_DEPLOY_HOST != '' }}
+        if: ${{ steps.verify.outputs.deploy-executed == 'true' }}
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.STAGING_DEPLOY_HOST }}
           username: ${{ secrets.STAGING_DEPLOY_USERNAME }}
           key: ${{ secrets.STAGING_DEPLOY_SSH_KEY }}
           port: ${{ secrets.STAGING_DEPLOY_PORT || 22 }}
+          envs: |
+            GHCR_TOKEN=${{ secrets.GITHUB_TOKEN }}
           script: |
-            set -e
+            set -euo pipefail
             IMAGE_TAG="${{ github.sha }}-staging"
-            echo "Deploying staging image: $IMAGE_TAG"
+            DOCKER_IMAGE="ghcr.io/${{ github.repository }}:${{ github.sha }}-staging"
+            FRONTEND_IMAGE="ghcr.io/${{ github.repository }}-frontend:${{ github.sha }}-staging"
+            echo "Deploying staging images: backend=$DOCKER_IMAGE frontend=$FRONTEND_IMAGE"
             cd /opt/ai-news-digest
+
+            # Authenticate to GHCR on the remote host using the workflow-provided
+            # GITHUB_TOKEN (scoped to this repository with packages:write).
+            # The token is consumed via --password-stdin so it never appears as a
+            # visible command argument or is echoed to logs.
+            printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+            # Capture the current running backend image reference for rollback.
+            # We inspect the running container to get the exact image reference
+            # in use, rather than assuming a tag name.
+            PREVIOUS_BACKEND_IMAGE=""
+            PREVIOUS_FRONTEND_IMAGE=""
+            RUNNING_CONTAINER_ID="$(docker ps -q --filter 'name=ai_news_digest_web' 2>/dev/null | head -1 || true)"
+            if [ -n "$RUNNING_CONTAINER_ID" ]; then
+              PREVIOUS_BACKEND_IMAGE="$(docker inspect "$RUNNING_CONTAINER_ID" --format '{{.Config.Image}}' 2>/dev/null || true)"
+            fi
+            if [ -n "$PREVIOUS_BACKEND_IMAGE" ]; then
+              echo "Previous backend image identified: $PREVIOUS_BACKEND_IMAGE"
+            else
+              echo "WARNING: No previous backend image found. Rollback on failure will not be possible."
+            fi
+            RUNNING_FRONTEND_ID="$(docker ps -q --filter 'name=ai_news_digest_frontend' 2>/dev/null | head -1 || true)"
+            if [ -n "$RUNNING_FRONTEND_ID" ]; then
+              PREVIOUS_FRONTEND_IMAGE="$(docker inspect "$RUNNING_FRONTEND_ID" --format '{{.Config.Image}}' 2>/dev/null || true)"
+            fi
+            if [ -n "$PREVIOUS_FRONTEND_IMAGE" ]; then
+              echo "Previous frontend image identified: $PREVIOUS_FRONTEND_IMAGE"
+            else
+              echo "WARNING: No previous frontend image found. Frontend rollback on failure will not be possible."
+            fi
+
             export IMAGE_TAG="$IMAGE_TAG"
+            export DOCKER_IMAGE="$DOCKER_IMAGE"
+            export FRONTEND_IMAGE="$FRONTEND_IMAGE"
+
+            # Rollback function: restores the previous backend image if deployment fails.
+            #
+            # IMPORTANT — Database migration limitation:
+            # The container entrypoint (/app/entrypoint.sh) runs
+            # 'alembic upgrade head' on every container start. Rolling back the
+            # application image does NOT reverse database schema migrations.
+            # If new migrations were applied by the failed deployment, the old
+            # code may be incompatible with the migrated schema. Manual database
+            # review is required after a rollback.
+            rollback() {
+              set +e
+              echo "::error::Deployment failed. Initiating rollback..."
+              if [ -z "${PREVIOUS_BACKEND_IMAGE:-}" ]; then
+                echo "::error::Cannot rollback: no previous backend image was identified before deployment."
+                echo "::error::The new image may be partially deployed. Manual intervention is required."
+                exit 1
+              fi
+              # Explicitly pull the previous backend image before recreating any
+              # service with that image. Failure to pull means rollback cannot
+              # proceed safely.
+              echo "Pulling previous backend image: $PREVIOUS_BACKEND_IMAGE"
+              docker pull "$PREVIOUS_BACKEND_IMAGE"
+              BACKEND_PULL_RESULT=$?
+              if [ "$BACKEND_PULL_RESULT" -ne 0 ]; then
+                echo "::error::Failed to pull previous backend image ($PREVIOUS_BACKEND_IMAGE)."
+                echo "::error::Rollback cannot proceed safely. The new image may be partially deployed."
+                exit 1
+              fi
+
+              # Restore the previous frontend image if one was identified before
+              # deployment. If the frontend image cannot be pulled, the backend
+              # rollback still proceeds and the frontend retains its new image.
+              if [ -n "${PREVIOUS_FRONTEND_IMAGE:-}" ]; then
+                echo "Pulling previous frontend image: $PREVIOUS_FRONTEND_IMAGE"
+                docker pull "$PREVIOUS_FRONTEND_IMAGE"
+                FRONTEND_PULL_RESULT=$?
+                if [ "$FRONTEND_PULL_RESULT" -ne 0 ]; then
+                  echo "::error::Failed to pull previous frontend image ($PREVIOUS_FRONTEND_IMAGE)."
+                  echo "::error::Frontend rollback skipped. Backend rollback continues."
+                else
+                  export FRONTEND_IMAGE="$PREVIOUS_FRONTEND_IMAGE"
+                fi
+              else
+                echo "WARNING: No previous frontend image found. Frontend rollback skipped."
+              fi
+
+              echo "Restoring previous backend image: $PREVIOUS_BACKEND_IMAGE"
+              export DOCKER_IMAGE="$PREVIOUS_BACKEND_IMAGE"
+              docker compose -f docker-compose.prod.yml --env-file .env.prod.local up -d --force-recreate
+              ROLLBACK_UP_RESULT=$?
+              if [ "$ROLLBACK_UP_RESULT" -ne 0 ]; then
+                echo "::error::Rollback failed: could not recreate containers with previous image."
+                exit 1
+              fi
+              echo "Waiting for rollback health checks..."
+              sleep 30
+              curl -sf http://localhost:8000/health/live
+              LIVE_OK=$?
+              curl -sf http://localhost:8000/health/ready
+              READY_OK=$?
+              if [ "$LIVE_OK" -ne 0 ] || [ "$READY_OK" -ne 0 ]; then
+                echo "::error::Rollback verification FAILED: health check did not pass after rollback."
+                exit 1
+              fi
+              echo "Rollback completed. Previous image restored and verified healthy."
+              echo "WARNING: Database schema was NOT rolled back (entrypoint runs 'alembic upgrade head')."
+              echo "WARNING: Review the database schema manually if new migrations were applied."
+              exit 1
+            }
+
+            # Pull new images. Failure here leaves the previous deployment intact.
+            if ! docker compose -f docker-compose.prod.yml --env-file .env.prod.local pull web frontend celery_worker celery_beat; then
+              echo "::error::Failed to pull new images. Previous deployment is still running."
+              exit 1
+            fi
+
+            # Deploy new images. Rollback is attempted if up or health checks fail.
+            set +e
             docker compose -f docker-compose.prod.yml --env-file .env.prod.local up -d --force-recreate
+            UP_RESULT=$?
+            if [ "$UP_RESULT" -ne 0 ]; then
+              rollback
+              exit 1
+            fi
+
             echo "Waiting for health checks..."
             sleep 30
-            curl -f http://localhost:8000/health/live
-            curl -f http://localhost:8000/health/ready
+            curl -sf http://localhost:8000/health/live
+            LIVE_OK=$?
+            curl -sf http://localhost:8000/health/ready
+            READY_OK=$?
+            set -e
+            if [ "$LIVE_OK" -ne 0 ] || [ "$READY_OK" -ne 0 ]; then
+              echo "::error::Health check failed: live=$LIVE_OK ready=$READY_OK"
+              rollback
+              exit 1
+            fi
+
             echo "Staging deployment completed successfully."
 
   deployment-status:
@@ -146,11 +376,48 @@ jobs:
     steps:
       - name: Check deployment result
         run: |
-          if [ "${{ needs.build-and-push.result }}" != "success" ]; then
-            echo "::error::Staging deployment failed for commit ${{ github.sha }}"
+          set -euo pipefail
+          BUILD_RESULT="${{ needs.build-and-push.result }}"
+          DEPLOY_RESULT="${{ needs.deploy.result }}"
+          DEPLOY_EXECUTED="${{ needs.deploy.outputs.deploy-executed }}"
+
+          echo "Build and push result: $BUILD_RESULT"
+          echo "Deploy result: $DEPLOY_RESULT"
+          echo "Deploy executed: $DEPLOY_EXECUTED"
+
+          if [ "$BUILD_RESULT" != "success" ]; then
+            echo "::error::Build or push failed (result: $BUILD_RESULT). Deployment was not attempted."
             exit 1
           fi
-          echo "Staging images built and pushed successfully."
+
           echo "Backend: ${{ needs.build-and-push.outputs.backend-image }}"
           echo "Frontend: ${{ needs.build-and-push.outputs.frontend-image }}"
-          echo "Deploy job result: ${{ needs.deploy.result }}"
+
+          # The deploy job is skipped when build-and-push fails (its 'if' condition
+          # includes needs.build-and-push.result == 'success'). When the deploy job
+          # is skipped entirely, DEPLOY_RESULT will be 'skipped'.
+          if [ "$DEPLOY_RESULT" = "skipped" ]; then
+            echo "::error::Deploy job was skipped. Deployment was not attempted."
+            exit 1
+          fi
+
+          # A 'failure' or 'cancelled' result means the remote deployment or
+          # health check failed, including after an attempted rollback. The
+          # rollback function always exits nonzero so the failed deployment
+          # is preserved as a failure even if rollback itself succeeded.
+          if [ "$DEPLOY_RESULT" = "failure" ] || [ "$DEPLOY_RESULT" = "cancelled" ]; then
+            echo "::error::Staging deployment to remote host failed (result: $DEPLOY_RESULT)."
+            echo "::error::The new image was built and pushed to GHCR but the remote deployment failed."
+            echo "Investigate using: gh run view ${{ github.run_id }}"
+            exit 1
+          fi
+
+          # At this point build-and-push succeeded and deploy did not fail.
+          # Distinguish "deployed successfully" from "deployment not executed".
+          if [ "$DEPLOY_EXECUTED" = "true" ]; then
+            echo "Staging images built, pushed, and deployed successfully."
+          else
+            echo "Staging images built and pushed successfully."
+            echo "Note: Automated deployment was not performed (STAGING_DEPLOY_HOST not configured)."
+            echo "Deploy manually using: docker compose -f docker-compose.prod.yml --env-file .env.prod.local up -d"
+          fi
