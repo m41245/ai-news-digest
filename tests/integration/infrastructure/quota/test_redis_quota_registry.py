@@ -466,3 +466,61 @@ class TestRedisQuotaReconciliation:
 
         count2 = await redis_registry.reconcile_reservations(max_age_seconds=3600, batch_limit=100)
         assert count2 == 0
+
+    async def test_reconciliation_debits_spend_for_indeterminate_outcome(
+        self,
+        redis_registry: RedisProviderQuotaRegistry,
+    ) -> None:
+        """Releasing an indeterminate (expired) reservation must not under-count spend.
+
+        An indeterminate provider outcome (timeout / lost settlement) leaves a
+        reservation PENDING; reconciliation ages it to expired and releases it.
+        Releasing frees reserved capacity, but the provider may still have
+        billed — so the reserved estimate is conservatively debited to
+        daily/monthly spend, keeping the global budget consistent and preventing
+        over-issuance of the daily/monthly budget.
+        """
+        await redis_registry.set_provider_quota(
+            _quota_config(token_limit=200, request_limit=10_000)
+        )
+
+        budget_key = _global_budget_key()
+        client = await redis_registry._get_client()
+        await client.hset(
+            name=budget_key,
+            mapping={
+                "daily_budget": "100.0",
+                "monthly_budget": "1000.0",
+                "daily_spend": "0.0",
+                "monthly_spend": "0.0",
+                "reserved_daily_cost": "0.0",
+                "reserved_monthly_cost": "0.0",
+            },
+        )
+
+        request = _reservation_request(
+            "ind-res", 100, 50, Decimal("1.0"), limit=_limit(token_limit=200)
+        )
+        assert (await redis_registry.reserve_capacity(request)).reserved is True
+
+        budget = await redis_registry.get_global_budget()
+        assert budget.daily_spend == Decimal("0")
+        assert budget.reserved_daily_cost == Decimal("1")
+
+        res_key = _reservation_key("ind-res")
+        old_ts = (datetime.now(UTC) - timedelta(hours=2)).isoformat()
+        await client.hset(name=res_key, mapping={"created_at": old_ts})
+
+        count = await redis_registry.reconcile_reservations(max_age_seconds=3600, batch_limit=100)
+        assert count == 1
+
+        budget = await redis_registry.get_global_budget()
+        # Capacity is reclaimed ...
+        assert budget.reserved_daily_cost == Decimal("0")
+        # ... and the reserved estimate is debited as spend (no under-count).
+        assert budget.daily_spend == Decimal("1")
+        assert budget.monthly_spend == Decimal("1")
+
+        state = await redis_registry.get_reservation("ind-res")
+        assert state is not None
+        assert state.status == ReservationStatus.RELEASED

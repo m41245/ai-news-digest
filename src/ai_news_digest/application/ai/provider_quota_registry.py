@@ -88,12 +88,19 @@ class ProviderQuotaRegistry(ABC):
         """
 
     @abstractmethod
-    async def release_reservation(self, reservation_id: str) -> ReleaseResult:
+    async def release_reservation(
+        self, reservation_id: str, *, record_as_billed: bool = False
+    ) -> ReleaseResult:
         """Release a pending reservation, freeing reserved capacity.
 
         Idempotent: calling release on an already-released or settled
         reservation is a safe no-op.  Releasing a settled reservation
         does not refund consumed capacity.
+
+        When *record_as_billed* is set, the reserved estimate is debited to
+        global-budget spend.  Recovery of an indeterminate outcome cannot know
+        whether the provider billed, so the reserved estimate is conservatively
+        treated as spend to prevent the global budget from being under-counted.
         """
 
     @abstractmethod

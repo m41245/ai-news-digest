@@ -311,6 +311,7 @@ local budget_key = KEYS[3]
 
 local now = ARGV[1]
 local ttl = tonumber(ARGV[2])
+local record_spend = tonumber(ARGV[3]) or 0
 
 local status = redis.call("HGET", res_key, "status") or "not_found"
 if status == "released" then
@@ -342,6 +343,13 @@ local budget_exists = redis.call("EXISTS", budget_key)
 if budget_exists == 1 and est_cost > 0 then
     redis.call("HINCRBYFLOAT", budget_key, "reserved_daily_cost", -est_cost)
     redis.call("HINCRBYFLOAT", budget_key, "reserved_monthly_cost", -est_cost)
+    if record_spend == 1 then
+        -- Indeterminate-outcome release (reconciliation): conservatively record
+        -- the reserved estimate as billed spend so the global budget is never
+        -- under-counted and capacity cannot be reclaimed without an offset.
+        redis.call("HINCRBYFLOAT", budget_key, "daily_spend", est_cost)
+        redis.call("HINCRBYFLOAT", budget_key, "monthly_spend", est_cost)
+    end
     redis.call("HSET", budget_key, "updated_at", now)
     redis.call("EXPIRE", budget_key, ttl)
 end
@@ -793,7 +801,12 @@ class RedisProviderQuotaRegistry(ProviderQuotaRegistry):
             reason=reason,
         )
 
-    async def release_reservation(self, reservation_id: str) -> ReleaseResult:
+    async def release_reservation(
+        self,
+        reservation_id: str,
+        *,
+        record_as_billed: bool = False,
+    ) -> ReleaseResult:
         client = await self._get_client()
         res_key = _reservation_key(reservation_id)
 
@@ -839,6 +852,7 @@ class RedisProviderQuotaRegistry(ProviderQuotaRegistry):
                 budget_key,
                 now,
                 ttl,
+                "1" if record_as_billed else "0",
             )
         except RedisError as exc:
             logger.warning(
@@ -1000,7 +1014,7 @@ class RedisProviderQuotaRegistry(ProviderQuotaRegistry):
             if batch_limit is not None and reconciled >= batch_limit:
                 break
             try:
-                result = await self.release_reservation(state.reservation_id)
+                result = await self.release_reservation(state.reservation_id, record_as_billed=True)
             except Exception as exc:
                 logger.warning(
                     "Failed to release expired reservation during reconciliation",
