@@ -363,13 +363,60 @@ def test_frontend_build_step_consumes_frontend_metadata() -> None:
     ), "Frontend build-and-push must consume steps.meta-frontend.outputs.labels"
 
 
-def test_staging_sha_tag_is_present_in_both_metadata_steps() -> None:
-    """The immutable SHA-based staging tag must be generated for both images."""
+def test_staging_sha_tag_uses_valid_sha_action_syntax() -> None:
+    """
+    The SHA-based staging tag must use the v5 type=sha syntax (not the
+    invalid type=ref,event=sha) with format=long and empty prefix to
+    produce ${{ github.sha }}-staging matching the deployment step.
+    """
     for step in _metadata_steps():
         tags = step["with"]["tags"]
-        assert (
-            "type=ref,event=sha,suffix=staging" in tags
-        ), "SHA-based staging tag convention must be preserved for each image"
+        assert "type=sha,format=long,prefix=,suffix=staging" in tags, (
+            "SHA-based staging tag must use type=sha,format=long,prefix=,suffix=staging "
+            "to produce ${{ github.sha }}-staging matching the deploy reference"
+        )
+
+
+def test_invalid_sha_ref_syntax_is_absent() -> None:
+    """The invalid type=ref,event=sha,suffix=staging must not appear in any metadata step."""
+    for step in _metadata_steps():
+        tags = step["with"]["tags"]
+        assert "type=ref,event=sha,suffix=staging" not in tags, (
+            "Invalid type=ref,event=sha,suffix=staging syntax must be replaced "
+            "with type=sha (sha is not a valid type=ref event in metadata-action v5)"
+        )
+
+
+def test_sha_tag_matches_deployment_image_reference() -> None:
+    """
+    The metadata-action SHA tag (type=sha,format=long,prefix=,suffix=staging)
+    produces <full-sha>-staging, matching the deploy script's
+    ${{ github.sha }}-staging reference and the migration gate's IMAGE reference.
+    """
+    deploy_script = _deploy_script()
+    migrate_script = _migrate_script()
+    assert "${{ github.sha }}-staging" in deploy_script, (
+        "Deploy script must reference ${{ github.sha }}-staging as the backend image tag"
+    )
+    assert "${{ github.sha }}-staging" in migrate_script, (
+        "Migration gate must reference ${{ github.sha }}-staging as the backend image tag"
+    )
+
+    for step in _metadata_steps():
+        tags = step["with"]["tags"]
+        sha_line = next(line.strip() for line in tags.splitlines() if "type=sha" in line)
+        assert "format=long" in sha_line, (
+            "format=long is required: deploy script uses ${{ github.sha }} (full 40-char SHA)"
+        )
+        assert "prefix=sha-" not in sha_line, (
+            "prefix must be empty: deploy tag ${{ github.sha }}-staging has no 'sha-' prefix"
+        )
+        assert "suffix=staging" in sha_line, (
+            "suffix=staging is required to match the -staging suffix in the deploy tag"
+        )
+        assert "type=ref" not in sha_line, (
+            "The SHA tag must use type=sha, not the invalid type=ref,event=sha"
+        )
 
 
 def test_staging_latest_convenience_tag_is_present_in_both_metadata_steps() -> None:
@@ -396,7 +443,12 @@ def test_migration_gate_references_backend_image_not_frontend() -> None:
 def test_deploy_script_sha_staging_matches_metadata_tag() -> None:
     """
     The deploy script's immutable SHA-based tag must match the tag generated
-    by type=ref,event=sha,suffix=staging in the metadata action.
+    by type=sha,format=long,prefix=,suffix=staging in the metadata action.
+
+    type=sha with format=long produces the full 40-char SHA (matching
+    ${{ github.sha }}), prefix= (empty) removes the default 'sha-' prefix,
+    and suffix=staging appends '-staging', yielding exactly
+    ${{ github.sha }}-staging.
     """
     script = _deploy_script()
     backend_ref = 'DOCKER_IMAGE="ghcr.io/${{ github.repository }}:${{ github.sha }}-staging"'
