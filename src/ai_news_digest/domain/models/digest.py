@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 if TYPE_CHECKING:
@@ -22,8 +22,8 @@ class Digest:
     format: DigestFormat
     article_ids: list[UUID] = field(default_factory=list)
     top_story_cluster_id: UUID | None = None
-    stories: list[dict] = field(default_factory=list)
-    generation_metadata: dict = field(default_factory=dict)
+    stories: list[dict[str, Any]] = field(default_factory=list)
+    generation_metadata: dict[str, Any] = field(default_factory=dict)
     generation_method: str | None = None
     provider: str | None = None
     model: str | None = None
@@ -37,8 +37,8 @@ class Digest:
         digest_format: DigestFormat,
         article_ids: list[UUID] | None = None,
         top_story_cluster_id: UUID | None = None,
-        stories: list[dict] | None = None,
-        generation_metadata: dict | None = None,
+        stories: list[dict[str, Any]] | None = None,
+        generation_metadata: dict[str, Any] | None = None,
         generation_method: str | None = None,
         provider: str | None = None,
         model: str | None = None,

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import delete, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import selectinload
 
+from ai_news_digest.core.exceptions import DatabaseError
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.models.claim import Claim
 from ai_news_digest.domain.models.evidence import Evidence
@@ -76,13 +78,18 @@ class SqlAlchemyClaimRepository(BaseRepository[ClaimModel], ClaimRepository):
 
     async def delete_claims_for_article(self, article_id: UUID) -> int:
         stmt = delete(ClaimModel).where(ClaimModel.article_id == str(article_id))
-        result = await self._session.execute(stmt)
+        result = cast(CursorResult[Any], await self._session.execute(stmt))
         await self._commit()
         return int(result.rowcount)
 
     async def create_evidence(self, evidence: Evidence) -> Evidence:
         model = EvidenceMapper.to_model(evidence)
-        model = await self._add_and_refresh(model)
+        self._session.add(model)
+        await self._commit()
+        try:
+            await self._session.refresh(model)
+        except Exception as exc:
+            raise DatabaseError(f"Database refresh failed: {exc}") from exc
         return EvidenceMapper.to_domain(model)
 
     async def list_evidence_by_claim_id(self, claim_id: UUID) -> list[Evidence]:
@@ -96,7 +103,7 @@ class SqlAlchemyClaimRepository(BaseRepository[ClaimModel], ClaimRepository):
 
     async def delete_evidence_for_claim(self, claim_id: UUID) -> int:
         stmt = delete(ClaimEvidenceModel).where(ClaimEvidenceModel.claim_id == str(claim_id))
-        result = await self._session.execute(stmt)
+        result = cast(CursorResult[Any], await self._session.execute(stmt))
         await self._commit()
         return int(result.rowcount)
 

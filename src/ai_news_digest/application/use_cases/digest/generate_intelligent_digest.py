@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -21,15 +21,17 @@ from ai_news_digest.application.services.digest_editorial_generator import (
 )
 from ai_news_digest.core.config import get_settings
 from ai_news_digest.core.logging import get_logger
+from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.models.digest import Digest
 from ai_news_digest.domain.models.source import Source
 from ai_news_digest.domain.models.story_cluster import StoryCluster
+from ai_news_digest.domain.ports.article_repository import ArticleRepository
 from ai_news_digest.domain.ports.digest_repository import DigestRepository
 from ai_news_digest.domain.ports.source_repository import SourceRepository
 from ai_news_digest.domain.ports.story_cluster_repository import StoryClusterRepository
 
 if TYPE_CHECKING:
-    pass
+    from ai_news_digest.domain.enums.digest_format import DigestFormat
 
 logger = get_logger(__name__)
 
@@ -39,7 +41,7 @@ class DigestStoryCandidate:
     """A ranked story cluster with its articles for editorial generation."""
 
     cluster: StoryCluster
-    articles: list[object]  # Article objects
+    articles: list[Article]
     ranking_score: float | None = None
 
 
@@ -79,7 +81,7 @@ class GenerateIntelligentDigestUseCase:
         story_cluster_repository: StoryClusterRepository,
         digest_repository: DigestRepository,
         source_repository: SourceRepository,
-        article_repository: object,
+        article_repository: ArticleRepository,
         editorial_generator: DigestEditorialGenerator,
     ) -> None:
         self._story_cluster_repository = story_cluster_repository
@@ -121,7 +123,9 @@ class GenerateIntelligentDigestUseCase:
                     generated_at=existing.generated_at,
                     candidate_count=0,
                     story_count=len(existing.article_ids),
-                    top_story_cluster_id=existing.top_story_cluster_id,
+                    top_story_cluster_id=str(existing.top_story_cluster_id)
+                    if existing.top_story_cluster_id
+                    else None,
                     generation_method=existing.generation_method or "unknown",
                     provider=existing.provider,
                     model=existing.model,
@@ -323,7 +327,9 @@ class GenerateIntelligentDigestUseCase:
         self, clusters: list[StoryCluster]
     ) -> list[tuple[StoryCluster, float | None]]:
         """Sort clusters by ranking_score descending, deterministically."""
-        ranked = [(c, c.ranking_score) for c in clusters if c.ranking_score is not None]
+        ranked: list[tuple[StoryCluster, float | None]] = [
+            (c, c.ranking_score) for c in clusters if c.ranking_score is not None
+        ]
         ranked.sort(key=lambda x: (-(x[1] or 0.0), str(x[0].id)))
         return ranked
 
@@ -342,9 +348,9 @@ class GenerateIntelligentDigestUseCase:
 
     async def _load_candidate_articles(
         self, ranked: list[tuple[StoryCluster, float | None]]
-    ) -> list[tuple[StoryCluster, list[object]]]:
+    ) -> list[tuple[StoryCluster, list[Article]]]:
         """Load articles for each candidate cluster."""
-        result: list[tuple[StoryCluster, list[object]]] = []
+        result: list[tuple[StoryCluster, list[Article]]] = []
         list_by_cluster = self._article_repository.list_by_cluster_id
         for cluster, _ in ranked:
             articles = await list_by_cluster(cluster.id)
@@ -352,22 +358,18 @@ class GenerateIntelligentDigestUseCase:
         return result
 
     def _collect_article_ids(
-        self, candidate_stories: list[tuple[StoryCluster, list[object]]]
+        self, candidate_stories: list[tuple[StoryCluster, list[Article]]]
     ) -> list[UUID]:
         """Collect article IDs from candidate stories."""
         ids: list[UUID] = []
         for _, articles in candidate_stories:
-            for article in articles:
-                if isinstance(article.id, UUID):
-                    ids.append(article.id)
-                else:
-                    ids.append(UUID(str(article.id)))
+            ids.extend(article.id for article in articles)
         return ids
 
     def _render_editorial_output(
         self,
         output: EditorialDigestOutput,
-        candidate_stories: list[tuple[StoryCluster, list[object]]],
+        candidate_stories: list[tuple[StoryCluster, list[Article]]],
         source_map: dict[UUID, Source],
     ) -> str:
         """Render the editorial output to Markdown."""
@@ -460,9 +462,9 @@ class GenerateIntelligentDigestUseCase:
 
         return "\n".join(lines)
 
-    def _serialize_stories(self, output: EditorialDigestOutput) -> list[dict]:
+    def _serialize_stories(self, output: EditorialDigestOutput) -> list[dict[str, Any]]:
         """Serialize editorial stories to JSON-serializable dicts."""
-        stories: list[dict] = []
+        stories: list[dict[str, Any]] = []
         if output.top_story is not None:
             ts = output.top_story
             stories.append(
@@ -494,7 +496,7 @@ class GenerateIntelligentDigestUseCase:
         return timedelta(hours=settings.ranking_lookback_hours)
 
 
-def get_settings_digest_format():
+def get_settings_digest_format() -> DigestFormat:
     """Get the default digest format from settings."""
     from ai_news_digest.domain.enums.digest_format import DigestFormat
 

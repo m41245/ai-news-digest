@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from celery.app.task import Task
+
 from ai_news_digest.core.config import get_settings
 from ai_news_digest.core.logging import get_logger
 from ai_news_digest.workers.celery_app import celery_app
@@ -67,7 +69,7 @@ async def _run_intelligence_evaluation_impl(
     time_limit=900,
 )
 def run_intelligence_evaluation(
-    self,
+    self: Task,
     evaluation_type: str = "scheduled",
     scope: str = "global",
 ) -> dict[str, Any]:

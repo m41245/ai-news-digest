@@ -265,8 +265,7 @@ async def _analyze_article_impl(article_id: UUID) -> dict[str, str]:
             )
             return {"status": "no_provider"}
 
-        article = await article_repository.get_by_id(article_id)
-        source_id = article.source_id if article else None
+        source_id = article.source_id
 
         updated_article = await materialize_use_case.execute(article, source_id=source_id)
 
@@ -547,7 +546,7 @@ async def _analyze_pending_articles_impl(
     return {"queued": 0, "failed": 0}
 
 
-async def _extract_claims_impl(article_id: UUID) -> dict[str, str]:
+async def _extract_claims_impl(article_id: UUID) -> dict[str, str | int]:
     """
     Typed implementation function for claim extraction.
     """
@@ -584,12 +583,6 @@ async def _extract_claims_impl(article_id: UUID) -> dict[str, str]:
             return {"status": "no_provider"}
 
         source_id = article.source_id
-        if source_id is None:
-            logger.warning(
-                "Article has no source_id for claim extraction",
-                article_id=str(article_id),
-            )
-            return {"status": "no_source"}
 
         claims = await extract_claims.execute(article, source_id=source_id)
 
@@ -613,7 +606,7 @@ async def _extract_claims_impl(article_id: UUID) -> dict[str, str]:
     max_retries=3,
     default_retry_delay=60,
 )
-async def extract_claims(article_id: UUID) -> dict[str, str]:
+async def extract_claims(article_id: UUID) -> dict[str, str | int]:
     """
     Extract claims from an analyzed article.
 

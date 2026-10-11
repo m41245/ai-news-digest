@@ -78,23 +78,23 @@ async def _generate_daily_digest_impl() -> dict[str, str]:
             }
 
         use_case = container.generate_digest
-        result = await use_case.execute(
+        generation_result = await use_case.execute(
             title=title,
             limit=settings.digest_max_articles,
         )
 
         logger.info(
             "Daily digest generation completed",
-            digest_id=str(result.digest_id),
-            included_articles=result.included_articles,
-            generated_at=result.generated_at.isoformat(),
+            digest_id=str(generation_result.digest_id),
+            included_articles=generation_result.included_articles,
+            generated_at=generation_result.generated_at.isoformat(),
         )
 
         return {
             "status": "completed",
-            "digest_id": str(result.digest_id),
-            "included_articles": str(result.included_articles),
-            "generated_at": result.generated_at.isoformat(),
+            "digest_id": str(generation_result.digest_id),
+            "included_articles": str(generation_result.included_articles),
+            "generated_at": generation_result.generated_at.isoformat(),
         }
 
     return {"status": "skipped", "reason": "no_container"}

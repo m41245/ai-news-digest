@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from ai_news_digest.application.ai.editorial_schemas import (
@@ -21,7 +21,7 @@ from ai_news_digest.application.ai.editorial_schemas import (
     validate_editorial_output,
 )
 from ai_news_digest.application.ai.errors import AIError
-from ai_news_digest.application.ai.models import AIRequest
+from ai_news_digest.application.ai.models import AIRequest, AIResponseFormat
 from ai_news_digest.application.ai.provider_manager import ProviderManager
 from ai_news_digest.core.config import get_settings
 from ai_news_digest.domain.models.article import Article
@@ -223,7 +223,7 @@ class DigestEditorialGenerator:
             user_prompt=user_prompt,
             temperature=settings.digest_editorial_temperature,
             max_tokens=settings.digest_editorial_max_tokens,
-            response_format="json",
+            response_format=AIResponseFormat.JSON,
             metadata={
                 "prompt_version": prompt_version,
                 "candidate_count": len(candidate_stories),
@@ -387,7 +387,7 @@ def build_fallback_digest(
     candidate_stories: list[tuple[StoryCluster, list[Article]]],
     top_story_cluster_id: UUID | None,
     source_map: dict[UUID, Source],
-) -> tuple[str, list[dict], UUID | None]:
+) -> tuple[str, list[dict[str, Any]], UUID | None]:
     """
     Build a deterministic Markdown digest from ranked candidates without AI.
 
@@ -402,7 +402,7 @@ def build_fallback_digest(
         "",
     ]
 
-    stories_list: list[dict] = []
+    stories_list: list[dict[str, Any]] = []
 
     if not candidate_stories:
         lines.append("*No stories available for today.*")

@@ -39,7 +39,7 @@ class EvaluationRunModel(Base):
     sample_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     metric_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    extra_metadata: Mapped[str | None] = mapped_column("metadata", Text, nullable=True)  # type: ignore[misc]
+    extra_metadata: Mapped[str | None] = mapped_column("metadata", Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

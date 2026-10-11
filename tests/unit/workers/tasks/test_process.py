@@ -7,12 +7,13 @@ and ``categorize_pending_articles``.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-from uuid import uuid4
+from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import UUID, uuid4
 
 import pytest
 
 from ai_news_digest.domain.enums.article_status import ArticleStatus
+from ai_news_digest.domain.models.claim import Claim
 from ai_news_digest.workers.celery_app import celery_app
 from ai_news_digest.workers.tasks import process
 from tests.unit.workers.tasks.conftest import (
@@ -373,6 +374,102 @@ async def test_process_article_no_provider(mock_container: MagicMock) -> None:
 
 
 # ----------------------------------------------------------------------
+# extract_claims
+# ----------------------------------------------------------------------
+
+
+def _make_claim(article_id: UUID, source_id: UUID) -> Claim:
+    """Create a real ``Claim`` for claim-extraction tests."""
+    return Claim.create(
+        article_id=article_id,
+        source_id=source_id,
+        claim_text="The company reported record quarterly revenue.",
+    )
+
+
+async def test_extract_claims_completed(mock_container: MagicMock) -> None:
+    """A completed extraction reports ``claim_count`` as an integer."""
+    # Arrange
+    article = make_article(ArticleStatus.ANALYZED)
+    mock_container.article_repository.get_by_id.return_value = article
+    mock_container.extract_claims = AsyncMock()
+    mock_container.extract_claims.execute.return_value = [
+        _make_claim(article.id, article.source_id),
+        _make_claim(article.id, article.source_id),
+    ]
+
+    # Act
+    with patch.object(process, "get_container", container_generator(mock_container)):
+        result = await process.extract_claims(article.id)
+
+    # Assert
+    assert result == {
+        "status": "completed",
+        "article_id": str(article.id),
+        "claim_count": 2,
+    }
+    assert isinstance(result["claim_count"], int)
+    mock_container.extract_claims.execute.assert_awaited_once_with(
+        article, source_id=article.source_id
+    )
+
+
+async def test_extract_claims_completed_with_no_claims(mock_container: MagicMock) -> None:
+    """Zero claims still reports an integer ``claim_count`` of 0."""
+    # Arrange
+    article = make_article(ArticleStatus.ANALYZED)
+    mock_container.article_repository.get_by_id.return_value = article
+    mock_container.extract_claims = AsyncMock()
+    mock_container.extract_claims.execute.return_value = []
+
+    # Act
+    with patch.object(process, "get_container", container_generator(mock_container)):
+        result = await process.extract_claims(article.id)
+
+    # Assert
+    assert result == {
+        "status": "completed",
+        "article_id": str(article.id),
+        "claim_count": 0,
+    }
+    assert isinstance(result["claim_count"], int)
+
+
+async def test_extract_claims_not_found(mock_container: MagicMock) -> None:
+    """When the article does not exist the task returns ``not_found``."""
+    article_id = uuid4()
+    mock_container.article_repository.get_by_id.return_value = None
+
+    with patch.object(process, "get_container", container_generator(mock_container)):
+        result = await process.extract_claims(article_id)
+
+    assert result == {"status": "not_found"}
+
+
+async def test_extract_claims_not_ready(mock_container: MagicMock) -> None:
+    """A non-ANALYZED article is skipped without running the use case."""
+    article = make_article(ArticleStatus.SUMMARIZED)
+    mock_container.article_repository.get_by_id.return_value = article
+
+    with patch.object(process, "get_container", container_generator(mock_container)):
+        result = await process.extract_claims(article.id)
+
+    assert result == {"status": "not_ready"}
+
+
+async def test_extract_claims_no_provider(mock_container: MagicMock) -> None:
+    """When AI is disabled, extract_claims returns no_provider."""
+    article = make_article(ArticleStatus.ANALYZED)
+    mock_container.article_repository.get_by_id.return_value = article
+    mock_container.extract_claims = None
+
+    with patch.object(process, "get_container", container_generator(mock_container)):
+        result = await process.extract_claims(article.id)
+
+    assert result == {"status": "no_provider"}
+
+
+# ----------------------------------------------------------------------
 # Direct execution failure isolation (execute_directly=True)
 # ----------------------------------------------------------------------
 
@@ -691,12 +788,14 @@ def test_process_task_registration() -> None:
         == "workers.tasks.process.categorize_pending_articles"
     )
     assert process.analyze_pending_articles.name == "workers.tasks.process.analyze_pending_articles"
+    assert process.extract_claims.name == "workers.tasks.process.extract_claims"
 
     for task in (
         process.summarize_article,
         process.categorize_article,
         process.process_article,
         process.analyze_article,
+        process.extract_claims,
     ):
         assert task.name in celery_app.tasks
         assert task.max_retries == 3

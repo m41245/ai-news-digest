@@ -20,6 +20,7 @@ from ai_news_digest.application.use_cases.story_cluster.story_intelligence impor
 )
 from ai_news_digest.core.config import get_settings
 from ai_news_digest.core.logging import get_logger
+from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.models.story_cluster import StoryCluster
 
 logger = get_logger(__name__)
@@ -199,7 +200,7 @@ class StoryIntelligenceBriefService:
 
     def _build_summary_fallback(
         self,
-        articles: list[Any],
+        articles: list[Article],
         source_name_map: dict[str, str],
     ) -> str | None:
         if not articles:
@@ -225,7 +226,7 @@ class StoryIntelligenceBriefService:
                     return takeaways
         return takeaways
 
-    def _build_why_it_matters(self, cluster: StoryCluster, articles: list[Any]) -> str | None:
+    def _build_why_it_matters(self, cluster: StoryCluster, articles: list[Article]) -> str | None:
         for article in articles:
             if article.why_it_matters:
                 return article.why_it_matters
@@ -554,11 +555,13 @@ class StoryIntelligenceBriefService:
 
             def name_resolver(e_type: str, e_id: str) -> str:
                 if e_type == "company":
-                    for c in entities.get("companies") or []:
+                    company_list: list[dict[str, str]] = entities.get("companies") or []
+                    for c in company_list:
                         if c["id"] == e_id:
                             return c["name"]
                 if e_type == "topic":
-                    for t in entities.get("topics") or []:
+                    topic_list: list[dict[str, str]] = entities.get("topics") or []
+                    for t in topic_list:
                         if t["id"] == e_id:
                             return t["name"]
                 return f"{e_type} {e_id[:8]}"

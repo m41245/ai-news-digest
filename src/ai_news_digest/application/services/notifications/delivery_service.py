@@ -13,6 +13,7 @@ from ai_news_digest.domain.enums.notification import (
 )
 from ai_news_digest.domain.models.notification import NotificationDelivery
 from ai_news_digest.domain.ports.notification_repository import NotificationDeliveryRepository
+from ai_news_digest.domain.ports.user_repository import UserRepository
 from ai_news_digest.infrastructure.email.errors import (
     EmailConnectionError,
     EmailInvalidRecipientError,
@@ -35,7 +36,7 @@ class NotificationDeliveryService:
         self,
         delivery_repo: NotificationDeliveryRepository,
         notification_repo: Any | None = None,
-        user_repo: Any | None = None,
+        user_repo: UserRepository | None = None,
     ) -> None:
         self._delivery_repo = delivery_repo
         self._notification_repo = notification_repo

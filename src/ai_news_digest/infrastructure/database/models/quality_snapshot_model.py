@@ -41,7 +41,7 @@ class QualitySnapshotModel(Base):
     provenance_completeness: Mapped[float | None] = mapped_column(Float, nullable=True)
     evidence_attachment_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
     extraction_success_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
-    extra_metadata: Mapped[str | None] = mapped_column("metadata", Text, nullable=True)  # type: ignore[misc]
+    extra_metadata: Mapped[str | None] = mapped_column("metadata", Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

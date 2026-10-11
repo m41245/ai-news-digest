@@ -32,7 +32,7 @@ class EvaluationMetricModel(Base):
     benchmark_version: Mapped[str] = mapped_column(
         String(64), nullable=False, server_default="m93-v1"
     )
-    extra_metadata: Mapped[str | None] = mapped_column("metadata", Text, nullable=True)  # type: ignore[misc]
+    extra_metadata: Mapped[str | None] = mapped_column("metadata", Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

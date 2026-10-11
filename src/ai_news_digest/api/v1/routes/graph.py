@@ -519,7 +519,7 @@ async def get_entity_temporal_connections(
     return PublicEntityConnectionsResponse(
         entity_type=entity_type,
         entity_id=str(entity_id),
-        connections=temporal_page,  # type: ignore[arg-type]
+        connections=temporal_page,
         total=total,
         limit=limit,
         offset=offset,
