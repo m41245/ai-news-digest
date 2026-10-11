@@ -4,9 +4,8 @@ Unit tests for ConflictRepository.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,9 +43,7 @@ def conflict() -> Conflict:
 
 class TestSqlAlchemyConflictRepository:
     @pytest.mark.asyncio
-    async def test_create_and_get(
-        self, db_session: AsyncSession, conflict: Conflict
-    ) -> None:
+    async def test_create_and_get(self, db_session: AsyncSession, conflict: Conflict) -> None:
         repository = SqlAlchemyConflictRepository(db_session)
         created = await repository.create(conflict)
         assert created.id is not None
@@ -57,9 +54,7 @@ class TestSqlAlchemyConflictRepository:
         assert fetched.status == ConflictStatus.POTENTIAL
 
     @pytest.mark.asyncio
-    async def test_find_existing(
-        self, db_session: AsyncSession, conflict: Conflict
-    ) -> None:
+    async def test_find_existing(self, db_session: AsyncSession, conflict: Conflict) -> None:
         repository = SqlAlchemyConflictRepository(db_session)
         created = await repository.create(conflict)
         existing = await repository.find_existing(
@@ -71,18 +66,14 @@ class TestSqlAlchemyConflictRepository:
         assert existing.id == created.id
 
     @pytest.mark.asyncio
-    async def test_list_recent(
-        self, db_session: AsyncSession, conflict: Conflict
-    ) -> None:
+    async def test_list_recent(self, db_session: AsyncSession, conflict: Conflict) -> None:
         repository = SqlAlchemyConflictRepository(db_session)
         await repository.create(conflict)
         results = await repository.list_recent(limit=10)
         assert len(results) >= 1
 
     @pytest.mark.asyncio
-    async def test_update_status(
-        self, db_session: AsyncSession, conflict: Conflict
-    ) -> None:
+    async def test_update_status(self, db_session: AsyncSession, conflict: Conflict) -> None:
         repository = SqlAlchemyConflictRepository(db_session)
         created = await repository.create(conflict)
         created.update_status(ConflictStatus.CONFIRMED)
@@ -90,9 +81,7 @@ class TestSqlAlchemyConflictRepository:
         assert updated.status == ConflictStatus.CONFIRMED
 
     @pytest.mark.asyncio
-    async def test_count(
-        self, db_session: AsyncSession, conflict: Conflict
-    ) -> None:
+    async def test_count(self, db_session: AsyncSession, conflict: Conflict) -> None:
         repository = SqlAlchemyConflictRepository(db_session)
         await repository.create(conflict)
         count = await repository.count()

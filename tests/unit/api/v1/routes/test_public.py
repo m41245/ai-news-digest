@@ -204,7 +204,9 @@ def test_public_article_includes_intelligence_fields(
         companies=("Acme Corp",),
         topics=("AI", "Technology"),
     )
-    mock_container.article_repository.list_public_articles = AsyncMock(return_value=[article_with_intelligence])
+    mock_container.article_repository.list_public_articles = AsyncMock(
+        return_value=[article_with_intelligence]
+    )
     mock_container.article_repository.count_public_articles = AsyncMock(return_value=1)
 
     response = client.get("/public/articles")
@@ -223,7 +225,6 @@ def test_public_digest_includes_stories_and_top_story(
     client: TestClient,
     mock_container: MagicMock,
 ) -> None:
-
     digest = Digest(
         id=uuid4(),
         title="Test Digest",
@@ -272,7 +273,6 @@ def test_public_top_story_endpoint(
     client: TestClient,
     mock_container: MagicMock,
 ) -> None:
-
     mock_cluster = StoryCluster(
         id=uuid4(),
         title="Top Story",
@@ -294,7 +294,9 @@ def test_public_top_story_endpoint(
         ranking_window_end = datetime(2026, 1, 2, tzinfo=UTC)
         generated_at = datetime(2026, 1, 1, tzinfo=UTC)
 
-    mock_container.story_cluster_repository.find_recent_active_clusters = AsyncMock(return_value=[mock_cluster])
+    mock_container.story_cluster_repository.find_recent_active_clusters = AsyncMock(
+        return_value=[mock_cluster]
+    )
     mock_container.story_cluster_repository.get_by_id = AsyncMock(return_value=mock_cluster)
     mock_container.article_repository.list_by_cluster_id = AsyncMock(return_value=[])
     mock_container.source_repository.list_all = AsyncMock(return_value=[])
@@ -304,8 +306,8 @@ def test_public_top_story_endpoint(
 
     with unittest.mock.patch(
         "ai_news_digest.api.v1.routes.public.TopStorySelector"
-    ) as MockSelector:
-        mock_selector = MockSelector.return_value
+    ) as mock_selector_class:
+        mock_selector = mock_selector_class.return_value
         mock_selector.rank_and_select.return_value = ([], FakeTopStoryResult())
 
         response = client.get("/public/story-ranking/top-story")
@@ -320,7 +322,6 @@ def test_public_story_cluster_endpoint(
     client: TestClient,
     mock_container: MagicMock,
 ) -> None:
-
     mock_cluster = StoryCluster(
         id=uuid4(),
         title="Test Cluster",
@@ -357,7 +358,6 @@ def test_list_public_story_clusters_returns_paginated(
     client: TestClient,
     mock_container: MagicMock,
 ) -> None:
-
     mock_cluster = StoryCluster(
         id=uuid4(),
         title="Test Cluster",
@@ -396,7 +396,6 @@ def test_list_public_companies_returns_list(
     client: TestClient,
     mock_container: MagicMock,
 ) -> None:
-
     mock_company = MagicMock()
     mock_company.id = uuid4()
     mock_company.name = "Acme Corp"
@@ -416,7 +415,6 @@ def test_list_public_topics_returns_list(
     client: TestClient,
     mock_container: MagicMock,
 ) -> None:
-
     mock_topic = MagicMock()
     mock_topic.id = uuid4()
     mock_topic.name = "AI"
@@ -451,7 +449,9 @@ def test_article_search_includes_why_it_matters(
         status=ArticleStatus.READY,
         why_it_matters="This is very important for AI development",
     )
-    mock_container.article_repository.list_public_articles = AsyncMock(return_value=[article_with_intelligence])
+    mock_container.article_repository.list_public_articles = AsyncMock(
+        return_value=[article_with_intelligence]
+    )
     mock_container.article_repository.count_public_articles = AsyncMock(return_value=1)
 
     response = client.get("/public/articles", params={"search": "important"})

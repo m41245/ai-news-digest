@@ -53,14 +53,10 @@ class SemanticCandidateFinder:
         self._cluster_repository = cluster_repository
         settings = get_settings()
         self._time_window_hours = (
-            time_window_hours
-            if time_window_hours is not None
-            else settings.story_time_window_hours
+            time_window_hours if time_window_hours is not None else settings.story_time_window_hours
         )
         self._candidate_limit = (
-            candidate_limit
-            if candidate_limit is not None
-            else settings.story_candidate_limit
+            candidate_limit if candidate_limit is not None else settings.story_candidate_limit
         )
 
     async def find_candidates(
@@ -104,9 +100,7 @@ class SemanticCandidateFinder:
             category_id=article.category_id,
             company_ids=list(article.company_ids or ()),
             topic_ids=list(article.topic_ids or ()),
-            title_tokens=list(
-                _normalize_title_tokens(article.title) if article.title else []
-            ),
+            title_tokens=list(_normalize_title_tokens(article.title) if article.title else []),
             limit=self._candidate_limit,
         )
 
@@ -121,9 +115,7 @@ class SemanticCandidateFinder:
             category_id=article.category_id,
             company_ids=list(article.company_ids or ()),
             topic_ids=list(article.topic_ids or ()),
-            title_tokens=list(
-                _normalize_title_tokens(article.title) if article.title else []
-            ),
+            title_tokens=list(_normalize_title_tokens(article.title) if article.title else []),
             limit=self._candidate_limit,
         )
 

@@ -4,8 +4,6 @@ Unit tests for M82 conflict explanation utilities.
 
 from __future__ import annotations
 
-import pytest
-
 from ai_news_digest.application.evaluation.conflict_explanation import (
     build_conflict_explanation,
 )

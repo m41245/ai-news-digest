@@ -53,33 +53,41 @@ class IntelligenceEvaluationService:
 
         # Structured output validity
         valid_count = sum(
-            1 for a in articles
+            1
+            for a in articles
             if getattr(a, "summary", None) and getattr(a, "key_takeaways_json", None)
         )
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.STRUCTURED_OUTPUT_VALIDITY,
-            value=valid_count / total,
-            sample_count=total,
-        ))
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.STRUCTURED_OUTPUT_VALIDITY,
+                value=valid_count / total,
+                sample_count=total,
+            )
+        )
 
         # Summary presence
         summary_present = sum(1 for a in articles if getattr(a, "summary", None))
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.SUMMARY_PRESENCE,
-            value=summary_present / total,
-            sample_count=total,
-        ))
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.SUMMARY_PRESENCE,
+                value=summary_present / total,
+                sample_count=total,
+            )
+        )
 
         # Summary empty rate
         empty_summary = sum(
-            1 for a in articles
+            1
+            for a in articles
             if not getattr(a, "summary", None) or not getattr(a, "summary", "").strip()
         )
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.SUMMARY_EMPTY_RATE,
-            value=empty_summary / total,
-            sample_count=total,
-        ))
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.SUMMARY_EMPTY_RATE,
+                value=empty_summary / total,
+                sample_count=total,
+            )
+        )
 
         # Summary length bounds (expect 50-2000 chars)
         summaries_with_length = [
@@ -87,15 +95,18 @@ class IntelligenceEvaluationService:
         ]
         if summaries_with_length:
             in_bounds = sum(1 for length in summaries_with_length if 50 <= length <= 2000)
-            metrics.append(MetricValue(
-                metric_type=EvaluationMetricType.SUMMARY_LENGTH_BOUNDS,
-                value=in_bounds / len(summaries_with_length),
-                sample_count=len(summaries_with_length),
-            ))
+            metrics.append(
+                MetricValue(
+                    metric_type=EvaluationMetricType.SUMMARY_LENGTH_BOUNDS,
+                    value=in_bounds / len(summaries_with_length),
+                    sample_count=len(summaries_with_length),
+                )
+            )
 
         # Metadata completeness
         complete_metadata = sum(
-            1 for a in articles
+            1
+            for a in articles
             if (
                 getattr(a, "ai_provider", None)
                 and getattr(a, "ai_model", None)
@@ -104,26 +115,29 @@ class IntelligenceEvaluationService:
         )
         ai_processed = [a for a in articles if getattr(a, "ai_processed_at", None)]
         if ai_processed:
-            metrics.append(MetricValue(
-                metric_type=EvaluationMetricType.METADATA_COMPLETENESS,
-                value=complete_metadata / len(ai_processed),
-                sample_count=len(ai_processed),
-            ))
+            metrics.append(
+                MetricValue(
+                    metric_type=EvaluationMetricType.METADATA_COMPLETENESS,
+                    value=complete_metadata / len(ai_processed),
+                    sample_count=len(ai_processed),
+                )
+            )
 
         # Why_it_matters presence
         why_present = sum(1 for a in articles if getattr(a, "why_it_matters", None))
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.WHY_IT_MATTERS_PRESENCE,
-            value=why_present / total,
-            sample_count=total,
-        ))
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.WHY_IT_MATTERS_PRESENCE,
+                value=why_present / total,
+                sample_count=total,
+            )
+        )
 
         # Takeaway count bounds (expect 3-10)
-        articles_with_takeaways = [
-            a for a in articles if getattr(a, "key_takeaways_json", None)
-        ]
+        articles_with_takeaways = [a for a in articles if getattr(a, "key_takeaways_json", None)]
         if articles_with_takeaways:
             import json
+
             in_bounds_takeaways = 0
             empty_takeaways = 0
             duplicate_takeaways = 0
@@ -142,36 +156,44 @@ class IntelligenceEvaluationService:
                         duplicate_takeaways += 1
                 except (json.JSONDecodeError, TypeError):
                     empty_takeaways += 1
-            metrics.append(MetricValue(
-                metric_type=EvaluationMetricType.TAKEAWAY_COUNT,
-                value=in_bounds_takeaways / len(articles_with_takeaways),
-                sample_count=len(articles_with_takeaways),
-            ))
-            metrics.append(MetricValue(
-                metric_type=EvaluationMetricType.TAKEAWAY_EMPTY_RATE,
-                value=empty_takeaways / total,
-                sample_count=total,
-            ))
-            metrics.append(MetricValue(
-                metric_type=EvaluationMetricType.TAKEAWAY_DUPLICATE_RATE,
-                value=duplicate_takeaways / len(articles_with_takeaways),
-                sample_count=len(articles_with_takeaways),
-            ))
+            metrics.append(
+                MetricValue(
+                    metric_type=EvaluationMetricType.TAKEAWAY_COUNT,
+                    value=in_bounds_takeaways / len(articles_with_takeaways),
+                    sample_count=len(articles_with_takeaways),
+                )
+            )
+            metrics.append(
+                MetricValue(
+                    metric_type=EvaluationMetricType.TAKEAWAY_EMPTY_RATE,
+                    value=empty_takeaways / total,
+                    sample_count=total,
+                )
+            )
+            metrics.append(
+                MetricValue(
+                    metric_type=EvaluationMetricType.TAKEAWAY_DUPLICATE_RATE,
+                    value=duplicate_takeaways / len(articles_with_takeaways),
+                    sample_count=len(articles_with_takeaways),
+                )
+            )
 
         # Summary oversized rate (>2000 chars)
         oversized = sum(
-            1 for a in articles
-            if getattr(a, "summary", None) and len(a.summary) > 2000
+            1 for a in articles if getattr(a, "summary", None) and len(a.summary) > 2000
         )
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.SUMMARY_OVERSIZED_RATE,
-            value=oversized / total,
-            sample_count=total,
-        ))
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.SUMMARY_OVERSIZED_RATE,
+                value=oversized / total,
+                sample_count=total,
+            )
+        )
 
         # Summary input copy rate (summary length close to content length)
         input_copy = sum(
-            1 for a in articles
+            1
+            for a in articles
             if (
                 getattr(a, "summary", None)
                 and getattr(a, "content", None)
@@ -183,44 +205,49 @@ class IntelligenceEvaluationService:
             a for a in articles if getattr(a, "content", None) and len(a.content) > 200
         ]
         if articles_with_content:
-            metrics.append(MetricValue(
-                metric_type=EvaluationMetricType.SUMMARY_INPUT_COPY_RATE,
-                value=input_copy / len(articles_with_content),
-                sample_count=len(articles_with_content),
-            ))
+            metrics.append(
+                MetricValue(
+                    metric_type=EvaluationMetricType.SUMMARY_INPUT_COPY_RATE,
+                    value=input_copy / len(articles_with_content),
+                    sample_count=len(articles_with_content),
+                )
+            )
 
         # Category validity
         valid_category = sum(
-            1 for a in articles
-            if getattr(a, "category_id", None) or getattr(a, "categories", ())
+            1 for a in articles if getattr(a, "category_id", None) or getattr(a, "categories", ())
         )
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.CATEGORY_VALIDITY,
-            value=valid_category / total,
-            sample_count=total,
-        ))
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.CATEGORY_VALIDITY,
+                value=valid_category / total,
+                sample_count=total,
+            )
+        )
 
         # Company normalization
         normalized_companies = sum(
-            1 for a in articles
-            if getattr(a, "companies", ()) or getattr(a, "company_ids", ())
+            1 for a in articles if getattr(a, "companies", ()) or getattr(a, "company_ids", ())
         )
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.COMPANY_NORMALIZATION,
-            value=normalized_companies / total,
-            sample_count=total,
-        ))
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.COMPANY_NORMALIZATION,
+                value=normalized_companies / total,
+                sample_count=total,
+            )
+        )
 
         # Topic normalization
         normalized_topics = sum(
-            1 for a in articles
-            if getattr(a, "topics", ()) or getattr(a, "topic_ids", ())
+            1 for a in articles if getattr(a, "topics", ()) or getattr(a, "topic_ids", ())
         )
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.TOPIC_NORMALIZATION,
-            value=normalized_topics / total,
-            sample_count=total,
-        ))
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.TOPIC_NORMALIZATION,
+                value=normalized_topics / total,
+                sample_count=total,
+            )
+        )
 
         return metrics
 
@@ -245,62 +272,72 @@ class IntelligenceEvaluationService:
 
         # Evidence attachment rate
         with_evidence = sum(1 for c in claims if evidence_by_claim.get(str(c.id), []))
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.EVIDENCE_ATTACHMENT_RATE,
-            value=with_evidence / total,
-            sample_count=total,
-        ))
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.EVIDENCE_ATTACHMENT_RATE,
+                value=with_evidence / total,
+                sample_count=total,
+            )
+        )
 
         # Supported claim rate
-        supported = sum(
-            1 for c in claims
-            if str(getattr(c, "status", "")).lower() == "supported"
+        supported = sum(1 for c in claims if str(getattr(c, "status", "")).lower() == "supported")
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.SUPPORTED_CLAIM_RATE,
+                value=supported / total,
+                sample_count=total,
+            )
         )
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.SUPPORTED_CLAIM_RATE,
-            value=supported / total,
-            sample_count=total,
-        ))
 
         # Evidence coverage (avg evidence per claim)
         evidence_counts = [len(evidence_by_claim.get(str(c.id), [])) for c in claims]
         avg_coverage = sum(evidence_counts) / total if total > 0 else 0.0
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.EVIDENCE_COVERAGE,
-            value=min(1.0, avg_coverage / 5.0),
-            sample_count=total,
-        ))
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.EVIDENCE_COVERAGE,
+                value=min(1.0, avg_coverage / 5.0),
+                sample_count=total,
+            )
+        )
 
         # Conflict detection rate
         with_conflicts = sum(1 for c in claims if conflicts_by_claim.get(str(c.id), []))
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.CONFLICT_DETECTION_RATE,
-            value=with_conflicts / total,
-            sample_count=total,
-        ))
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.CONFLICT_DETECTION_RATE,
+                value=with_conflicts / total,
+                sample_count=total,
+            )
+        )
 
         # Claim completeness (non-empty text and valid type)
         complete_claims = sum(
-            1 for c in claims
-            if getattr(c, "claim_text", None) and getattr(c, "claim_text", "").strip()
+            1
+            for c in claims
+            if getattr(c, "claim_text", None)
+            and getattr(c, "claim_text", "").strip()
             and getattr(c, "claim_type", None) is not None
         )
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.CLAIM_COMPLETENESS,
-            value=complete_claims / total,
-            sample_count=total,
-        ))
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.CLAIM_COMPLETENESS,
+                value=complete_claims / total,
+                sample_count=total,
+            )
+        )
 
         # Provenance completeness
         complete = sum(
-            1 for c in claims
-            if getattr(c, "ai_provider", None) and getattr(c, "ai_model", None)
+            1 for c in claims if getattr(c, "ai_provider", None) and getattr(c, "ai_model", None)
         )
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.PROVENANCE_COMPLETENESS,
-            value=complete / total,
-            sample_count=total,
-        ))
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.PROVENANCE_COMPLETENESS,
+                value=complete / total,
+                sample_count=total,
+            )
+        )
 
         return metrics
 
@@ -322,29 +359,35 @@ class IntelligenceEvaluationService:
         articles_by_cluster = articles_by_cluster or {}
 
         # Duplicate rate (clusters with only 1 article)
-        singletons = sum(
-            1 for c in clusters
-            if len(articles_by_cluster.get(str(c.id), [])) <= 1
+        singletons = sum(1 for c in clusters if len(articles_by_cluster.get(str(c.id), [])) <= 1)
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.CLUSTER_SINGLETON_RATE,
+                value=singletons / total,
+                sample_count=total,
+            )
         )
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.CLUSTER_SINGLETON_RATE,
-            value=singletons / total,
-            sample_count=total,
-        ))
 
         # Source diversity
         multi_source = sum(
-            1 for c in clusters
-            if len({
-                a.source_id for a in articles_by_cluster.get(str(c.id), [])
-                if getattr(a, "source_id", None)
-            }) > 1
+            1
+            for c in clusters
+            if len(
+                {
+                    a.source_id
+                    for a in articles_by_cluster.get(str(c.id), [])
+                    if getattr(a, "source_id", None)
+                }
+            )
+            > 1
         )
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.CLUSTER_DUPLICATE_RATE,
-            value=1.0 - (multi_source / total) if total > 0 else 0.0,
-            sample_count=total,
-        ))
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.CLUSTER_DUPLICATE_RATE,
+                value=1.0 - (multi_source / total) if total > 0 else 0.0,
+                sample_count=total,
+            )
+        )
 
         return metrics
 
@@ -363,24 +406,24 @@ class IntelligenceEvaluationService:
             return metrics
 
         # Source diversity
-        multi_source = sum(
-            1 for t in trends if getattr(t, "source_count", 0) > 1
+        multi_source = sum(1 for t in trends if getattr(t, "source_count", 0) > 1)
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.TREND_SCORE_DISTRIBUTION,
+                value=multi_source / total,
+                sample_count=total,
+            )
         )
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.TREND_SCORE_DISTRIBUTION,
-            value=multi_source / total,
-            sample_count=total,
-        ))
 
         # Provenance completeness
-        complete = sum(
-            1 for t in trends if getattr(t, "source_count", 0) > 0
+        complete = sum(1 for t in trends if getattr(t, "source_count", 0) > 0)
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.PROVENANCE_COMPLETENESS,
+                value=complete / total,
+                sample_count=total,
+            )
         )
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.PROVENANCE_COMPLETENESS,
-            value=complete / total,
-            sample_count=total,
-        ))
 
         return metrics
 
@@ -400,29 +443,31 @@ class IntelligenceEvaluationService:
 
         # Relationship completeness
         complete = sum(
-            1 for r in relationships
+            1
+            for r in relationships
             if (
                 getattr(r, "subject_entity_id", None)
                 and getattr(r, "object_entity_id", None)
                 and getattr(r, "relationship_type", None)
             )
         )
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.GRAPH_RELATIONSHIP_COMPLETENESS,
-            value=complete / total,
-            sample_count=total,
-        ))
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.GRAPH_RELATIONSHIP_COMPLETENESS,
+                value=complete / total,
+                sample_count=total,
+            )
+        )
 
         # Provenance completeness
-        with_provenance = sum(
-            1 for r in relationships
-            if getattr(r, "provenance_source", None)
+        with_provenance = sum(1 for r in relationships if getattr(r, "provenance_source", None))
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.PROVENANCE_COMPLETENESS,
+                value=with_provenance / total,
+                sample_count=total,
+            )
         )
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.PROVENANCE_COMPLETENESS,
-            value=with_provenance / total,
-            sample_count=total,
-        ))
 
         return metrics
 
@@ -442,25 +487,27 @@ class IntelligenceEvaluationService:
 
         # Extraction success rate (non-None content with sufficient length)
         successful = sum(
-            1 for a in articles
+            1
+            for a in articles
             if getattr(a, "content", None) and len(getattr(a, "content", "")) >= 200
         )
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.EXTRACTION_SUCCESS_RATE,
-            value=successful / total,
-            sample_count=total,
-        ))
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.EXTRACTION_SUCCESS_RATE,
+                value=successful / total,
+                sample_count=total,
+            )
+        )
 
         # Fallback rate (rss extraction method)
-        fallback = sum(
-            1 for a in articles
-            if getattr(a, "extraction_method", "") != "rss"
+        fallback = sum(1 for a in articles if getattr(a, "extraction_method", "") != "rss")
+        metrics.append(
+            MetricValue(
+                metric_type=EvaluationMetricType.EXTRACTION_FALLBACK_RATE,
+                value=fallback / total,
+                sample_count=total,
+            )
         )
-        metrics.append(MetricValue(
-            metric_type=EvaluationMetricType.EXTRACTION_FALLBACK_RATE,
-            value=fallback / total,
-            sample_count=total,
-        ))
 
         return metrics
 
@@ -510,24 +557,20 @@ class IntelligenceEvaluationService:
                     claim_ids = {str(c.id) for c in claims}
                     for conflict in conflicts:
                         if str(getattr(conflict, "claim_a_id", "")) in claim_ids:
-                            conflicts_by_claim.setdefault(
-                                str(conflict.claim_a_id), []
-                            ).append(conflict)
+                            conflicts_by_claim.setdefault(str(conflict.claim_a_id), []).append(
+                                conflict
+                            )
                         if str(getattr(conflict, "claim_b_id", "")) in claim_ids:
-                            conflicts_by_claim.setdefault(
-                                str(conflict.claim_b_id), []
-                            ).append(conflict)
+                            conflicts_by_claim.setdefault(str(conflict.claim_b_id), []).append(
+                                conflict
+                            )
 
                     metrics.extend(await self.evaluate_articles(articles))
                     metrics.extend(
-                        await self.evaluate_claims(
-                            claims, evidence_by_claim, conflicts_by_claim
-                        )
+                        await self.evaluate_claims(claims, evidence_by_claim, conflicts_by_claim)
                     )
                     metrics.extend(
-                        await self.evaluate_story_clusters(
-                            clusters, articles_by_cluster
-                        )
+                        await self.evaluate_story_clusters(clusters, articles_by_cluster)
                     )
                     metrics.extend(await self.evaluate_trends(trends))
                     metrics.extend(await self.evaluate_relationships(relationships))
@@ -586,16 +629,16 @@ class IntelligenceEvaluationService:
         status = EvaluationStatus.FAILED if error else EvaluationStatus.COMPLETED
 
         total_sample_count = sum(m.sample_count for m in metrics)
-        overall_value = (
-            sum(m.value for m in metrics) / len(metrics)
-            if metrics else 0.0
-        )
+        overall_value = sum(m.value for m in metrics) / len(metrics) if metrics else 0.0
         if overall_value > 0:
-            metrics.insert(0, MetricValue(
-                metric_type=EvaluationMetricType.OVERALL_QUALITY,
-                value=overall_value,
-                sample_count=total_sample_count,
-            ))
+            metrics.insert(
+                0,
+                MetricValue(
+                    metric_type=EvaluationMetricType.OVERALL_QUALITY,
+                    value=overall_value,
+                    sample_count=total_sample_count,
+                ),
+            )
 
         return EvaluationReport(
             run_id=run_id,

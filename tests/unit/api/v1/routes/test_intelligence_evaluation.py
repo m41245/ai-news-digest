@@ -4,24 +4,21 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from fastapi import HTTPException
-from ai_news_digest.api.v1.routes.intelligence_evaluation import router
-from ai_news_digest.domain.evaluation.metrics import (
-    EvaluationMetricType,
-    EvaluationReport,
-    EvaluationStatus,
-    MetricValue,
-)
-from ai_news_digest.domain.models.user import User
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
 from ai_news_digest.api.v1.dependencies.auth import get_current_admin_user
 from ai_news_digest.api.v1.dependencies.dependencies import get_container
-from fastapi import FastAPI, Depends
-from fastapi.testclient import TestClient
+from ai_news_digest.api.v1.routes.intelligence_evaluation import router
+from ai_news_digest.domain.models.user import User
+
 
 @pytest.fixture
 def mock_admin():
     return MagicMock(spec=User, is_admin=True, is_active=True)
+
 
 @pytest.fixture
 def mock_container():
@@ -40,17 +37,16 @@ def mock_container():
 class TestListEvaluationRuns:
     @pytest.mark.asyncio
     async def test_list_runs_requires_admin(self, mock_container, mock_admin):
-        from ai_news_digest.api.v1.dependencies.dependencies import get_container
-        from fastapi import Depends
-        from ai_news_digest.api.v1.dependencies.auth import get_current_admin_user
-
         # Just verify the router has the endpoint
         routes = [r.path for r in router.routes]
         assert "/intelligence/evaluations" in routes
 
     @pytest.mark.asyncio
     async def test_list_runs_paginated(self, mock_container, mock_admin):
-        from ai_news_digest.infrastructure.database.models.evaluation_run_model import EvaluationRunModel
+        from ai_news_digest.infrastructure.database.models.evaluation_run_model import (
+            EvaluationRunModel,
+        )
+
         run = MagicMock(spec=EvaluationRunModel)
         run.run_id = "run-1"
         run.evaluation_type = "daily"
@@ -70,6 +66,7 @@ class TestListEvaluationRuns:
 
         # Verify the response model shape
         from ai_news_digest.api.v1.schemas.intelligence_evaluation import EvaluationRunResponse
+
         resp = EvaluationRunResponse(
             run_id="run-1",
             evaluation_type="daily",
@@ -85,12 +82,7 @@ class TestListEvaluationRuns:
 
 class TestDriftEndpoint:
     @pytest.mark.asyncio
-    async def test_drift_health_requires_baseline(
-        self, mock_container, mock_admin
-    ):
-        from fastapi import FastAPI, Depends
-        from ai_news_digest.api.v1.dependencies.dependencies import get_container
-        from ai_news_digest.api.v1.dependencies.auth import get_current_admin_user
+    async def test_drift_health_requires_baseline(self, mock_container, mock_admin):
         from ai_news_digest.api.v1.routes.intelligence_evaluation import router
 
         app = FastAPI()

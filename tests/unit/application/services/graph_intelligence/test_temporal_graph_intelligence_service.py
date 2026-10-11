@@ -7,12 +7,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-import pytest
-
 from ai_news_digest.application.services.graph_intelligence.temporal_graph_intelligence_service import (
-    EntityEvolution,
-    RelationshipActivity,
-    RelationshipChangeEvent,
     TemporalGraphIntelligenceService,
 )
 from ai_news_digest.domain.enums.entity_type import EntityType
@@ -21,7 +16,7 @@ from ai_news_digest.domain.enums.relationship_activity_status import (
 )
 from ai_news_digest.domain.enums.relationship_status import RelationshipStatus
 from ai_news_digest.domain.enums.relationship_type import RelationshipType
-from ai_news_digest.domain.models.relationship import Relationship, ProvenanceSource
+from ai_news_digest.domain.models.relationship import ProvenanceSource, Relationship
 
 
 def _make_relationship(

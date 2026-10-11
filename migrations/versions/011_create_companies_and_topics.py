@@ -73,22 +73,12 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("now()"),
         ),
-        sa.ForeignKeyConstraint(
-            ["article_id"], ["articles.id"], ondelete="CASCADE"
-        ),
-        sa.ForeignKeyConstraint(
-            ["company_id"], ["companies.id"], ondelete="CASCADE"
-        ),
-        sa.UniqueConstraint(
-            "article_id", "company_id", name="uq_article_companies"
-        ),
+        sa.ForeignKeyConstraint(["article_id"], ["articles.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["company_id"], ["companies.id"], ondelete="CASCADE"),
+        sa.UniqueConstraint("article_id", "company_id", name="uq_article_companies"),
     )
-    op.create_index(
-        "ix_article_companies_article_id", "article_companies", ["article_id"]
-    )
-    op.create_index(
-        "ix_article_companies_company_id", "article_companies", ["company_id"]
-    )
+    op.create_index("ix_article_companies_article_id", "article_companies", ["article_id"])
+    op.create_index("ix_article_companies_company_id", "article_companies", ["company_id"])
 
     op.create_table(
         "article_topics",
@@ -101,15 +91,11 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("now()"),
         ),
-        sa.ForeignKeyConstraint(
-            ["article_id"], ["articles.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["article_id"], ["articles.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["topic_id"], ["topics.id"], ondelete="CASCADE"),
         sa.UniqueConstraint("article_id", "topic_id", name="uq_article_topics"),
     )
-    op.create_index(
-        "ix_article_topics_article_id", "article_topics", ["article_id"]
-    )
+    op.create_index("ix_article_topics_article_id", "article_topics", ["article_id"])
     op.create_index("ix_article_topics_topic_id", "article_topics", ["topic_id"])
 
     op.create_table(
@@ -123,22 +109,12 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("now()"),
         ),
-        sa.ForeignKeyConstraint(
-            ["article_id"], ["articles.id"], ondelete="CASCADE"
-        ),
-        sa.ForeignKeyConstraint(
-            ["category_id"], ["categories.id"], ondelete="CASCADE"
-        ),
-        sa.UniqueConstraint(
-            "article_id", "category_id", name="uq_article_categories"
-        ),
+        sa.ForeignKeyConstraint(["article_id"], ["articles.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["category_id"], ["categories.id"], ondelete="CASCADE"),
+        sa.UniqueConstraint("article_id", "category_id", name="uq_article_categories"),
     )
-    op.create_index(
-        "ix_article_categories_article_id", "article_categories", ["article_id"]
-    )
-    op.create_index(
-        "ix_article_categories_category_id", "article_categories", ["category_id"]
-    )
+    op.create_index("ix_article_categories_article_id", "article_categories", ["article_id"])
+    op.create_index("ix_article_categories_category_id", "article_categories", ["category_id"])
 
     # Backfill: replicate existing Article.category_id into the new
     # many-to-many table so nothing is lost.
@@ -151,24 +127,16 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop the new tables in reverse order."""
-    op.drop_index(
-        "ix_article_categories_category_id", table_name="article_categories"
-    )
-    op.drop_index(
-        "ix_article_categories_article_id", table_name="article_categories"
-    )
+    op.drop_index("ix_article_categories_category_id", table_name="article_categories")
+    op.drop_index("ix_article_categories_article_id", table_name="article_categories")
     op.drop_table("article_categories")
 
     op.drop_index("ix_article_topics_topic_id", table_name="article_topics")
     op.drop_index("ix_article_topics_article_id", table_name="article_topics")
     op.drop_table("article_topics")
 
-    op.drop_index(
-        "ix_article_companies_company_id", table_name="article_companies"
-    )
-    op.drop_index(
-        "ix_article_companies_article_id", table_name="article_companies"
-    )
+    op.drop_index("ix_article_companies_company_id", table_name="article_companies")
+    op.drop_index("ix_article_companies_article_id", table_name="article_companies")
     op.drop_table("article_companies")
 
     op.drop_index("ix_topics_name", table_name="topics")

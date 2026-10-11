@@ -101,8 +101,7 @@ class StoryClusterRepository(
         if category_id is not None:
             statement = statement.where(
                 exists(
-                    select(1)
-                    .where(
+                    select(1).where(
                         and_(
                             ArticleModel.cluster_id == StoryClusterModel.id,
                             ArticleModel.category_id == str(category_id),
@@ -115,8 +114,7 @@ class StoryClusterRepository(
             company_strs = [str(cid) for cid in company_ids]
             statement = statement.where(
                 exists(
-                    select(1)
-                    .where(
+                    select(1).where(
                         and_(
                             ArticleModel.cluster_id == StoryClusterModel.id,
                             ArticleCompanyModel.article_id == ArticleModel.id,
@@ -130,8 +128,7 @@ class StoryClusterRepository(
             topic_strs = [str(tid) for tid in topic_ids]
             statement = statement.where(
                 exists(
-                    select(1)
-                    .where(
+                    select(1).where(
                         and_(
                             ArticleModel.cluster_id == StoryClusterModel.id,
                             ArticleTopicModel.article_id == ArticleModel.id,
@@ -204,8 +201,7 @@ class StoryClusterRepository(
         if category_id is not None:
             statement = statement.where(
                 exists(
-                    select(1)
-                    .where(
+                    select(1).where(
                         and_(
                             ArticleModel.cluster_id == StoryClusterModel.id,
                             ArticleModel.category_id == str(category_id),
@@ -217,8 +213,7 @@ class StoryClusterRepository(
         if company_id is not None:
             statement = statement.where(
                 exists(
-                    select(1)
-                    .where(
+                    select(1).where(
                         and_(
                             ArticleModel.cluster_id == StoryClusterModel.id,
                             ArticleCompanyModel.article_id == ArticleModel.id,
@@ -231,8 +226,7 @@ class StoryClusterRepository(
         if topic_id is not None:
             statement = statement.where(
                 exists(
-                    select(1)
-                    .where(
+                    select(1).where(
                         and_(
                             ArticleModel.cluster_id == StoryClusterModel.id,
                             ArticleTopicModel.article_id == ArticleModel.id,
@@ -311,8 +305,7 @@ class StoryClusterRepository(
         if category_id is not None:
             statement = statement.where(
                 exists(
-                    select(1)
-                    .where(
+                    select(1).where(
                         and_(
                             ArticleModel.cluster_id == StoryClusterModel.id,
                             ArticleModel.category_id == str(category_id),
@@ -324,8 +317,7 @@ class StoryClusterRepository(
         if company_id is not None:
             statement = statement.where(
                 exists(
-                    select(1)
-                    .where(
+                    select(1).where(
                         and_(
                             ArticleModel.cluster_id == StoryClusterModel.id,
                             ArticleCompanyModel.article_id == ArticleModel.id,
@@ -338,8 +330,7 @@ class StoryClusterRepository(
         if topic_id is not None:
             statement = statement.where(
                 exists(
-                    select(1)
-                    .where(
+                    select(1).where(
                         and_(
                             ArticleModel.cluster_id == StoryClusterModel.id,
                             ArticleTopicModel.article_id == ArticleModel.id,

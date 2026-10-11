@@ -6,7 +6,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ai_news_digest.application.ai.claim_schemas import (
     ClaimSchema,
-    EvidenceSchema,
     validate_claims_output,
 )
 
@@ -95,7 +94,6 @@ class StructuredIntelligence(BaseModel):
         if value is None:
             return None
         return max(0.0, min(1.0, float(value)))
-
 
     @field_validator("claims", mode="before")
     @classmethod

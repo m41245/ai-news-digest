@@ -142,13 +142,9 @@ class TopStorySelector:
                 )
             )
 
-        ranked_results = [
-            self._ranking_engine.rank_cluster(ctx) for ctx in eligible_contexts
-        ]
+        ranked_results = [self._ranking_engine.rank_cluster(ctx) for ctx in eligible_contexts]
 
-        ranked_clusters = self._build_ranked_clusters(
-            clusters, ranked_results, cluster_articles
-        )
+        ranked_clusters = self._build_ranked_clusters(clusters, ranked_results, cluster_articles)
 
         top_id = None
         top_score = None

@@ -1,8 +1,8 @@
 """Unit tests for RelatedStoryFinder."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -17,7 +17,6 @@ from ai_news_digest.application.services.semantic_candidate_finder import (
 )
 from ai_news_digest.application.services.semantic_duplicate_detector import (
     SemanticDuplicateDetector,
-    SemanticMatchResult,
 )
 from ai_news_digest.domain.enums.semantic_match_type import SemanticMatchType
 from ai_news_digest.domain.models.article import Article
@@ -26,6 +25,7 @@ from ai_news_digest.domain.models.story_cluster import StoryCluster
 
 def _make_article(title: str = "Test Article") -> Article:
     import uuid
+
     from ai_news_digest.domain.enums.article_status import ArticleStatus
 
     article = Article.create(
@@ -53,9 +53,7 @@ def _make_cluster(title: str = "Test Cluster") -> StoryCluster:
 def mock_embedding_service() -> EmbeddingService:
     service = MagicMock(spec=EmbeddingService)
     service.is_available = True
-    service.generate = AsyncMock(
-        return_value=MagicMock(embedding=(1.0, 0.0, 0.0))
-    )
+    service.generate = AsyncMock(return_value=MagicMock(embedding=(1.0, 0.0, 0.0)))
     return service
 
 
@@ -114,30 +112,22 @@ def finder(
 class TestRelatedStoryFinder:
     @pytest.mark.asyncio
     async def test_empty_clusters_returns_empty(self, finder: RelatedStoryFinder) -> None:
-        result = await finder.find_for_article(
-            _make_article(), None, [], limit=10
-        )
+        result = await finder.find_for_article(_make_article(), None, [], limit=10)
         assert result == []
 
     @pytest.mark.asyncio
-    async def test_excludes_current_cluster(
-        self, finder: RelatedStoryFinder
-    ) -> None:
+    async def test_excludes_current_cluster(self, finder: RelatedStoryFinder) -> None:
         cluster = _make_cluster("Current")
         article = _make_article("Test")
         article.cluster_id = cluster.id
-        result = await finder.find_for_article(
-            article, str(cluster.id), [cluster], limit=10
-        )
+        result = await finder.find_for_article(article, str(cluster.id), [cluster], limit=10)
         assert len(result) == 0
 
     @pytest.mark.asyncio
     async def test_returns_related_stories(self, finder: RelatedStoryFinder) -> None:
         cluster = _make_cluster("Related")
         article = _make_article("Test")
-        result = await finder.find_for_article(
-            article, None, [cluster], limit=10
-        )
+        result = await finder.find_for_article(article, None, [cluster], limit=10)
         assert len(result) > 0
         assert result[0].cluster_id == str(cluster.id)
 
@@ -145,7 +135,5 @@ class TestRelatedStoryFinder:
     async def test_respects_limit(self, finder: RelatedStoryFinder) -> None:
         clusters = [_make_cluster(f"Cluster {i}") for i in range(20)]
         article = _make_article("Test")
-        result = await finder.find_for_article(
-            article, None, clusters, limit=5
-        )
+        result = await finder.find_for_article(article, None, clusters, limit=5)
         assert len(result) <= 5

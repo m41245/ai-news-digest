@@ -32,9 +32,7 @@ def provider_registry() -> ProviderRegistry:
 @pytest.fixture
 def capability_registry() -> CapabilityRegistry:
     registry = CapabilityRegistry()
-    registry.register_capability(
-        Capability(id="test_capability", name="Test Capability")
-    )
+    registry.register_capability(Capability(id="test_capability", name="Test Capability"))
     return registry
 
 

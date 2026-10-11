@@ -50,9 +50,7 @@ class ConflictMapper:
         )
         model.same_source = conflict.same_source
         model.conflict_metadata = (
-            json.dumps(conflict.metadata, ensure_ascii=False)
-            if conflict.metadata
-            else None
+            json.dumps(conflict.metadata, ensure_ascii=False) if conflict.metadata else None
         )
 
     @staticmethod

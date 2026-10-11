@@ -37,9 +37,7 @@ class RelationshipRepository:
     async def create(self, relationship: Relationship) -> Relationship:
         raise NotImplementedError
 
-    async def bulk_create(
-        self, relationships: list[Relationship]
-    ) -> list[Relationship]:
+    async def bulk_create(self, relationships: list[Relationship]) -> list[Relationship]:
         raise NotImplementedError
 
     async def update_status(

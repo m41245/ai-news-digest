@@ -132,4 +132,3 @@ def _deserialize_metadata(raw: str | None) -> dict[str, str]:
 
 
 __all__ = ["TrendMapper"]
-

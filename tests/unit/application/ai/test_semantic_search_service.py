@@ -1,4 +1,5 @@
 """Unit tests for SemanticSearchService."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -8,9 +9,9 @@ import pytest
 
 from ai_news_digest.application.ai.embedding_service import EmbeddingService
 from ai_news_digest.application.ai.semantic_search_service import (
-    SemanticSearchService,
     ScoredArticle,
     ScoredCluster,
+    SemanticSearchService,
 )
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.models.story_cluster import StoryCluster
@@ -18,6 +19,7 @@ from ai_news_digest.domain.models.story_cluster import StoryCluster
 
 def _make_article(title: str = "Test Article") -> Article:
     import uuid
+
     from ai_news_digest.domain.enums.article_status import ArticleStatus
 
     article = Article.create(
@@ -76,14 +78,10 @@ class TestSemanticSearchService:
         assert all(r.similarity == 0.0 for r in result)
 
     @pytest.mark.asyncio
-    async def test_returns_scored_articles(
-        self, mock_embedding_service: EmbeddingService
-    ) -> None:
+    async def test_returns_scored_articles(self, mock_embedding_service: EmbeddingService) -> None:
         svc = SemanticSearchService(embedding_service=mock_embedding_service)
         articles = [_make_article("A"), _make_article("B")]
-        result = await svc.search_articles(
-            "query", articles, query_embedding=(1.0, 0.0, 0.0)
-        )
+        result = await svc.search_articles("query", articles, query_embedding=(1.0, 0.0, 0.0))
         assert len(result) == 2
         assert all(isinstance(r, ScoredArticle) for r in result)
         assert all(0.0 <= r.similarity <= 1.0 for r in result)
@@ -100,8 +98,6 @@ class TestSemanticSearchService:
     ) -> None:
         svc = SemanticSearchService(embedding_service=mock_embedding_service)
         clusters = [_make_cluster("C1"), _make_cluster("C2")]
-        result = await svc.search_clusters(
-            "query", clusters, query_embedding=(1.0, 0.0, 0.0)
-        )
+        result = await svc.search_clusters("query", clusters, query_embedding=(1.0, 0.0, 0.0))
         assert len(result) == 2
         assert all(isinstance(r, ScoredCluster) for r in result)

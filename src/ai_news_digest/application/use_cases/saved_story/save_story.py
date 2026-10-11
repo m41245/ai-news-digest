@@ -21,7 +21,8 @@ class SaveStoryUseCase:
         note: str | None = None,
     ) -> SavedStory:
         existing = await self._saved_story_repository.get_by_user_and_story(
-            user_id, story_cluster_id,
+            user_id,
+            story_cluster_id,
         )
         if existing is not None:
             raise DuplicateResourceError("Story is already saved.")

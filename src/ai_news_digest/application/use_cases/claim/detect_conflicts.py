@@ -151,9 +151,7 @@ class DetectClaimConflictsUseCase:
             if conflicts_created >= max_comparisons:
                 break
 
-            deterministic = run_deterministic_detection(
-                candidate.claim_a, candidate.claim_b
-            )
+            deterministic = run_deterministic_detection(candidate.claim_a, candidate.claim_b)
 
             if deterministic is None:
                 skipped += 1
@@ -184,10 +182,7 @@ class DetectClaimConflictsUseCase:
                     if llm_result.reason:
                         explanation = llm_result.reason
                     if llm_result.conflicting_aspects:
-                        explanation += (
-                            " Aspects: "
-                            + ", ".join(llm_result.conflicting_aspects)
-                        )
+                        explanation += " Aspects: " + ", ".join(llm_result.conflicting_aspects)
 
             factors = ConflictConfidenceFactors(
                 entity_match=bool(candidate.company_overlap or candidate.topic_overlap),
@@ -202,9 +197,7 @@ class DetectClaimConflictsUseCase:
             )
             confidence = compute_conflict_confidence(factors, conflict_type)
 
-            story_cluster_id = self._find_shared_story_cluster(
-                candidate.claim_a, candidate.claim_b
-            )
+            story_cluster_id = self._find_shared_story_cluster(candidate.claim_a, candidate.claim_b)
 
             conflict = Conflict.create(
                 claim_a_id=candidate.claim_a.id,

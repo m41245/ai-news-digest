@@ -95,9 +95,7 @@ class SqlAlchemyClaimRepository(BaseRepository[ClaimModel], ClaimRepository):
         return [EvidenceMapper.to_domain(model) for model in result.scalars().all()]
 
     async def delete_evidence_for_claim(self, claim_id: UUID) -> int:
-        stmt = delete(ClaimEvidenceModel).where(
-            ClaimEvidenceModel.claim_id == str(claim_id)
-        )
+        stmt = delete(ClaimEvidenceModel).where(ClaimEvidenceModel.claim_id == str(claim_id))
         result = await self._session.execute(stmt)
         await self._commit()
         return int(result.rowcount)
@@ -132,6 +130,7 @@ class SqlAlchemyClaimRepository(BaseRepository[ClaimModel], ClaimRepository):
         from ai_news_digest.infrastructure.database.mappers.article_mapper import (
             ArticleMapper,
         )
+
         return ArticleMapper.to_domain(model)
 
     async def get_source_for_conflict(self, source_id: UUID) -> Source | None:
@@ -143,6 +142,7 @@ class SqlAlchemyClaimRepository(BaseRepository[ClaimModel], ClaimRepository):
         from ai_news_digest.infrastructure.database.mappers.source_mapper import (
             SourceMapper,
         )
+
         return SourceMapper.to_domain(model)
 
 

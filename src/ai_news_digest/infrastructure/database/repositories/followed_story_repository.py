@@ -36,9 +36,7 @@ class SqlAlchemyFollowedStoryRepository(
         model = await self._add_and_refresh(model)
         return self._to_domain(model)
 
-    async def get_by_id(
-        self, followed_story_id: UUID
-    ) -> FollowedStory | None:
+    async def get_by_id(self, followed_story_id: UUID) -> FollowedStory | None:
         statement = select(FollowedStoryModel).where(
             FollowedStoryModel.id == str(followed_story_id)
         )
@@ -69,9 +67,13 @@ class SqlAlchemyFollowedStoryRepository(
         limit: int = 20,
         offset: int = 0,
     ) -> tuple[list[FollowedStory], int]:
-        base_statement = select(FollowedStoryModel).where(
-            FollowedStoryModel.user_id == str(user_id),
-        ).order_by(FollowedStoryModel.created_at.desc())
+        base_statement = (
+            select(FollowedStoryModel)
+            .where(
+                FollowedStoryModel.user_id == str(user_id),
+            )
+            .order_by(FollowedStoryModel.created_at.desc())
+        )
 
         count_statement = select(func.count()).select_from(base_statement.subquery())
         total_result = await self._session.execute(count_statement)
@@ -96,8 +98,12 @@ class SqlAlchemyFollowedStoryRepository(
         return True
 
     async def count_by_user(self, user_id: UUID) -> int:
-        statement = select(func.count()).select_from(FollowedStoryModel).where(
-            FollowedStoryModel.user_id == str(user_id),
+        statement = (
+            select(func.count())
+            .select_from(FollowedStoryModel)
+            .where(
+                FollowedStoryModel.user_id == str(user_id),
+            )
         )
         result = await self._session.execute(statement)
         return result.scalar_one()

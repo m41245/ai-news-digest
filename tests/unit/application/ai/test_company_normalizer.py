@@ -4,7 +4,6 @@ Unit tests for company normalization.
 
 from __future__ import annotations
 
-
 from ai_news_digest.application.ai.company_normalizer import (
     _KNOWN_COMPANIES,
     is_known_company,
@@ -59,4 +58,4 @@ class TestKnownCompaniesRegistry:
         assert len(names) == len(set(names))
 
 
-__all__ = ["TestNormalizeCompany", "TestIsKnownCompany", "TestKnownCompaniesRegistry"]
+__all__ = ["TestIsKnownCompany", "TestKnownCompaniesRegistry", "TestNormalizeCompany"]

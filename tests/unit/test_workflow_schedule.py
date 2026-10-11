@@ -12,10 +12,7 @@ import pathlib
 import yaml
 
 _WORKFLOW_PATH = (
-    pathlib.Path(__file__).resolve().parents[2]
-    / ".github"
-    / "workflows"
-    / "scheduled-tasks.yml"
+    pathlib.Path(__file__).resolve().parents[2] / ".github" / "workflows" / "scheduled-tasks.yml"
 )
 
 
@@ -125,9 +122,9 @@ def test_workflow_has_no_misleading_environment_input() -> None:
     workflow = _load_workflow()
     triggers = workflow.get("on") or workflow.get(True) or {}
     dispatch = triggers.get("workflow_dispatch", {})
-    assert "environment" not in dispatch.get("inputs", {}), (
-        "Workflow must not have an environment input that is never used"
-    )
+    assert "environment" not in dispatch.get(
+        "inputs", {}
+    ), "Workflow must not have an environment input that is never used"
 
 
 def test_workflow_uses_fail_fast_bash() -> None:
@@ -194,12 +191,12 @@ def test_workflow_schedule_is_disabled_by_default() -> None:
     job = workflow["jobs"]["scheduled-task"]
     run_step = job["steps"][-1]
     script = run_step["run"]
-    assert "ENABLE_PRODUCTION_SCHEDULE" in script, (
-        "Workflow must check ENABLE_PRODUCTION_SCHEDULE before running scheduled tasks"
-    )
-    assert "exit 0" in script, (
-        "Workflow must exit successfully when production schedule is disabled"
-    )
+    assert (
+        "ENABLE_PRODUCTION_SCHEDULE" in script
+    ), "Workflow must check ENABLE_PRODUCTION_SCHEDULE before running scheduled tasks"
+    assert (
+        "exit 0" in script
+    ), "Workflow must exit successfully when production schedule is disabled"
 
 
 def test_celery_beat_schedule_is_preserved() -> None:

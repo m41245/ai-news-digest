@@ -7,15 +7,12 @@ for the direct runner.
 
 from __future__ import annotations
 
-import importlib
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 import scripts.scheduled.run_task as run_task_module
 from scripts.scheduled.run_task import _import_impl, run_task
-
 
 _ALL_BEAT_TASKS = [
     "ingest",

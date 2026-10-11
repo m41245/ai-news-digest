@@ -139,10 +139,7 @@ class TestIntelligenceHealthService:
         assert health.status == IntelligenceHealthStatus.DEGRADED
 
     def test_derive_status_from_gates(self, service: IntelligenceHealthService) -> None:
-        assert (
-            service.derive_status_from_gates([])
-            == IntelligenceHealthStatus.INSUFFICIENT_DATA
-        )
+        assert service.derive_status_from_gates([]) == IntelligenceHealthStatus.INSUFFICIENT_DATA
         gate_fail = _make_gate_result(
             "g1", IntelligenceComponent.EXTRACTION, QualityGateResult.FAIL
         )

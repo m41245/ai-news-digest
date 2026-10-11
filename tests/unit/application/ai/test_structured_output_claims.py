@@ -4,8 +4,6 @@ Unit tests for M81 structured output with claims.
 
 from __future__ import annotations
 
-import pytest
-
 from ai_news_digest.application.ai.structured_output import (
     StructuredIntelligence,
     validate_structured_output,
@@ -26,9 +24,7 @@ class TestStructuredIntelligenceWithClaims:
         assert obj.claims[0].claim == "OpenAI released GPT-5."
 
     def test_invalid_claims_default_to_empty(self) -> None:
-        obj = validate_structured_output(
-            {"summary": "s", "claims": "not-a-list"}
-        )
+        obj = validate_structured_output({"summary": "s", "claims": "not-a-list"})
         assert obj.claims == ()
 
 

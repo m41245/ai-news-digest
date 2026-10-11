@@ -107,9 +107,7 @@ class UserPreferenceMapper:
             followed_source_ids=frozenset(
                 UUID(link.source_id) for link in (followed_sources or [])
             ),
-            muted_source_ids=frozenset(
-                UUID(link.source_id) for link in (muted_sources or [])
-            ),
+            muted_source_ids=frozenset(UUID(link.source_id) for link in (muted_sources or [])),
             min_importance=model.min_importance,
             min_confidence=model.min_confidence,
             feed_sort=model.feed_sort,

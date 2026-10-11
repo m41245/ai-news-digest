@@ -19,7 +19,8 @@ class FollowStoryUseCase:
         story_cluster_id: UUID,
     ) -> FollowedStory:
         existing = await self._followed_story_repository.get_by_user_and_story(
-            user_id, story_cluster_id,
+            user_id,
+            story_cluster_id,
         )
         if existing is not None:
             raise DuplicateResourceError("Story is already being followed.")
@@ -45,6 +46,7 @@ class UnfollowStoryUseCase:
         deleted = await self._followed_story_repository.delete(user_id, story_cluster_id)
         if not deleted:
             from ai_news_digest.core.exceptions import ResourceNotFoundError
+
             raise ResourceNotFoundError("Followed story not found.")
 
 

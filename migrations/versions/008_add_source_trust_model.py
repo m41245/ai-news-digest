@@ -58,9 +58,7 @@ def upgrade() -> None:
     # Backfill: existing sources that are active become ``verified`` so the new
     # digest gate does not silently empty today's digest. Inactive sources stay
     # ``pending_review`` and must be reviewed before they contribute again.
-    op.execute(
-        "UPDATE sources SET status = 'verified' WHERE is_active = true"
-    )
+    op.execute("UPDATE sources SET status = 'verified' WHERE is_active = true")
 
 
 def downgrade() -> None:

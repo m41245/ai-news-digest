@@ -206,11 +206,11 @@ async def ai_health() -> dict[str, Any]:
                                 limits.append(
                                     {
                                         "window": limit.window.value,
-                                "request_limit": limit.request_limit,
-                                "token_limit": limit.token_limit,
-                                "cost_limit": float(limit.cost_limit)
-                                if limit.cost_limit is not None
-                                else None,
+                                        "request_limit": limit.request_limit,
+                                        "token_limit": limit.token_limit,
+                                        "cost_limit": float(limit.cost_limit)
+                                        if limit.cost_limit is not None
+                                        else None,
                                     }
                                 )
                             status_info["quota_limits"] = limits

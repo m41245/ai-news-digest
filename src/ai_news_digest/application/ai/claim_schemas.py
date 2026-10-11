@@ -90,8 +90,8 @@ class ClaimSchema(BaseModel):
             return None
         try:
             return max(0.0, min(1.0, float(value)))
-        except (TypeError, ValueError):
-            raise ValueError("confidence must be a number between 0.0 and 1.0.")
+        except (TypeError, ValueError) as exc:
+            raise ValueError("confidence must be a number between 0.0 and 1.0.") from exc
 
     @field_validator("evidence", mode="before")
     @classmethod
@@ -105,7 +105,7 @@ class ClaimSchema(BaseModel):
             if isinstance(item, dict):
                 try:
                     result.append(EvidenceSchema(**item))
-                except Exception:
+                except Exception:  # noqa: S112
                     continue
             elif isinstance(item, EvidenceSchema):
                 result.append(item)
@@ -138,7 +138,7 @@ class StructuredClaimsOutput(BaseModel):
             elif isinstance(item, dict):
                 try:
                     claim = ClaimSchema(**item)
-                except Exception:
+                except Exception:  # noqa: S112
                     continue
             else:
                 continue

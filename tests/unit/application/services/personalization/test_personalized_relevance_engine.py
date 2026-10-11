@@ -236,6 +236,5 @@ class TestPersonalizedRelevanceEngine:
         profile = _make_user_preference()
         result = self._engine.score_trend(trend, profile)
         assert any(
-            "fallback" in r.lower() or "active trend" in r.lower()
-            for r in result.all_reasons
+            "fallback" in r.lower() or "active trend" in r.lower() for r in result.all_reasons
         )

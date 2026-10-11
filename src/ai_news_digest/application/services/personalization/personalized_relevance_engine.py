@@ -56,9 +56,7 @@ class PersonalizedRelevanceEngine:
             )
 
         if article_topic_ids & profile.followed_topic_ids:
-            explanation.add_personalization(
-                "Matches followed topic", self._weights.FOLLOWED_TOPIC
-            )
+            explanation.add_personalization("Matches followed topic", self._weights.FOLLOWED_TOPIC)
 
         if article_category_ids & profile.followed_category_ids:
             explanation.add_personalization(
@@ -119,9 +117,7 @@ class PersonalizedRelevanceEngine:
             )
 
         if article_topic_ids & profile.followed_topic_ids:
-            explanation.add_personalization(
-                "Matches followed topic", self._weights.FOLLOWED_TOPIC
-            )
+            explanation.add_personalization("Matches followed topic", self._weights.FOLLOWED_TOPIC)
 
         if article_category_ids & profile.followed_category_ids:
             explanation.add_personalization(
@@ -138,16 +134,12 @@ class PersonalizedRelevanceEngine:
 
         source_count = len({a.source_id for a in cluster_articles})
         if source_count >= self._weights.MULTIPLE_SOURCES_MIN:
-            explanation.add_quality(
-                "Multiple independent sources", self._weights.MULTIPLE_SOURCES
-            )
+            explanation.add_quality("Multiple independent sources", self._weights.MULTIPLE_SOURCES)
 
         if cluster.last_updated_at >= now - __import__("datetime").timedelta(
             days=self._weights.RECENTLY_UPDATED_DAYS
         ):
-            explanation.add_freshness(
-                "Recently updated story", self._weights.RECENTLY_UPDATED
-            )
+            explanation.add_freshness("Recently updated story", self._weights.RECENTLY_UPDATED)
 
         if (cluster.confidence or 0) >= self._weights.STRONG_CONFIDENCE_THRESHOLD:
             explanation.add_quality("Strong confidence", self._weights.STRONG_CONFIDENCE)
@@ -186,9 +178,7 @@ class PersonalizedRelevanceEngine:
             )
 
         if topic_ids and topic_ids & profile.followed_topic_ids:
-            explanation.add_personalization(
-                "Matches followed topic", self._weights.FOLLOWED_TOPIC
-            )
+            explanation.add_personalization("Matches followed topic", self._weights.FOLLOWED_TOPIC)
 
         if category_ids and category_ids & profile.followed_category_ids:
             explanation.add_personalization(

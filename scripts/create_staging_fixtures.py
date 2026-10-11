@@ -1,4 +1,5 @@
 """Minimal safe staging fixtures for Step 2.2C validation."""
+
 from __future__ import annotations
 
 import asyncio
@@ -7,7 +8,9 @@ from uuid import uuid4
 
 import asyncpg
 
-STAGING_DB_URL = "postgresql://postgres:St4g1ng_P0stgr3s_S3cur3_Pw_2026!@localhost:5432/ai_news_digest_staging"
+STAGING_DB_URL = (
+    "postgresql://postgres:St4g1ng_P0stgr3s_S3cur3_Pw_2026!@localhost:5432/ai_news_digest_staging"
+)
 
 
 async def main() -> None:

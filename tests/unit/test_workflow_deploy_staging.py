@@ -395,28 +395,28 @@ def test_sha_tag_matches_deployment_image_reference() -> None:
     """
     deploy_script = _deploy_script()
     migrate_script = _migrate_script()
-    assert "${{ github.sha }}-staging" in deploy_script, (
-        "Deploy script must reference ${{ github.sha }}-staging as the backend image tag"
-    )
-    assert "${{ github.sha }}-staging" in migrate_script, (
-        "Migration gate must reference ${{ github.sha }}-staging as the backend image tag"
-    )
+    assert (
+        "${{ github.sha }}-staging" in deploy_script
+    ), "Deploy script must reference ${{ github.sha }}-staging as the backend image tag"
+    assert (
+        "${{ github.sha }}-staging" in migrate_script
+    ), "Migration gate must reference ${{ github.sha }}-staging as the backend image tag"
 
     for step in _metadata_steps():
         tags = step["with"]["tags"]
         sha_line = next(line.strip() for line in tags.splitlines() if "type=sha" in line)
-        assert "format=long" in sha_line, (
-            "format=long is required: deploy script uses ${{ github.sha }} (full 40-char SHA)"
-        )
-        assert "prefix=sha-" not in sha_line, (
-            "prefix must be empty: deploy tag ${{ github.sha }}-staging has no 'sha-' prefix"
-        )
-        assert "suffix=staging" in sha_line, (
-            "suffix=staging is required to match the -staging suffix in the deploy tag"
-        )
-        assert "type=ref" not in sha_line, (
-            "The SHA tag must use type=sha, not the invalid type=ref,event=sha"
-        )
+        assert (
+            "format=long" in sha_line
+        ), "format=long is required: deploy script uses ${{ github.sha }} (full 40-char SHA)"
+        assert (
+            "prefix=sha-" not in sha_line
+        ), "prefix must be empty: deploy tag ${{ github.sha }}-staging has no 'sha-' prefix"
+        assert (
+            "suffix=staging" in sha_line
+        ), "suffix=staging is required to match the -staging suffix in the deploy tag"
+        assert (
+            "type=ref" not in sha_line
+        ), "The SHA tag must use type=sha, not the invalid type=ref,event=sha"
 
 
 def test_staging_latest_convenience_tag_is_present_in_both_metadata_steps() -> None:

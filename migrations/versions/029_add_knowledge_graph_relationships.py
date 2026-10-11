@@ -3,6 +3,7 @@
 Revision ID: 029
 Revises: 028
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa

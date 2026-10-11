@@ -34,9 +34,7 @@ _SYSTEM_PROMPT = (
     "- summary: 1-3 sentences, factual, concise.\n"
     "- key_takeaways: 1-6 short bullet-style strings.\n"
     "- why_it_matters: 1-2 sentences explaining significance.\n"
-    "- categories: one or more of: "
-    + ", ".join(sorted(get_allowed_category_values()))
-    + ".\n"
+    "- categories: one or more of: " + ", ".join(sorted(get_allowed_category_values())) + ".\n"
     "- companies: named entities only. Do NOT include generic terms.\n"
     "- topics: short keyword phrases.\n"
     "- confidence: your confidence in the analysis, 0.0-1.0.\n"
@@ -76,9 +74,7 @@ class AnalyzeArticleUseCase:
             metadata={"prompt_version": self._prompt_version, "article_id": str(article.id)},
         )
 
-        response = await self._provider_manager.generate(
-            request, capability="analysis"
-        )
+        response = await self._provider_manager.generate(request, capability="analysis")
         raw_content = (response.content or "").strip()
 
         if not raw_content:
@@ -108,9 +104,7 @@ class AnalyzeArticleUseCase:
         article.ai_model = response.model
         article.ai_processed_at = _utcnow()
 
-        normalized_categories = tuple(
-            normalize_category(c).value for c in intelligence.categories
-        )
+        normalized_categories = tuple(normalize_category(c).value for c in intelligence.categories)
         article.categories = normalized_categories
 
         normalized_companies = tuple(

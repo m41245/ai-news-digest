@@ -5,6 +5,7 @@ from email.message import EmailMessage
 import aiosmtplib
 
 from ai_news_digest.core.config import get_settings
+from ai_news_digest.core.logging import get_logger
 from ai_news_digest.domain.ports.email_sender import EmailSender
 from ai_news_digest.infrastructure.email.errors import (
     EmailAuthenticationError,
@@ -14,8 +15,6 @@ from ai_news_digest.infrastructure.email.errors import (
     EmailPermanentFailureError,
     EmailTimeoutError,
 )
-
-from ai_news_digest.core.logging import get_logger
 
 logger = get_logger(__name__)
 

@@ -50,9 +50,8 @@ def test_list_trends_returns_paginated(mock_container: MagicMock) -> None:
     mock_container.trend_repository.list_public.return_value = [_make_trend()]
     mock_container.trend_repository.count_public.return_value = 1
 
-    app = MagicMock()
-    app.dependency_overrides = {}
     from fastapi import FastAPI
+
     from ai_news_digest.api.middleware.exception_handler import setup_exception_handlers
 
     api = FastAPI()
@@ -74,8 +73,8 @@ def test_get_trend_by_id_returns_trend(mock_container: MagicMock) -> None:
     trend = _make_trend()
     mock_container.trend_repository.get_by_id.return_value = trend
 
-    app = MagicMock()
     from fastapi import FastAPI
+
     from ai_news_digest.api.middleware.exception_handler import setup_exception_handlers
 
     api = FastAPI()
@@ -95,8 +94,8 @@ def test_get_trend_by_id_returns_trend(mock_container: MagicMock) -> None:
 def test_get_trend_not_found(mock_container: MagicMock) -> None:
     mock_container.trend_repository.get_by_id.return_value = None
 
-    app = MagicMock()
     from fastapi import FastAPI
+
     from ai_news_digest.api.middleware.exception_handler import setup_exception_handlers
 
     api = FastAPI()

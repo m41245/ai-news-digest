@@ -15,9 +15,7 @@ from ai_news_digest.api.v1.dependencies.auth import get_current_admin_user
 from ai_news_digest.api.v1.dependencies.dependencies import get_container
 from ai_news_digest.api.v1.routes.intelligence_quality import router
 from ai_news_digest.domain.models.claim import Claim
-from ai_news_digest.domain.models.conflict import Conflict
 from ai_news_digest.domain.models.story_cluster import StoryCluster
-from ai_news_digest.domain.models.story_activity import StoryActivity
 
 
 def _make_admin_user():
@@ -102,13 +100,13 @@ class TestIntelligenceQualityRoutes:
         assert "overall_score" in data
 
     def test_get_relationship_quality(self, client: TestClient, mock_container: MagicMock) -> None:
+        from ai_news_digest.domain.enums.entity_type import EntityType
+        from ai_news_digest.domain.enums.relationship_status import RelationshipStatus
+        from ai_news_digest.domain.enums.relationship_type import RelationshipType
         from ai_news_digest.domain.models.relationship import (
             ProvenanceSource,
             Relationship,
         )
-        from ai_news_digest.domain.enums.entity_type import EntityType
-        from ai_news_digest.domain.enums.relationship_type import RelationshipType
-        from ai_news_digest.domain.enums.relationship_status import RelationshipStatus
 
         rel = Relationship.create(
             subject_entity_type=EntityType("company"),

@@ -1,23 +1,31 @@
 """Tests for M93 IntelligenceEvaluationService."""
 
 from __future__ import annotations
+
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
+
 import pytest
+
 from ai_news_digest.application.services.intelligence_evaluation_service import (
     IntelligenceEvaluationService,
 )
 from ai_news_digest.domain.evaluation.metrics import (
     EvaluationMetricType,
-    EvaluationReport,
-    EvaluationStatus,
-    MetricValue,
 )
 
 
-def _make_article(summary=None, key_takeaways_json=None, why_it_matters=None,
-                  ai_provider="openai", ai_model="gpt-4", ai_processed_at=None,
-                  content=None, extraction_method="rss", source_id=None):
+def _make_article(
+    summary=None,
+    key_takeaways_json=None,
+    why_it_matters=None,
+    ai_provider="openai",
+    ai_model="gpt-4",
+    ai_processed_at=None,
+    content=None,
+    extraction_method="rss",
+    source_id=None,
+):
     article = MagicMock()
     article.summary = summary
     article.key_takeaways_json = key_takeaways_json
@@ -47,7 +55,9 @@ class TestIntelligenceEvaluationService:
             _make_article(summary=None, key_takeaways_json=None, why_it_matters=None),
         ]
         metrics = await self.service.evaluate_articles(articles)
-        validity = next(m for m in metrics if m.metric_type == EvaluationMetricType.STRUCTURED_OUTPUT_VALIDITY)
+        validity = next(
+            m for m in metrics if m.metric_type == EvaluationMetricType.STRUCTURED_OUTPUT_VALIDITY
+        )
         assert validity.value == 0.5
         assert validity.sample_count == 2
 
@@ -69,5 +79,7 @@ class TestIntelligenceEvaluationService:
             evidence_by_claim={"claim-1": evidence},
             conflicts_by_claim={},
         )
-        attachment = next(m for m in metrics if m.metric_type == EvaluationMetricType.EVIDENCE_ATTACHMENT_RATE)
+        attachment = next(
+            m for m in metrics if m.metric_type == EvaluationMetricType.EVIDENCE_ATTACHMENT_RATE
+        )
         assert attachment.value == 1.0

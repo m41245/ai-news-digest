@@ -29,6 +29,4 @@ class UserFollowedSourceModel(Base):
     )
 
     user: Mapped[UserModel] = relationship(back_populates="followed_sources", lazy="selectin")
-    source: Mapped[SourceModel] = relationship(
-        back_populates="followed_by_users", lazy="selectin"
-    )
+    source: Mapped[SourceModel] = relationship(back_populates="followed_by_users", lazy="selectin")

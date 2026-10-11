@@ -96,8 +96,12 @@ class SqlAlchemySavedStoryRepository(BaseRepository[SavedStoryModel], SavedStory
         return True
 
     async def count_by_user(self, user_id: UUID) -> int:
-        statement = select(func.count()).select_from(SavedStoryModel).where(
-            SavedStoryModel.user_id == str(user_id),
+        statement = (
+            select(func.count())
+            .select_from(SavedStoryModel)
+            .where(
+                SavedStoryModel.user_id == str(user_id),
+            )
         )
         result = await self._session.execute(statement)
         return result.scalar_one()

@@ -58,9 +58,7 @@ class StoryActivityRepository(
         limit: int = 100,
         offset: int = 0,
     ) -> list[StoryActivity]:
-        statement = select(StoryActivityModel).order_by(
-            StoryActivityModel.evaluated_at.desc()
-        )
+        statement = select(StoryActivityModel).order_by(StoryActivityModel.evaluated_at.desc())
         if evaluated_since is not None:
             statement = statement.where(StoryActivityModel.evaluated_at >= evaluated_since)
         if status is not None:

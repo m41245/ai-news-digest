@@ -205,9 +205,7 @@ class IntelligenceQualityService:
         flags: list[str] = []
         status = getattr(relationship, "status", None)
         status_value = (
-            str(status.value if hasattr(status, "value") else status)
-            if status
-            else "candidate"
+            str(status.value if hasattr(status, "value") else status) if status else "candidate"
         )
         if status_value in ("disputed",):
             flags.append(QualityFlag.CONFLICTING_EVIDENCE.value)
@@ -225,12 +223,9 @@ class IntelligenceQualityService:
             flags.append(QualityFlag.LOW_CONFIDENCE.value)
 
         provenance = getattr(relationship, "provenance_source", ProvenanceSource.DETERMINISTIC)
-        if (
-            provenance == ProvenanceSource.AI_EXTRACTED
-            and (
-                not getattr(relationship, "ai_provider", None)
-                or not getattr(relationship, "ai_model", None)
-            )
+        if provenance == ProvenanceSource.AI_EXTRACTED and (
+            not getattr(relationship, "ai_provider", None)
+            or not getattr(relationship, "ai_model", None)
         ):
             flags.append(QualityFlag.AI_METADATA_MISSING.value)
 
@@ -267,9 +262,7 @@ class IntelligenceQualityService:
             independent_source_count=source_count,
             conflict_present=status_value == "disputed",
             conflict_count=1 if status_value == "disputed" else 0,
-            provenance_complete=not any(
-                f == QualityFlag.AI_METADATA_MISSING.value for f in flags
-            ),
+            provenance_complete=not any(f == QualityFlag.AI_METADATA_MISSING.value for f in flags),
             freshness=self._compute_freshness(last_observed, now),
             overall_score=overall_score,
             explanation=explanation,

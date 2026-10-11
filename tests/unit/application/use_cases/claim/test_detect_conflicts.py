@@ -107,7 +107,7 @@ class MockConflictRepository(ConflictRepository):
         offset: int = 0,
         status: str | None = None,
     ) -> list[Conflict]:
-        return list(self._conflicts.values())[offset:offset + limit]
+        return list(self._conflicts.values())[offset : offset + limit]
 
     async def list_by_story_cluster_id(
         self, story_cluster_id: UUID, *, limit: int = 50
@@ -134,18 +134,26 @@ async def test_detect_conflicts_creates_conflicts() -> None:
     source_a_id = uuid4()
     source_b_id = uuid4()
 
-    article_a = type("Article", (), {
-        "id": article_a_id,
-        "published_at": datetime.now(UTC),
-        "company_ids": ("c1",),
-        "topic_ids": ("t1",),
-    })()
-    article_b = type("Article", (), {
-        "id": article_b_id,
-        "published_at": datetime.now(UTC),
-        "company_ids": ("c1",),
-        "topic_ids": ("t1",),
-    })()
+    article_a = type(
+        "Article",
+        (),
+        {
+            "id": article_a_id,
+            "published_at": datetime.now(UTC),
+            "company_ids": ("c1",),
+            "topic_ids": ("t1",),
+        },
+    )()
+    article_b = type(
+        "Article",
+        (),
+        {
+            "id": article_b_id,
+            "published_at": datetime.now(UTC),
+            "company_ids": ("c1",),
+            "topic_ids": ("t1",),
+        },
+    )()
     source_a = type("Source", (), {"id": source_a_id, "name": "A"})()
     source_b = type("Source", (), {"id": source_b_id, "name": "B"})()
 
@@ -185,18 +193,26 @@ async def test_detect_conflicts_prevents_duplicates() -> None:
     source_a_id = uuid4()
     source_b_id = uuid4()
 
-    article_a = type("Article", (), {
-        "id": article_a_id,
-        "published_at": datetime.now(UTC),
-        "company_ids": ("c1",),
-        "topic_ids": ("t1",),
-    })()
-    article_b = type("Article", (), {
-        "id": article_b_id,
-        "published_at": datetime.now(UTC),
-        "company_ids": ("c1",),
-        "topic_ids": ("t1",),
-    })()
+    article_a = type(
+        "Article",
+        (),
+        {
+            "id": article_a_id,
+            "published_at": datetime.now(UTC),
+            "company_ids": ("c1",),
+            "topic_ids": ("t1",),
+        },
+    )()
+    article_b = type(
+        "Article",
+        (),
+        {
+            "id": article_b_id,
+            "published_at": datetime.now(UTC),
+            "company_ids": ("c1",),
+            "topic_ids": ("t1",),
+        },
+    )()
     source_a = type("Source", (), {"id": source_a_id, "name": "A"})()
     source_b = type("Source", (), {"id": source_b_id, "name": "B"})()
 

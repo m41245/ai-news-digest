@@ -20,27 +20,19 @@ class EvaluationMetricModel(Base):
     run_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     metric_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     value: Mapped[float] = mapped_column(Float, nullable=False)
-    sample_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
+    sample_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     scope: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
-    provider: Mapped[str | None] = mapped_column(
-        String(64), nullable=True, index=True
-    )
+    provider: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     model: Mapped[str | None] = mapped_column(String(128), nullable=True)
     prompt_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    schema_version: Mapped[str] = mapped_column(
-        String(32), nullable=False, server_default="v1"
-    )
+    schema_version: Mapped[str] = mapped_column(String(32), nullable=False, server_default="v1")
     dataset_version: Mapped[str] = mapped_column(
         String(64), nullable=False, server_default="production"
     )
     benchmark_version: Mapped[str] = mapped_column(
         String(64), nullable=False, server_default="m93-v1"
     )
-    extra_metadata: Mapped[str | None] = mapped_column(
-        "metadata", Text, nullable=True
-    )  # type: ignore[misc]
+    extra_metadata: Mapped[str | None] = mapped_column("metadata", Text, nullable=True)  # type: ignore[misc]
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

@@ -135,9 +135,7 @@ def test_deterministic_tie_breaking():
     result1 = engine.rank_cluster(ctx1)
     result2 = engine.rank_cluster(ctx2)
     top_result = selector.select_top_story([result1, result2])
-    assert top_result.top_story_cluster_id == max(
-        str(cluster1.id), str(cluster2.id)
-    )
+    assert top_result.top_story_cluster_id == max(str(cluster1.id), str(cluster2.id))
 
 
 def test_inactive_cluster_excluded():

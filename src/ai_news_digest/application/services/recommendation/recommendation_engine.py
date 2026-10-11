@@ -134,9 +134,7 @@ class RecommendationEngine:
             )
             reasons.append(f"Multiple independent sources ({source_count})")
 
-        if cluster.last_updated_at >= now - __import__("datetime").timedelta(
-            days=7
-        ):
+        if cluster.last_updated_at >= now - __import__("datetime").timedelta(days=7):
             updated_boost = self._weights.RECENTLY_UPDATED
             score = max(
                 self._weights.MIN_SCORE,
@@ -168,9 +166,7 @@ class RecommendationEngine:
             )
             reasons.append("Strong confidence")
 
-        if representative.published_at >= now - __import__("datetime").timedelta(
-            hours=24
-        ):
+        if representative.published_at >= now - __import__("datetime").timedelta(hours=24):
             fresh_boost = self._weights.FRESH_COVERAGE
             score = max(
                 self._weights.MIN_SCORE,
@@ -188,9 +184,7 @@ class RecommendationEngine:
 
         if activity is not None:
             activity_status = (
-                activity.status.value
-                if hasattr(activity.status, "value")
-                else str(activity.status)
+                activity.status.value if hasattr(activity.status, "value") else str(activity.status)
             )
             if activity_status == "breaking":
                 activity_boost = self._weights.BREAKING_STORY
@@ -295,8 +289,7 @@ class RecommendationEngine:
                 hours=RecommendationDefaults.RECENT_EVENT_HOURS
             )
             recent_events = [
-                e for e in events
-                if e.event_time is not None and e.event_time >= recent_cutoff
+                e for e in events if e.event_time is not None and e.event_time >= recent_cutoff
             ]
             if recent_events:
                 evolution_boost = self._weights.RECENT_EVENT
@@ -404,9 +397,7 @@ class RecommendationEngine:
                 item.source_id
                 and source_count.get(item.source_id, 0) >= RecommendationDefaults.MAX_SAME_SOURCE
             ):
-                source_penalty = min(
-                    source_penalty, RecommendationDefaults.DIVERSITY_PENALTY
-                )
+                source_penalty = min(source_penalty, RecommendationDefaults.DIVERSITY_PENALTY)
 
             adjusted_score = max(
                 self._weights.MIN_SCORE,

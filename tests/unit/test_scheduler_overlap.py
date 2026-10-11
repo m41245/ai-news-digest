@@ -17,10 +17,7 @@ import pathlib
 import yaml
 
 _WORKFLOW_PATH = (
-    pathlib.Path(__file__).resolve().parents[2]
-    / ".github"
-    / "workflows"
-    / "scheduled-tasks.yml"
+    pathlib.Path(__file__).resolve().parents[2] / ".github" / "workflows" / "scheduled-tasks.yml"
 )
 
 
@@ -31,12 +28,12 @@ def test_github_actions_workflow_has_schedule_triggers() -> None:
     workflow = yaml.safe_load(_WORKFLOW_PATH.read_text(encoding="utf-8"))
     triggers = workflow.get("on") or workflow.get(True) or {}
     assert triggers, "Workflow is missing the 'on' trigger block"
-    assert "schedule" in triggers, (
-        "GitHub Actions workflow must contain 'on.schedule' triggers for production scheduling."
-    )
-    assert "workflow_dispatch" in triggers, (
-        "GitHub Actions workflow must retain 'workflow_dispatch' for manual/on-demand execution."
-    )
+    assert (
+        "schedule" in triggers
+    ), "GitHub Actions workflow must contain 'on.schedule' triggers for production scheduling."
+    assert (
+        "workflow_dispatch" in triggers
+    ), "GitHub Actions workflow must retain 'workflow_dispatch' for manual/on-demand execution."
 
 
 def test_github_actions_workflow_schedule_has_expected_cron_count() -> None:
@@ -44,9 +41,9 @@ def test_github_actions_workflow_schedule_has_expected_cron_count() -> None:
     workflow = yaml.safe_load(_WORKFLOW_PATH.read_text(encoding="utf-8"))
     triggers = workflow.get("on") or workflow.get(True) or {}
     schedule_entries = triggers.get("schedule", [])
-    assert len(schedule_entries) >= 10, (
-        f"Expected at least 10 schedule entries, got {len(schedule_entries)}"
-    )
+    assert (
+        len(schedule_entries) >= 10
+    ), f"Expected at least 10 schedule entries, got {len(schedule_entries)}"
 
 
 def test_github_actions_workflow_has_concurrency() -> None:
@@ -56,9 +53,9 @@ def test_github_actions_workflow_has_concurrency() -> None:
     assert "concurrency" in job, "Job must have concurrency configuration"
     concurrency = job["concurrency"]
     assert "group" in concurrency, "Concurrency must have a group"
-    assert concurrency.get("cancel-in-progress") is False, (
-        "cancel-in-progress must be false to avoid unsafe cancellation"
-    )
+    assert (
+        concurrency.get("cancel-in-progress") is False
+    ), "cancel-in-progress must be false to avoid unsafe cancellation"
 
 
 def test_github_actions_workflow_has_timeout() -> None:
@@ -74,9 +71,7 @@ def test_github_actions_workflow_has_least_privilege_permissions() -> None:
     """The workflow must not request write permissions."""
     workflow = yaml.safe_load(_WORKFLOW_PATH.read_text(encoding="utf-8"))
     permissions = workflow.get("permissions", {})
-    assert permissions.get("contents") == "read", (
-        "Workflow must have contents: read permission"
-    )
+    assert permissions.get("contents") == "read", "Workflow must have contents: read permission"
 
 
 def test_github_actions_workflow_ai_disabled() -> None:
@@ -93,9 +88,9 @@ def test_github_actions_workflow_email_disabled() -> None:
     job = workflow["jobs"]["scheduled-task"]
     env = job["steps"][-1]["env"]
     assert env.get("EMAIL_ENABLED") == "false", "EMAIL_ENABLED must be explicitly false"
-    assert env.get("EMAIL_DEVELOPMENT_MODE") == "false", (
-        "EMAIL_DEVELOPMENT_MODE must be explicitly false"
-    )
+    assert (
+        env.get("EMAIL_DEVELOPMENT_MODE") == "false"
+    ), "EMAIL_DEVELOPMENT_MODE must be explicitly false"
 
 
 def test_github_actions_workflow_no_unnecessary_secrets() -> None:
@@ -104,9 +99,9 @@ def test_github_actions_workflow_no_unnecessary_secrets() -> None:
     job = workflow["jobs"]["scheduled-task"]
     env = job["steps"][-1]["env"]
     assert "OPENAI_API_KEY" not in env, "OPENAI_API_KEY must not be passed when AI is disabled"
-    assert "ANTHROPIC_API_KEY" not in env, (
-        "ANTHROPIC_API_KEY must not be passed when AI is disabled"
-    )
+    assert (
+        "ANTHROPIC_API_KEY" not in env
+    ), "ANTHROPIC_API_KEY must not be passed when AI is disabled"
     assert "SMTP_HOST" not in env, "SMTP_HOST must not be passed when email is disabled"
     assert "SMTP_USER" not in env, "SMTP_USER must not be passed when email is disabled"
     assert "SMTP_PASSWORD" not in env, "SMTP_PASSWORD must not be passed when email is disabled"
@@ -143,9 +138,9 @@ def test_github_actions_workflow_preserves_manual_task_choices() -> None:
         "cleanup-articles",
         "cleanup-digests",
     }
-    assert set(task_options) == expected_tasks, (
-        f"Task options mismatch. Expected {expected_tasks}, got {set(task_options)}"
-    )
+    assert (
+        set(task_options) == expected_tasks
+    ), f"Task options mismatch. Expected {expected_tasks}, got {set(task_options)}"
 
 
 def test_github_actions_workflow_has_no_misleading_environment_input() -> None:
@@ -153,9 +148,9 @@ def test_github_actions_workflow_has_no_misleading_environment_input() -> None:
     workflow = yaml.safe_load(_WORKFLOW_PATH.read_text(encoding="utf-8"))
     triggers = workflow.get("on") or workflow.get(True) or {}
     dispatch = triggers.get("workflow_dispatch", {})
-    assert "environment" not in dispatch.get("inputs", {}), (
-        "Workflow must not have an environment input that is never used"
-    )
+    assert "environment" not in dispatch.get(
+        "inputs", {}
+    ), "Workflow must not have an environment input that is never used"
 
 
 def test_github_actions_workflow_has_fail_fast_bash() -> None:
@@ -164,9 +159,9 @@ def test_github_actions_workflow_has_fail_fast_bash() -> None:
     job = workflow["jobs"]["scheduled-task"]
     run_step = job["steps"][-1]
     run_script = run_step["run"]
-    assert "set -euo pipefail" in run_script, (
-        "Run script must use 'set -euo pipefail' for fail-fast behavior"
-    )
+    assert (
+        "set -euo pipefail" in run_script
+    ), "Run script must use 'set -euo pipefail' for fail-fast behavior"
 
 
 def test_github_actions_workflow_schedule_task_default() -> None:
@@ -175,7 +170,7 @@ def test_github_actions_workflow_schedule_task_default() -> None:
     job = workflow["jobs"]["scheduled-task"]
     run_step = job["steps"][-1]
     run_script = run_step["run"]
-    assert 'github.event_name' in run_script, (
-        "Run script must distinguish between schedule and workflow_dispatch"
-    )
+    assert (
+        "github.event_name" in run_script
+    ), "Run script must distinguish between schedule and workflow_dispatch"
     assert "ingest" in run_script, "Morning pipeline must start with ingest"

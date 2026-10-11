@@ -194,6 +194,7 @@ async def trigger_evaluation(
         raise HTTPException(status_code=400, detail="Evaluation is disabled by configuration.")
 
     from ai_news_digest.workers.tasks.evaluation import run_intelligence_evaluation
+
     task = run_intelligence_evaluation.delay(evaluation_type=evaluation_type, scope=scope)
     return TriggerEvaluationResponse(
         message="Evaluation triggered.",

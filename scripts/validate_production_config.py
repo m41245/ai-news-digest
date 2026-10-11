@@ -43,11 +43,24 @@ def validate_production_config() -> list[str]:
     jwt_secret = os.environ.get("JWT_SECRET_KEY", "")
     if not jwt_secret or len(jwt_secret.strip()) < 32:
         errors.append("JWT_SECRET_KEY must be at least 32 characters")
-    elif any(pattern in jwt_secret.lower() for pattern in (
-        "change-me", "changeme", "replace-me", "please-replace",
-        "your-secret", "test-secret", "placeholder", "dev-secret",
-        "local-prod", "local-dev", "fake-key", "ci-fake", "testing-only",
-    )):
+    elif any(
+        pattern in jwt_secret.lower()
+        for pattern in (
+            "change-me",
+            "changeme",
+            "replace-me",
+            "please-replace",
+            "your-secret",
+            "test-secret",
+            "placeholder",
+            "dev-secret",
+            "local-prod",
+            "local-dev",
+            "fake-key",
+            "ci-fake",
+            "testing-only",
+        )
+    ):
         errors.append("JWT_SECRET_KEY must not be a known placeholder value")
 
     database_url = os.environ.get("DATABASE_URL", "")
@@ -94,8 +107,7 @@ def validate_production_config() -> list[str]:
     else:
         if os.environ.get("EMAIL_PROVIDER", "console") == "smtp":
             warnings.append(
-                "EMAIL_PROVIDER=smtp but EMAIL_ENABLED=false - "
-                "SMTP settings will be ignored"
+                "EMAIL_PROVIDER=smtp but EMAIL_ENABLED=false - " "SMTP settings will be ignored"
             )
 
     smtp_host = os.environ.get("SMTP_HOST", "")

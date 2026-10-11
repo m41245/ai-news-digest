@@ -182,11 +182,7 @@ class DetectTrendsUseCase:
 
     async def _build_trusted_source_ids(self) -> set[str]:
         sources = await self._source_repository.list_all()
-        return {
-            str(s.id)
-            for s in sources
-            if s.is_active and s.status.value == "verified"
-        }
+        return {str(s.id) for s in sources if s.is_active and s.status.value == "verified"}
 
     async def _build_activity_map(
         self,
@@ -224,9 +220,7 @@ class DetectTrendsUseCase:
         category_id: str,
     ) -> list[Article]:
         return [
-            a
-            for a in articles
-            if a.category_id is not None and str(a.category_id) == category_id
+            a for a in articles if a.category_id is not None and str(a.category_id) == category_id
         ]
 
     async def _collect_company_candidates(
@@ -245,27 +239,30 @@ class DetectTrendsUseCase:
             company_recent_articles = self._filter_articles_by_company(recent_articles, company_id)
             if len(company_recent_articles) < settings.trend_min_recent_activity:
                 continue
-            company_baseline_articles = (
-                self._filter_articles_by_company(baseline_articles, company_id)
+            company_baseline_articles = self._filter_articles_by_company(
+                baseline_articles, company_id
             )
             unique_sources = {
-                str(a.source_id) for a in company_recent_articles
+                str(a.source_id)
+                for a in company_recent_articles
                 if str(a.source_id) in trusted_source_ids
             }
             if len(unique_sources) < settings.trend_min_sources:
                 continue
             cluster_ids = {str(a.cluster_id) for a in company_recent_articles if a.cluster_id}
-            candidates.append({
-                "type": TrendType.COMPANY_TREND,
-                "canonical_key": f"company:{company.name.lower()}",
-                "display_name": company.name,
-                "recent_activity": len(company_recent_articles),
-                "baseline_activity": len(company_baseline_articles),
-                "source_count": len(unique_sources),
-                "story_count": len(cluster_ids),
-                "cluster_ids": cluster_ids,
-                "related_company_ids": frozenset([company.id]),
-            })
+            candidates.append(
+                {
+                    "type": TrendType.COMPANY_TREND,
+                    "canonical_key": f"company:{company.name.lower()}",
+                    "display_name": company.name,
+                    "recent_activity": len(company_recent_articles),
+                    "baseline_activity": len(company_baseline_articles),
+                    "source_count": len(unique_sources),
+                    "story_count": len(cluster_ids),
+                    "cluster_ids": cluster_ids,
+                    "related_company_ids": frozenset([company.id]),
+                }
+            )
         return candidates[: settings.trend_max_candidates_per_type]
 
     async def _collect_topic_candidates(
@@ -286,23 +283,26 @@ class DetectTrendsUseCase:
                 continue
             topic_baseline_articles = self._filter_articles_by_topic(baseline_articles, topic_id)
             unique_sources = {
-                str(a.source_id) for a in topic_recent_articles
+                str(a.source_id)
+                for a in topic_recent_articles
                 if str(a.source_id) in trusted_source_ids
             }
             if len(unique_sources) < settings.trend_min_sources:
                 continue
             cluster_ids = {str(a.cluster_id) for a in topic_recent_articles if a.cluster_id}
-            candidates.append({
-                "type": TrendType.TOPIC_TREND,
-                "canonical_key": f"topic:{topic.name.lower()}",
-                "display_name": topic.name,
-                "recent_activity": len(topic_recent_articles),
-                "baseline_activity": len(topic_baseline_articles),
-                "source_count": len(unique_sources),
-                "story_count": len(cluster_ids),
-                "cluster_ids": cluster_ids,
-                "related_topic_ids": frozenset([topic.id]),
-            })
+            candidates.append(
+                {
+                    "type": TrendType.TOPIC_TREND,
+                    "canonical_key": f"topic:{topic.name.lower()}",
+                    "display_name": topic.name,
+                    "recent_activity": len(topic_recent_articles),
+                    "baseline_activity": len(topic_baseline_articles),
+                    "source_count": len(unique_sources),
+                    "story_count": len(cluster_ids),
+                    "cluster_ids": cluster_ids,
+                    "related_topic_ids": frozenset([topic.id]),
+                }
+            )
         return candidates[: settings.trend_max_candidates_per_type]
 
     async def _collect_category_candidates(
@@ -318,32 +318,35 @@ class DetectTrendsUseCase:
         candidates: list[dict[str, Any]] = []
         for category in categories:
             category_id = str(category.id)
-            category_recent_articles = (
-                self._filter_articles_by_category(recent_articles, category_id)
+            category_recent_articles = self._filter_articles_by_category(
+                recent_articles, category_id
             )
             if len(category_recent_articles) < settings.trend_min_recent_activity:
                 continue
-            category_baseline_articles = (
-                self._filter_articles_by_category(baseline_articles, category_id)
+            category_baseline_articles = self._filter_articles_by_category(
+                baseline_articles, category_id
             )
             unique_sources = {
-                str(a.source_id) for a in category_recent_articles
+                str(a.source_id)
+                for a in category_recent_articles
                 if str(a.source_id) in trusted_source_ids
             }
             if len(unique_sources) < settings.trend_min_sources:
                 continue
             cluster_ids = {str(a.cluster_id) for a in category_recent_articles if a.cluster_id}
-            candidates.append({
-                "type": TrendType.CATEGORY_TREND,
-                "canonical_key": f"category:{category.name.lower()}",
-                "display_name": category.name,
-                "recent_activity": len(category_recent_articles),
-                "baseline_activity": len(category_baseline_articles),
-                "source_count": len(unique_sources),
-                "story_count": len(cluster_ids),
-                "cluster_ids": cluster_ids,
-                "related_category_ids": frozenset([category.id]),
-            })
+            candidates.append(
+                {
+                    "type": TrendType.CATEGORY_TREND,
+                    "canonical_key": f"category:{category.name.lower()}",
+                    "display_name": category.name,
+                    "recent_activity": len(category_recent_articles),
+                    "baseline_activity": len(category_baseline_articles),
+                    "source_count": len(unique_sources),
+                    "story_count": len(cluster_ids),
+                    "cluster_ids": cluster_ids,
+                    "related_category_ids": frozenset([category.id]),
+                }
+            )
         return candidates[: settings.trend_max_candidates_per_type]
 
     async def _collect_story_cluster_candidates(
@@ -361,32 +364,29 @@ class DetectTrendsUseCase:
         )
         candidates: list[dict[str, Any]] = []
         for cluster in clusters:
-            cluster_recent_articles = [
-                a for a in recent_articles
-                if a.cluster_id == cluster.id
-            ]
+            cluster_recent_articles = [a for a in recent_articles if a.cluster_id == cluster.id]
             if len(cluster_recent_articles) < settings.trend_min_recent_activity:
                 continue
-            cluster_baseline_articles = [
-                a for a in baseline_articles
-                if a.cluster_id == cluster.id
-            ]
+            cluster_baseline_articles = [a for a in baseline_articles if a.cluster_id == cluster.id]
             unique_sources = {
-                str(a.source_id) for a in cluster_recent_articles
+                str(a.source_id)
+                for a in cluster_recent_articles
                 if str(a.source_id) in trusted_source_ids
             }
             if len(unique_sources) < settings.trend_min_sources:
                 continue
-            candidates.append({
-                "type": TrendType.STORY_TREND,
-                "canonical_key": f"story:{cluster.slug}",
-                "display_name": cluster.title,
-                "recent_activity": len(cluster_recent_articles),
-                "baseline_activity": len(cluster_baseline_articles),
-                "source_count": len(unique_sources),
-                "story_count": 1,
-                "cluster_ids": {str(cluster.id)},
-            })
+            candidates.append(
+                {
+                    "type": TrendType.STORY_TREND,
+                    "canonical_key": f"story:{cluster.slug}",
+                    "display_name": cluster.title,
+                    "recent_activity": len(cluster_recent_articles),
+                    "baseline_activity": len(cluster_baseline_articles),
+                    "source_count": len(unique_sources),
+                    "story_count": 1,
+                    "cluster_ids": {str(cluster.id)},
+                }
+            )
         return candidates
 
     async def _evaluate_candidate(
@@ -409,12 +409,8 @@ class DetectTrendsUseCase:
         event_count = 0
         for cid in candidate.get("cluster_ids", set()):
             try:
-                events = await self._story_event_repository.list_by_cluster_id(
-                    UUID(cid), limit=100
-                )
-                event_count += sum(
-                    1 for e in events if e.created_at >= recent_cutoff
-                )
+                events = await self._story_event_repository.list_by_cluster_id(UUID(cid), limit=100)
+                event_count += sum(1 for e in events if e.created_at >= recent_cutoff)
             except Exception:
                 logger.debug(
                     "Failed to load story events",
@@ -472,11 +468,7 @@ class DetectTrendsUseCase:
             + settings.trend_activity_boost_weight * activity_boost
         ) * 100.0
 
-        momentum_score = (
-            0.5 * growth_signal
-            + 0.3 * recency_signal
-            + 0.2 * activity_boost
-        ) * 100.0
+        momentum_score = (0.5 * growth_signal + 0.3 * recency_signal + 0.2 * activity_boost) * 100.0
 
         if recent_activity == 0:
             status = TrendStatus.STALE

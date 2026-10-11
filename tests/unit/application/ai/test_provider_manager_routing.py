@@ -252,12 +252,8 @@ class TestProviderManagerRouting:
         capability_registry.register_capability(
             Capability(id="summarization", name="Summarization")
         )
-        incapable = _make_provider(
-            "openai", "OpenAI", {"analysis"}, priority=100
-        )
-        capable = _make_provider(
-            "anthropic", "Anthropic", {"summarization"}, priority=50
-        )
+        incapable = _make_provider("openai", "OpenAI", {"analysis"}, priority=100)
+        capable = _make_provider("anthropic", "Anthropic", {"summarization"}, priority=50)
         _register_providers(provider_registry, capability_registry, incapable, capable)
 
         request = AIRequest(system_prompt="s", user_prompt="u")
@@ -396,9 +392,7 @@ class TestProviderManagerRouting:
             Capability(id="summarization", name="Summarization")
         )
         failing = _make_provider("openai", "OpenAI", {"summarization"}, priority=100)
-        succeeding = _make_provider(
-            "anthropic", "Anthropic", {"summarization"}, priority=50
-        )
+        succeeding = _make_provider("anthropic", "Anthropic", {"summarization"}, priority=50)
         _register_providers(provider_registry, capability_registry, failing, succeeding)
         failing.generate.side_effect = AITransientError("transient failure")
         succeeding.generate.return_value = AIResponse(
@@ -444,9 +438,7 @@ class TestProviderManagerRouting:
             Capability(id="summarization", name="Summarization")
         )
         failing = _make_provider("openai", "OpenAI", {"summarization"}, priority=100)
-        succeeding = _make_provider(
-            "anthropic", "Anthropic", {"summarization"}, priority=50
-        )
+        succeeding = _make_provider("anthropic", "Anthropic", {"summarization"}, priority=50)
         _register_providers(provider_registry, capability_registry, failing, succeeding)
         failing.generate.side_effect = AITransientError("failure")
         succeeding.generate.return_value = AIResponse(

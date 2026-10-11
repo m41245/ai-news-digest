@@ -1,7 +1,7 @@
 """Unit tests for EmbeddingService."""
+
 from __future__ import annotations
 
-from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -14,19 +14,19 @@ from ai_news_digest.domain.models.semantic_document import SemanticDocument
 from ai_news_digest.domain.ports.embedding_provider import EmbeddingProvider
 
 
-def _make_provider(id: str, priority: int = 50, enabled: bool = True, dimension: int = 3):
+def _make_provider(provider_id: str, priority: int = 50, enabled: bool = True, dimension: int = 3):
     provider = MagicMock(spec=EmbeddingProvider)
-    provider.id = id
+    provider.id = provider_id
     provider.priority = MagicMock(return_value=priority)
     provider.enabled = enabled
     provider.dimension = dimension
-    provider.model_name = f"model-{id}"
+    provider.model_name = f"model-{provider_id}"
     provider.embed = AsyncMock(
         return_value=MagicMock(
             embedding=(0.1, 0.2, 0.3),
-            model=f"model-{id}",
+            model=f"model-{provider_id}",
             dimension=dimension,
-            provider=id,
+            provider=provider_id,
             usage_tokens=10,
         )
     )
@@ -34,9 +34,9 @@ def _make_provider(id: str, priority: int = 50, enabled: bool = True, dimension:
         return_value=[
             MagicMock(
                 embedding=(0.1, 0.2, 0.3),
-                model=f"model-{id}",
+                model=f"model-{provider_id}",
                 dimension=dimension,
-                provider=id,
+                provider=provider_id,
                 usage_tokens=10,
             )
         ]
@@ -46,9 +46,7 @@ def _make_provider(id: str, priority: int = 50, enabled: bool = True, dimension:
 
 @pytest.fixture
 def service() -> EmbeddingService:
-    with patch(
-        "ai_news_digest.application.ai.embedding_service.get_settings"
-    ) as mock_settings:
+    with patch("ai_news_digest.application.ai.embedding_service.get_settings") as mock_settings:
         mock_settings.return_value.semantic_search_enabled = True
         return EmbeddingService(providers=[])
 
@@ -65,9 +63,7 @@ class TestEmbeddingService:
 
     @pytest.mark.asyncio
     async def test_no_enabled_providers_raises(self) -> None:
-        with patch(
-            "ai_news_digest.application.ai.embedding_service.get_settings"
-        ) as mock_settings:
+        with patch("ai_news_digest.application.ai.embedding_service.get_settings") as mock_settings:
             mock_settings.return_value.semantic_search_enabled = True
             svc = EmbeddingService(providers=[_make_provider("p1", enabled=False)])
             doc = SemanticDocument(
@@ -79,9 +75,7 @@ class TestEmbeddingService:
 
     @pytest.mark.asyncio
     async def test_generates_embedding(self) -> None:
-        with patch(
-            "ai_news_digest.application.ai.embedding_service.get_settings"
-        ) as mock_settings:
+        with patch("ai_news_digest.application.ai.embedding_service.get_settings") as mock_settings:
             mock_settings.return_value.semantic_search_enabled = True
             provider = _make_provider("p1")
             svc = EmbeddingService(providers=[provider])
@@ -95,9 +89,7 @@ class TestEmbeddingService:
 
     @pytest.mark.asyncio
     async def test_selects_highest_priority(self) -> None:
-        with patch(
-            "ai_news_digest.application.ai.embedding_service.get_settings"
-        ) as mock_settings:
+        with patch("ai_news_digest.application.ai.embedding_service.get_settings") as mock_settings:
             mock_settings.return_value.semantic_search_enabled = True
             low = _make_provider("low", priority=100)
             high = _make_provider("high", priority=1)
@@ -112,9 +104,7 @@ class TestEmbeddingService:
 
     @pytest.mark.asyncio
     async def test_generate_batch(self) -> None:
-        with patch(
-            "ai_news_digest.application.ai.embedding_service.get_settings"
-        ) as mock_settings:
+        with patch("ai_news_digest.application.ai.embedding_service.get_settings") as mock_settings:
             mock_settings.return_value.semantic_search_enabled = True
             provider = _make_provider("p1")
             svc = EmbeddingService(providers=[provider])
@@ -150,18 +140,14 @@ class TestEmbeddingService:
 
     @pytest.mark.asyncio
     async def test_is_available_true_when_enabled(self) -> None:
-        with patch(
-            "ai_news_digest.application.ai.embedding_service.get_settings"
-        ) as mock_settings:
+        with patch("ai_news_digest.application.ai.embedding_service.get_settings") as mock_settings:
             mock_settings.return_value.semantic_search_enabled = True
             svc = EmbeddingService(providers=[_make_provider("p1")])
             assert svc.is_available is True
 
     @pytest.mark.asyncio
     async def test_fallback_on_provider_failure(self) -> None:
-        with patch(
-            "ai_news_digest.application.ai.embedding_service.get_settings"
-        ) as mock_settings:
+        with patch("ai_news_digest.application.ai.embedding_service.get_settings") as mock_settings:
             mock_settings.return_value.semantic_search_enabled = True
             failing = _make_provider("failing", priority=1)
             failing.embed = AsyncMock(side_effect=RuntimeError("provider down"))
@@ -174,16 +160,12 @@ class TestEmbeddingService:
 
     @pytest.mark.asyncio
     async def test_skips_unhealthy_provider(self) -> None:
-        with patch(
-            "ai_news_digest.application.ai.embedding_service.get_settings"
-        ) as mock_settings:
+        with patch("ai_news_digest.application.ai.embedding_service.get_settings") as mock_settings:
             mock_settings.return_value.semantic_search_enabled = True
             unhealthy = _make_provider("unhealthy", priority=1)
             healthy = _make_provider("healthy", priority=2)
             health_registry = MagicMock()
-            health_registry.is_eligible = AsyncMock(
-                side_effect=lambda pid: pid == "healthy"
-            )
+            health_registry.is_eligible = AsyncMock(side_effect=lambda pid: pid == "healthy")
             svc = EmbeddingService(
                 providers=[unhealthy, healthy],
                 health_registry=health_registry,
@@ -195,17 +177,13 @@ class TestEmbeddingService:
 
     @pytest.mark.asyncio
     async def test_skips_quota_exhausted_provider(self) -> None:
-        with patch(
-            "ai_news_digest.application.ai.embedding_service.get_settings"
-        ) as mock_settings:
+        with patch("ai_news_digest.application.ai.embedding_service.get_settings") as mock_settings:
             mock_settings.return_value.semantic_search_enabled = True
             exhausted = _make_provider("exhausted", priority=1)
             available = _make_provider("available", priority=2)
             quota_registry = MagicMock()
             quota_registry.check_quota_eligibility = AsyncMock(
-                side_effect=lambda pid, **kwargs: MagicMock(
-                    eligible=pid == "available"
-                )
+                side_effect=lambda pid, **kwargs: MagicMock(eligible=pid == "available")
             )
             svc = EmbeddingService(
                 providers=[exhausted, available],
@@ -218,9 +196,7 @@ class TestEmbeddingService:
 
     @pytest.mark.asyncio
     async def test_records_success_in_health_registry(self) -> None:
-        with patch(
-            "ai_news_digest.application.ai.embedding_service.get_settings"
-        ) as mock_settings:
+        with patch("ai_news_digest.application.ai.embedding_service.get_settings") as mock_settings:
             mock_settings.return_value.semantic_search_enabled = True
             provider = _make_provider("p1")
             health_registry = MagicMock()
@@ -236,9 +212,7 @@ class TestEmbeddingService:
 
     @pytest.mark.asyncio
     async def test_records_failure_in_health_registry(self) -> None:
-        with patch(
-            "ai_news_digest.application.ai.embedding_service.get_settings"
-        ) as mock_settings:
+        with patch("ai_news_digest.application.ai.embedding_service.get_settings") as mock_settings:
             mock_settings.return_value.semantic_search_enabled = True
             provider = _make_provider("p1")
             provider.embed = AsyncMock(side_effect=RuntimeError("down"))
@@ -256,9 +230,7 @@ class TestEmbeddingService:
 
     @pytest.mark.asyncio
     async def test_records_usage_in_quota_registry(self) -> None:
-        with patch(
-            "ai_news_digest.application.ai.embedding_service.get_settings"
-        ) as mock_settings:
+        with patch("ai_news_digest.application.ai.embedding_service.get_settings") as mock_settings:
             mock_settings.return_value.semantic_search_enabled = True
             provider = _make_provider("p1")
             quota_registry = MagicMock()

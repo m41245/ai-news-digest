@@ -1,4 +1,5 @@
 """Unit tests for ``SemanticCandidateFinder``."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime

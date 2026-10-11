@@ -5,10 +5,10 @@ Unit tests for M96 saved story use cases.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
-from unittest.mock import AsyncMock
 
 from ai_news_digest.application.use_cases.saved_story.save_story import (
     ListSavedStoriesUseCase,
@@ -38,7 +38,7 @@ async def test_save_story_creates_saved_story():
     repo.get_by_user_and_story.return_value = None
     repo.create.return_value = _make_saved_story(user_id, story_cluster_id)
 
-    result = await use_case.execute(user_id=user_id, story_cluster_id=story_cluster_id)
+    await use_case.execute(user_id=user_id, story_cluster_id=story_cluster_id)
 
     repo.get_by_user_and_story.assert_called_once_with(user_id, story_cluster_id)
     repo.create.assert_called_once()

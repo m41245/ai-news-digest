@@ -3,6 +3,7 @@
 Revision ID: 033
 Revises: 032
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -21,8 +22,16 @@ def upgrade() -> None:
         sa.Column("user_id", sa.String(36), nullable=False),
         sa.Column("name", sa.String(100), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+            nullable=False,
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("user_id", "name", name="uq_user_collection_name"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
@@ -36,7 +45,9 @@ def upgrade() -> None:
         sa.Column("story_cluster_id", sa.String(36), nullable=False),
         sa.Column("collection_id", sa.String(36), nullable=True),
         sa.Column("note", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("user_id", "story_cluster_id", name="uq_user_saved_story"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
@@ -53,14 +64,18 @@ def upgrade() -> None:
         sa.Column("id", sa.String(36), nullable=False),
         sa.Column("user_id", sa.String(36), nullable=False),
         sa.Column("story_cluster_id", sa.String(36), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("user_id", "story_cluster_id", name="uq_user_followed_story"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["story_cluster_id"], ["story_clusters.id"], ondelete="CASCADE"),
     )
     op.create_index("ix_followed_stories_user_id", "followed_stories", ["user_id"])
-    op.create_index("ix_followed_stories_story_cluster_id", "followed_stories", ["story_cluster_id"])
+    op.create_index(
+        "ix_followed_stories_story_cluster_id", "followed_stories", ["story_cluster_id"]
+    )
     op.create_index("ix_followed_stories_created_at", "followed_stories", ["created_at"])
 
 

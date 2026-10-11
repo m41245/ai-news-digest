@@ -3,9 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from ai_news_digest.domain.ports.email_sender import EmailSender
-
 from ai_news_digest.core.logging import get_logger
+from ai_news_digest.domain.ports.email_sender import EmailSender
 
 logger = get_logger(__name__)
 

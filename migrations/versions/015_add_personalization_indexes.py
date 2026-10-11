@@ -3,6 +3,7 @@
 Revision ID: 015
 Revises: 014
 """
+
 from __future__ import annotations
 
 from alembic import op
@@ -62,12 +63,18 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_user_muted_categories_user_id_category_id", table_name="user_muted_categories")
+    op.drop_index(
+        "ix_user_muted_categories_user_id_category_id", table_name="user_muted_categories"
+    )
     op.drop_index("ix_user_muted_topics_user_id_topic_id", table_name="user_muted_topics")
     op.drop_index("ix_user_muted_companies_user_id_company_id", table_name="user_muted_companies")
-    op.drop_index("ix_user_followed_categories_user_id_category_id", table_name="user_followed_categories")
+    op.drop_index(
+        "ix_user_followed_categories_user_id_category_id", table_name="user_followed_categories"
+    )
     op.drop_index("ix_user_followed_topics_user_id_topic_id", table_name="user_followed_topics")
-    op.drop_index("ix_user_followed_companies_user_id_company_id", table_name="user_followed_companies")
+    op.drop_index(
+        "ix_user_followed_companies_user_id_company_id", table_name="user_followed_companies"
+    )
     op.drop_index("ix_articles_source_type", table_name="sources")
     op.drop_index("ix_articles_cluster_id_published_at", table_name="articles")
     op.drop_index("ix_articles_status_published_at", table_name="articles")

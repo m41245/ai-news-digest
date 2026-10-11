@@ -269,12 +269,8 @@ class SemanticDuplicateDetector:
         signals: list[str] = []
         score = 0.0
 
-        article_tokens = frozenset(
-            _normalize_title_tokens(article.title) if article.title else []
-        )
-        cluster_tokens = frozenset(
-            _normalize_title_tokens(cluster.title) if cluster.title else []
-        )
+        article_tokens = frozenset(_normalize_title_tokens(article.title) if article.title else [])
+        cluster_tokens = frozenset(_normalize_title_tokens(cluster.title) if cluster.title else [])
         jaccard = _jaccard(article_tokens, cluster_tokens)
 
         if jaccard >= 0.7:
@@ -292,10 +288,7 @@ class SemanticDuplicateDetector:
         cluster_categories: set[str] = set()
         cluster_domain = ""
 
-        if (
-            cluster.representative_article_id is not None
-            and article_repository is not None
-        ):
+        if cluster.representative_article_id is not None and article_repository is not None:
             try:
                 representative = await article_repository.get_by_id(
                     cluster.representative_article_id
@@ -366,9 +359,7 @@ class SemanticDuplicateDetector:
         signals: list[str] = []
         score = 0.0
 
-        article_tokens = frozenset(
-            _normalize_title_tokens(article.title) if article.title else []
-        )
+        article_tokens = frozenset(_normalize_title_tokens(article.title) if article.title else [])
         candidate_tokens = frozenset(
             _normalize_title_tokens(candidate.title) if candidate.title else []
         )

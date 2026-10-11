@@ -89,6 +89,7 @@ def client(mock_container: MagicMock) -> TestClient:
     app.include_router(router)
     app.dependency_overrides[get_container] = lambda: mock_container
     from ai_news_digest.api.middleware.exception_handler import setup_exception_handlers
+
     setup_exception_handlers(app)
     with TestClient(app) as test_client:
         yield test_client

@@ -193,9 +193,9 @@ class TestVerificationQueries:
 
     def test_all_queries_start_with_select(self) -> None:
         for name, sql in VERIFICATION_QUERIES:
-            assert sql.strip().lower().startswith("select"), (
-                f"Query '{name}' must start with SELECT"
-            )
+            assert (
+                sql.strip().lower().startswith("select")
+            ), f"Query '{name}' must start with SELECT"
 
     def test_queries_contain_no_write_keywords(self) -> None:
         write_keywords = re.compile(

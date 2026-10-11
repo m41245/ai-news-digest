@@ -4,7 +4,6 @@ Unit tests for M82 conflict candidate generation.
 
 from __future__ import annotations
 
-import pytest
 from uuid import UUID, uuid4
 
 from ai_news_digest.application.evaluation.conflict_candidates import (
@@ -80,32 +79,50 @@ class TestGenerateCandidates:
 
         now = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
         article_a = Article.create(
-            title="A", url="https://a.com", summary="A", content="A",
-            source_id=uuid4(), published_at=now,
+            title="A",
+            url="https://a.com",
+            summary="A",
+            content="A",
+            source_id=uuid4(),
+            published_at=now,
         )
         article_b = Article.create(
-            title="B", url="https://b.com", summary="B", content="B",
-            source_id=uuid4(), published_at=now,
+            title="B",
+            url="https://b.com",
+            summary="B",
+            content="B",
+            source_id=uuid4(),
+            published_at=now,
         )
         source_a = Source.create(name="A", feed_url="https://a.com/feed")
         source_b = Source.create(name="B", feed_url="https://b.com/feed")
         claim_a = Claim.create(
-            article_id=article_a.id, source_id=source_a.id,
-            claim_text="OpenAI released GPT-5.", claim_type=ClaimType.ANNOUNCEMENT,
+            article_id=article_a.id,
+            source_id=source_a.id,
+            claim_text="OpenAI released GPT-5.",
+            claim_type=ClaimType.ANNOUNCEMENT,
         )
         claim_b = Claim.create(
-            article_id=article_b.id, source_id=source_b.id,
-            claim_text="Google released Gemini 2.", claim_type=ClaimType.ANNOUNCEMENT,
+            article_id=article_b.id,
+            source_id=source_b.id,
+            claim_text="Google released Gemini 2.",
+            claim_type=ClaimType.ANNOUNCEMENT,
         )
         ctx_a = ClaimContext(
-            claim=claim_a, article=article_a, source=source_a,
-            company_ids=frozenset(), topic_ids=frozenset(),
+            claim=claim_a,
+            article=article_a,
+            source=source_a,
+            company_ids=frozenset(),
+            topic_ids=frozenset(),
             normalized_tokens=frozenset({"openai", "gpt", "released"}),
             claim_type_group="event",
         )
         ctx_b = ClaimContext(
-            claim=claim_b, article=article_b, source=source_b,
-            company_ids=frozenset(), topic_ids=frozenset(),
+            claim=claim_b,
+            article=article_b,
+            source=source_b,
+            company_ids=frozenset(),
+            topic_ids=frozenset(),
             normalized_tokens=frozenset({"google", "gemini", "released"}),
             claim_type_group="event",
         )
@@ -118,33 +135,51 @@ class TestGenerateCandidates:
 
         now = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
         article_a = Article.create(
-            title="A", url="https://a.com", summary="A", content="A",
-            source_id=uuid4(), published_at=now,
+            title="A",
+            url="https://a.com",
+            summary="A",
+            content="A",
+            source_id=uuid4(),
+            published_at=now,
         )
         article_b = Article.create(
-            title="B", url="https://b.com", summary="B", content="B",
-            source_id=uuid4(), published_at=now,
+            title="B",
+            url="https://b.com",
+            summary="B",
+            content="B",
+            source_id=uuid4(),
+            published_at=now,
         )
         source_a = Source.create(name="A", feed_url="https://a.com/feed")
         source_b = Source.create(name="B", feed_url="https://b.com/feed")
         company_id = str(uuid4())
         claim_a = Claim.create(
-            article_id=article_a.id, source_id=source_a.id,
-            claim_text="OpenAI released GPT-5.", claim_type=ClaimType.ANNOUNCEMENT,
+            article_id=article_a.id,
+            source_id=source_a.id,
+            claim_text="OpenAI released GPT-5.",
+            claim_type=ClaimType.ANNOUNCEMENT,
         )
         claim_b = Claim.create(
-            article_id=article_b.id, source_id=source_b.id,
-            claim_text="OpenAI announced GPT-6.", claim_type=ClaimType.ANNOUNCEMENT,
+            article_id=article_b.id,
+            source_id=source_b.id,
+            claim_text="OpenAI announced GPT-6.",
+            claim_type=ClaimType.ANNOUNCEMENT,
         )
         ctx_a = ClaimContext(
-            claim=claim_a, article=article_a, source=source_a,
-            company_ids=frozenset({company_id}), topic_ids=frozenset(),
+            claim=claim_a,
+            article=article_a,
+            source=source_a,
+            company_ids=frozenset({company_id}),
+            topic_ids=frozenset(),
             normalized_tokens=frozenset({"openai", "gpt", "released"}),
             claim_type_group="event",
         )
         ctx_b = ClaimContext(
-            claim=claim_b, article=article_b, source=source_b,
-            company_ids=frozenset({company_id}), topic_ids=frozenset(),
+            claim=claim_b,
+            article=article_b,
+            source=source_b,
+            company_ids=frozenset({company_id}),
+            topic_ids=frozenset(),
             normalized_tokens=frozenset({"openai", "gpt", "announced"}),
             claim_type_group="event",
         )
@@ -158,18 +193,27 @@ class TestGenerateCandidates:
 
         now = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
         article = Article.create(
-            title="A", url="https://a.com", summary="A", content="A",
-            source_id=uuid4(), published_at=now,
+            title="A",
+            url="https://a.com",
+            summary="A",
+            content="A",
+            source_id=uuid4(),
+            published_at=now,
         )
         source = Source.create(name="A", feed_url="https://a.com/feed")
         company_id = str(uuid4())
         claim = Claim.create(
-            article_id=article.id, source_id=source.id,
-            claim_text="OpenAI released GPT-5.", claim_type=ClaimType.ANNOUNCEMENT,
+            article_id=article.id,
+            source_id=source.id,
+            claim_text="OpenAI released GPT-5.",
+            claim_type=ClaimType.ANNOUNCEMENT,
         )
         ctx = ClaimContext(
-            claim=claim, article=article, source=source,
-            company_ids=frozenset({company_id}), topic_ids=frozenset(),
+            claim=claim,
+            article=article,
+            source=source,
+            company_ids=frozenset({company_id}),
+            topic_ids=frozenset(),
             normalized_tokens=frozenset({"openai", "gpt", "released"}),
             claim_type_group="event",
         )
@@ -185,20 +229,31 @@ class TestGenerateCandidates:
         contexts = []
         for _ in range(10):
             article = Article.create(
-                title="A", url=f"https://{uuid4()}.com", summary="A", content="A",
-                source_id=uuid4(), published_at=now,
+                title="A",
+                url=f"https://{uuid4()}.com",
+                summary="A",
+                content="A",
+                source_id=uuid4(),
+                published_at=now,
             )
             source = Source.create(name="A", feed_url="https://a.com/feed")
             claim = Claim.create(
-                article_id=article.id, source_id=source.id,
-                claim_text="OpenAI released GPT-5.", claim_type=ClaimType.ANNOUNCEMENT,
+                article_id=article.id,
+                source_id=source.id,
+                claim_text="OpenAI released GPT-5.",
+                claim_type=ClaimType.ANNOUNCEMENT,
             )
-            contexts.append(ClaimContext(
-                claim=claim, article=article, source=source,
-                company_ids=frozenset({company_id}), topic_ids=frozenset(),
-                normalized_tokens=frozenset({"openai", "gpt", "released"}),
-                claim_type_group="event",
-            ))
+            contexts.append(
+                ClaimContext(
+                    claim=claim,
+                    article=article,
+                    source=source,
+                    company_ids=frozenset({company_id}),
+                    topic_ids=frozenset(),
+                    normalized_tokens=frozenset({"openai", "gpt", "released"}),
+                    claim_type_group="event",
+                )
+            )
         candidates = generate_candidates(contexts, max_total_candidates=5)
         assert len(candidates) <= 5
 

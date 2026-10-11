@@ -54,9 +54,13 @@ class SqlAlchemyUserCollectionRepository(
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[list[UserCollection], int]:
-        base_statement = select(UserCollectionModel).where(
-            UserCollectionModel.user_id == str(user_id),
-        ).order_by(UserCollectionModel.updated_at.desc())
+        base_statement = (
+            select(UserCollectionModel)
+            .where(
+                UserCollectionModel.user_id == str(user_id),
+            )
+            .order_by(UserCollectionModel.updated_at.desc())
+        )
 
         count_statement = select(func.count()).select_from(base_statement.subquery())
         total_result = await self._session.execute(count_statement)
@@ -109,8 +113,12 @@ class SqlAlchemyUserCollectionRepository(
         return True
 
     async def count_by_user(self, user_id: UUID) -> int:
-        statement = select(func.count()).select_from(UserCollectionModel).where(
-            UserCollectionModel.user_id == str(user_id),
+        statement = (
+            select(func.count())
+            .select_from(UserCollectionModel)
+            .where(
+                UserCollectionModel.user_id == str(user_id),
+            )
         )
         result = await self._session.execute(statement)
         return result.scalar_one()

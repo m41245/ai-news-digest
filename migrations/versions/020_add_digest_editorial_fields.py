@@ -60,4 +60,4 @@ def downgrade() -> None:
     op.drop_column("digests", "top_story_cluster_id")
 
 
-__all__ = ["revision", "down_revision"]
+__all__ = ["down_revision", "revision"]

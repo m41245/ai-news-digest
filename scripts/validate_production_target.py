@@ -52,10 +52,12 @@ def check_tls_certificate(domain: str, port: int = 443) -> tuple[bool, str]:
     try:
         import socket
         import ssl
+
         context = ssl.create_default_context()
-        with socket.create_connection((domain, port), timeout=10) as sock, context.wrap_socket(
-            sock, server_hostname=domain
-        ) as ssock:
+        with (
+            socket.create_connection((domain, port), timeout=10) as sock,
+            context.wrap_socket(sock, server_hostname=domain) as ssock,
+        ):
             cert = ssock.getpeercert()
             issuer = dict(x[0] for x in cert.get("issuer", ()))
             not_after = cert.get("notAfter", "unknown")
@@ -73,6 +75,7 @@ def check_http_availability(
     """Check HTTP endpoint availability."""
     try:
         import urllib.request
+
         req = urllib.request.Request(url, method="GET")
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             if resp.status == expected_status:
@@ -113,6 +116,7 @@ def check_redis_connectivity(host: str, port: int, password: str | None = None) 
     """Check Redis connectivity."""
     try:
         import redis
+
         url = f"redis://:{password}@{host}:{port}/0" if password else f"redis://{host}:{port}/0"
         r = redis.from_url(url, socket_timeout=10)
         pong = r.ping()
@@ -128,6 +132,7 @@ def check_metrics_endpoint(base_url: str, admin_token: str | None = None) -> tup
     """Check metrics endpoint availability."""
     try:
         import urllib.request
+
         url = f"{base_url.rstrip('/')}/metrics/health"
         req = urllib.request.Request(url, method="GET")
         if admin_token:
@@ -195,58 +200,66 @@ def main() -> int:
     validations: list[tuple[str, ValidationFn]] = []
 
     if prod_frontend_domain:
-        validations.append((
-            "DNS: frontend domain", lambda: check_dns_resolution(prod_frontend_domain)
-        ))
-        validations.append((
-            "TLS: frontend domain", lambda: check_tls_certificate(prod_frontend_domain)
-        ))
-        validations.append((
-            "HTTP: frontend availability",
-            lambda: check_http_availability(f"https://{prod_frontend_domain}"),
-        ))
+        validations.append(
+            ("DNS: frontend domain", lambda: check_dns_resolution(prod_frontend_domain))
+        )
+        validations.append(
+            ("TLS: frontend domain", lambda: check_tls_certificate(prod_frontend_domain))
+        )
+        validations.append(
+            (
+                "HTTP: frontend availability",
+                lambda: check_http_availability(f"https://{prod_frontend_domain}"),
+            )
+        )
 
     if prod_api_domain:
-        validations.append((
-            "DNS: API domain", lambda: check_dns_resolution(prod_api_domain)
-        ))
-        validations.append((
-            "TLS: API domain", lambda: check_tls_certificate(prod_api_domain)
-        ))
+        validations.append(("DNS: API domain", lambda: check_dns_resolution(prod_api_domain)))
+        validations.append(("TLS: API domain", lambda: check_tls_certificate(prod_api_domain)))
 
     if prod_api_url:
-        validations.append((
-            "HTTP: API liveness",
-            lambda: check_http_availability(f"{prod_api_url}/health/live"),
-        ))
-        validations.append((
-            "HTTP: API readiness",
-            lambda: check_http_availability(f"{prod_api_url}/health/ready"),
-        ))
-        validations.append((
-            "Metrics: health",
-            lambda: check_metrics_endpoint(f"{prod_api_url}", prod_metrics_token),
-        ))
+        validations.append(
+            (
+                "HTTP: API liveness",
+                lambda: check_http_availability(f"{prod_api_url}/health/live"),
+            )
+        )
+        validations.append(
+            (
+                "HTTP: API readiness",
+                lambda: check_http_availability(f"{prod_api_url}/health/ready"),
+            )
+        )
+        validations.append(
+            (
+                "Metrics: health",
+                lambda: check_metrics_endpoint(f"{prod_api_url}", prod_metrics_token),
+            )
+        )
 
     if prod_postgres_host and prod_postgres_user and prod_postgres_password:
-        validations.append((
-            "PostgreSQL: connectivity",
-            lambda: check_postgres_connectivity(
-                prod_postgres_host,
-                prod_postgres_port,
-                prod_postgres_db,
-                prod_postgres_user,
-                prod_postgres_password,
-            ),
-        ))
+        validations.append(
+            (
+                "PostgreSQL: connectivity",
+                lambda: check_postgres_connectivity(
+                    prod_postgres_host,
+                    prod_postgres_port,
+                    prod_postgres_db,
+                    prod_postgres_user,
+                    prod_postgres_password,
+                ),
+            )
+        )
 
     if prod_redis_host:
-        validations.append((
-            "Redis: connectivity",
-            lambda: check_redis_connectivity(
-                prod_redis_host, prod_redis_port, prod_redis_password or None
-            ),
-        ))
+        validations.append(
+            (
+                "Redis: connectivity",
+                lambda: check_redis_connectivity(
+                    prod_redis_host, prod_redis_port, prod_redis_password or None
+                ),
+            )
+        )
 
     # Check container health if running locally
     containers = [
@@ -257,10 +270,12 @@ def main() -> int:
         "ai_news_digest_beat",
     ]
     for container in containers:
-        validations.append((
-            f"Container: {container}",
-            lambda c=container: check_container_health(c),
-        ))
+        validations.append(
+            (
+                f"Container: {container}",
+                lambda c=container: check_container_health(c),
+            )
+        )
 
     passed = 0
     failed = 0

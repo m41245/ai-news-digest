@@ -120,9 +120,7 @@ class ExtractClaimsUseCase:
             return []
 
         user_prompt = (
-            f"Title: {article.title}\n\n"
-            f"Summary: {article.summary}\n\n"
-            f"Content: {content}"
+            f"Title: {article.title}\n\n" f"Summary: {article.summary}\n\n" f"Content: {content}"
         )
 
         request = AIRequest(
@@ -139,9 +137,7 @@ class ExtractClaimsUseCase:
         )
 
         try:
-            response = await self._provider_manager.generate(
-                request, capability="analysis"
-            )
+            response = await self._provider_manager.generate(request, capability="analysis")
         except Exception as exc:
             raise ExternalServiceError(
                 f"AI provider failed during claim extraction: {exc}"
@@ -166,9 +162,7 @@ class ExtractClaimsUseCase:
         try:
             claims_output = validate_claims_output(data)
         except Exception as exc:
-            raise ExternalServiceError(
-                f"Invalid claims structured output: {exc}"
-            ) from exc
+            raise ExternalServiceError(f"Invalid claims structured output: {exc}") from exc
 
         raw_claims = [c.model_dump() for c in claims_output.claims]
         raw_claims = deduplicate_claims(raw_claims)
@@ -189,7 +183,7 @@ class ExtractClaimsUseCase:
                     response=response,
                 )
                 created_claims.append(claim)
-            except Exception:
+            except Exception:  # noqa: S112
                 continue
 
         return created_claims
@@ -206,6 +200,7 @@ class ExtractClaimsUseCase:
         claim_type_str = str(raw.get("type", "other")).upper()
         try:
             from ai_news_digest.domain.enums.claim_type import ClaimType
+
             claim_type = ClaimType(claim_type_str.lower())
         except ValueError:
             claim_type = ClaimType.OTHER
@@ -239,6 +234,7 @@ class ExtractClaimsUseCase:
                 evidence_type_str = str(ev_raw.get("evidence_type", "article_text")).upper()
                 try:
                     from ai_news_digest.domain.enums.evidence_type import EvidenceType
+
                     evidence_type = EvidenceType(evidence_type_str.lower())
                 except ValueError:
                     evidence_type = EvidenceType.ARTICLE_TEXT
@@ -267,7 +263,7 @@ class ExtractClaimsUseCase:
                     anchor=anchor,
                 )
                 evidence_items.append(evidence)
-            except Exception:
+            except Exception:  # noqa: S112
                 continue
 
         source_content = article.content or article.summary or ""
@@ -276,6 +272,7 @@ class ExtractClaimsUseCase:
             evidence_list=list(evidence_items),
         )
         from ai_news_digest.domain.enums.claim_status import ClaimStatus
+
         claim_status_str = compute_claim_status(support_score)
         claim_status_enum = ClaimStatus(claim_status_str)
         claim.update_status(status=claim_status_enum, evidence_support_score=support_score)

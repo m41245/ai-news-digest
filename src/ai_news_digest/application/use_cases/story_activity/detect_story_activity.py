@@ -188,9 +188,7 @@ class DetectStoryActivityUseCase:
         """Build a map of trusted source IDs to source names."""
         sources = await self._source_repository.list_all()
         return {
-            str(s.id): s.name
-            for s in sources
-            if s.is_active and s.status == SourceStatus.VERIFIED
+            str(s.id): s.name for s in sources if s.is_active and s.status == SourceStatus.VERIFIED
         }
 
     async def _evaluate_cluster(
@@ -210,9 +208,7 @@ class DetectStoryActivityUseCase:
             limit=settings.max_articles_per_story,
         )
 
-        recent_articles = [
-            a for a in articles if a.published_at >= developing_cutoff
-        ]
+        recent_articles = [a for a in articles if a.published_at >= developing_cutoff]
 
         article_count_recent = len(recent_articles)
 
@@ -228,9 +224,11 @@ class DetectStoryActivityUseCase:
         if latest_article_at is not None:
             hours_since_latest = (now - latest_article_at).total_seconds() / 3600.0
 
-        window_hours = max(
-            (now - first_article_at).total_seconds() / 3600.0, 1.0
-        ) if first_article_at else float(settings.developing_window_hours)
+        window_hours = (
+            max((now - first_article_at).total_seconds() / 3600.0, 1.0)
+            if first_article_at
+            else float(settings.developing_window_hours)
+        )
         recent_article_velocity = article_count_recent / window_hours
 
         recent_claim_count = 0
@@ -260,10 +258,7 @@ class DetectStoryActivityUseCase:
                 conflicts = await self._conflict_repository.list_by_story_cluster_id(
                     cluster.id, limit=settings.max_articles_per_story
                 )
-                recent_conflicts = [
-                    c for c in conflicts
-                    if c.created_at >= developing_cutoff
-                ]
+                recent_conflicts = [c for c in conflicts if c.created_at >= developing_cutoff]
                 recent_conflict_count = len(recent_conflicts)
                 state_change_count += recent_conflict_count
             except Exception:

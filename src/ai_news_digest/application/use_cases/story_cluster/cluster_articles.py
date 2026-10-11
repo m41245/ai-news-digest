@@ -66,8 +66,8 @@ class ClusterArticlesUseCase:
             if existing is not None:
                 return existing
 
-        candidate_clusters, candidate_articles = (
-            await self._candidate_finder.find_candidates(article)
+        candidate_clusters, candidate_articles = await self._candidate_finder.find_candidates(
+            article
         )
 
         best_cluster = None
@@ -103,9 +103,7 @@ class ClusterArticlesUseCase:
 
         if best_cluster is not None:
             await self._article_repository.set_cluster(article.id, best_cluster.id)
-            await self._cluster_repository.attach_article(
-                best_cluster.id, article.id
-            )
+            await self._cluster_repository.attach_article(best_cluster.id, article.id)
             updated_cluster = await self._update_cluster_metadata(best_cluster, article)
             record_cluster_assigned()
             logger.info(

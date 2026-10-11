@@ -15,12 +15,13 @@ class TestDetectTrendsTask:
         mock_container = MagicMock()
         mock_container.detect_trends = None
 
-        with patch(
-            "ai_news_digest.workers.tasks.trend.get_container",
-            container_generator(mock_container),
-        ), patch(
-            "ai_news_digest.workers.tasks.trend.get_settings"
-        ) as mock_settings:
+        with (
+            patch(
+                "ai_news_digest.workers.tasks.trend.get_container",
+                container_generator(mock_container),
+            ),
+            patch("ai_news_digest.workers.tasks.trend.get_settings") as mock_settings,
+        ):
             mock_settings.return_value.trend_detection_enabled = False
             result = detect_trends()
 
@@ -30,12 +31,13 @@ class TestDetectTrendsTask:
         mock_container = MagicMock()
         mock_container.detect_trends = None
 
-        with patch(
-            "ai_news_digest.workers.tasks.trend.get_container",
-            container_generator(mock_container),
-        ), patch(
-            "ai_news_digest.workers.tasks.trend.get_settings"
-        ) as mock_settings:
+        with (
+            patch(
+                "ai_news_digest.workers.tasks.trend.get_container",
+                container_generator(mock_container),
+            ),
+            patch("ai_news_digest.workers.tasks.trend.get_settings") as mock_settings,
+        ):
             mock_settings.return_value.trend_detection_enabled = True
             result = detect_trends()
 

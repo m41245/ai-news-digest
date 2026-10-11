@@ -5,6 +5,7 @@ Revises: 013
 Create Date: 2026-09-05 04:00:00.000000
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -25,18 +26,28 @@ def upgrade() -> None:
         sa.Column("feed_sort", sa.String(32), nullable=False, server_default="published_at"),
         sa.Column("freshness_window_days", sa.Integer, nullable=True),
         sa.Column("preferred_source_types_json", sa.Text, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
     )
-    op.create_index("ix_user_preference_profiles_user_id", "user_preference_profiles", ["user_id"], unique=True)
+    op.create_index(
+        "ix_user_preference_profiles_user_id", "user_preference_profiles", ["user_id"], unique=True
+    )
 
     op.create_table(
         "user_followed_companies",
-        sa.Column("id", sa.String(36), primary_key=True, default=lambda: str(__import__("uuid").uuid4())),
+        sa.Column(
+            "id", sa.String(36), primary_key=True, default=lambda: str(__import__("uuid").uuid4())
+        ),
         sa.Column("user_id", sa.String(36), nullable=False, index=True),
         sa.Column("company_id", sa.String(36), nullable=False, index=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["company_id"], ["companies.id"], ondelete="CASCADE"),
         sa.UniqueConstraint("user_id", "company_id", name="uq_user_followed_company"),
@@ -44,10 +55,14 @@ def upgrade() -> None:
 
     op.create_table(
         "user_followed_topics",
-        sa.Column("id", sa.String(36), primary_key=True, default=lambda: str(__import__("uuid").uuid4())),
+        sa.Column(
+            "id", sa.String(36), primary_key=True, default=lambda: str(__import__("uuid").uuid4())
+        ),
         sa.Column("user_id", sa.String(36), nullable=False, index=True),
         sa.Column("topic_id", sa.String(36), nullable=False, index=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["topic_id"], ["topics.id"], ondelete="CASCADE"),
         sa.UniqueConstraint("user_id", "topic_id", name="uq_user_followed_topic"),
@@ -55,10 +70,14 @@ def upgrade() -> None:
 
     op.create_table(
         "user_followed_categories",
-        sa.Column("id", sa.String(36), primary_key=True, default=lambda: str(__import__("uuid").uuid4())),
+        sa.Column(
+            "id", sa.String(36), primary_key=True, default=lambda: str(__import__("uuid").uuid4())
+        ),
         sa.Column("user_id", sa.String(36), nullable=False, index=True),
         sa.Column("category_id", sa.String(36), nullable=False, index=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["category_id"], ["categories.id"], ondelete="CASCADE"),
         sa.UniqueConstraint("user_id", "category_id", name="uq_user_followed_category"),
@@ -66,10 +85,14 @@ def upgrade() -> None:
 
     op.create_table(
         "user_muted_companies",
-        sa.Column("id", sa.String(36), primary_key=True, default=lambda: str(__import__("uuid").uuid4())),
+        sa.Column(
+            "id", sa.String(36), primary_key=True, default=lambda: str(__import__("uuid").uuid4())
+        ),
         sa.Column("user_id", sa.String(36), nullable=False, index=True),
         sa.Column("company_id", sa.String(36), nullable=False, index=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["company_id"], ["companies.id"], ondelete="CASCADE"),
         sa.UniqueConstraint("user_id", "company_id", name="uq_user_muted_company"),
@@ -77,10 +100,14 @@ def upgrade() -> None:
 
     op.create_table(
         "user_muted_topics",
-        sa.Column("id", sa.String(36), primary_key=True, default=lambda: str(__import__("uuid").uuid4())),
+        sa.Column(
+            "id", sa.String(36), primary_key=True, default=lambda: str(__import__("uuid").uuid4())
+        ),
         sa.Column("user_id", sa.String(36), nullable=False, index=True),
         sa.Column("topic_id", sa.String(36), nullable=False, index=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["topic_id"], ["topics.id"], ondelete="CASCADE"),
         sa.UniqueConstraint("user_id", "topic_id", name="uq_user_muted_topic"),
@@ -88,10 +115,14 @@ def upgrade() -> None:
 
     op.create_table(
         "user_muted_categories",
-        sa.Column("id", sa.String(36), primary_key=True, default=lambda: str(__import__("uuid").uuid4())),
+        sa.Column(
+            "id", sa.String(36), primary_key=True, default=lambda: str(__import__("uuid").uuid4())
+        ),
         sa.Column("user_id", sa.String(36), nullable=False, index=True),
         sa.Column("category_id", sa.String(36), nullable=False, index=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["category_id"], ["categories.id"], ondelete="CASCADE"),
         sa.UniqueConstraint("user_id", "category_id", name="uq_user_muted_category"),

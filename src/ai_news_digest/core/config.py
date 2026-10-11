@@ -726,8 +726,7 @@ class Settings(BaseSettings):
         ge=0.0,
         le=1.0,
         description=(
-            "Minimum structured output validity rate to pass the"
-            " article analysis quality gate."
+            "Minimum structured output validity rate to pass the" " article analysis quality gate."
         ),
     )
 
@@ -923,9 +922,7 @@ class Settings(BaseSettings):
 
     @field_validator("story_related_story_threshold")
     @classmethod
-    def validate_related_threshold(
-        cls, value: float, info: ValidationInfo
-    ) -> float:
+    def validate_related_threshold(cls, value: float, info: ValidationInfo) -> float:
         semantic = info.data.get("story_semantic_duplicate_threshold")
         if semantic is not None and value >= semantic:
             raise ValueError(
@@ -1301,14 +1298,10 @@ class Settings(BaseSettings):
 
     @field_validator("developing_threshold")
     @classmethod
-    def validate_developing_threshold(
-        cls, value: float, info: ValidationInfo
-    ) -> float:
+    def validate_developing_threshold(cls, value: float, info: ValidationInfo) -> float:
         breaking = info.data.get("breaking_threshold")
         if breaking is not None and value >= breaking:
-            raise ValueError(
-                "developing_threshold must be lower than breaking_threshold."
-            )
+            raise ValueError("developing_threshold must be lower than breaking_threshold.")
         return value
 
     # ======================================================================
@@ -1397,8 +1390,7 @@ class Settings(BaseSettings):
         ge=1,
         le=500,
         description=(
-            "Maximum candidates to evaluate per trend type "
-            "(company, topic, category, story)."
+            "Maximum candidates to evaluate per trend type " "(company, topic, category, story)."
         ),
     )
 
@@ -2003,9 +1995,7 @@ class Settings(BaseSettings):
                     "GEMINI_API_KEY must be set when GEMINI_ENABLED=true in production."
                 )
             if self.xai_enabled and not self.xai_api_key:
-                raise ValueError(
-                    "XAI_API_KEY must be set when XAI_ENABLED=true in production."
-                )
+                raise ValueError("XAI_API_KEY must be set when XAI_ENABLED=true in production.")
         return self
 
     @field_validator("smtp_host")

@@ -5,9 +5,6 @@ Unit tests for M85 Trend domain model.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from uuid import uuid4
-
-import pytest
 
 from ai_news_digest.domain.enums.trend_status import TrendStatus
 from ai_news_digest.domain.enums.trend_type import TrendType
@@ -108,7 +105,6 @@ class TestTrendUpdate:
             event_count=2,
             explanation="test",
         )
-        original_updated = trend.updated_at
         trend.touch()
         assert trend.last_detected_at > now
         assert trend.updated_at >= trend.last_detected_at

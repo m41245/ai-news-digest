@@ -236,9 +236,7 @@ class QualityGateService:
 
         now = datetime.now(UTC)
         time_window = now.strftime("%Y%m%d%H")
-        dedup_key = (
-            f"m94:{gate_result.component.value}:{gate_result.gate_id}:{time_window}"
-        )
+        dedup_key = f"m94:{gate_result.component.value}:{gate_result.gate_id}:{time_window}"
 
         return OperationalAlert(
             alert_id=f"alert-{gate_result.gate_id}-{now.strftime('%Y%m%dT%H%M%SZ')}",

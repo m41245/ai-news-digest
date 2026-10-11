@@ -4,14 +4,11 @@ Backend integration tests for M96 intelligence workspace API endpoints.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 
-from ai_news_digest.domain.models.story_cluster import StoryCluster
-from ai_news_digest.domain.models.user import User
 from ai_news_digest.infrastructure.auth.jwt import create_access_token
 from ai_news_digest.infrastructure.database.models.story_cluster_model import StoryClusterModel
 from ai_news_digest.infrastructure.database.models.user_model import UserModel
@@ -21,7 +18,7 @@ def _create_user(session) -> UserModel:
     user = UserModel(
         id=str(uuid4()),
         email="workspace-api@example.com",
-        hashed_password="hashed",
+        hashed_password="hashed",  # noqa: S106 - test fixture, not a real secret
         is_active=True,
         is_admin=False,
     )

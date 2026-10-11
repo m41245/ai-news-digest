@@ -4,8 +4,6 @@ Unit tests for M81 claim normalization.
 
 from __future__ import annotations
 
-import pytest
-
 from ai_news_digest.application.evaluation.claim_normalizer import (
     deduplicate_claims,
     normalize_claim_text,
@@ -78,4 +76,4 @@ class TestDeduplicateClaims:
         assert len(result) == 1
 
 
-__all__ = ["TestNormalizeClaimText", "TestDeduplicateClaims"]
+__all__ = ["TestDeduplicateClaims", "TestNormalizeClaimText"]

@@ -13,7 +13,6 @@ import pytest
 from ai_news_digest.application.use_cases.trend.detect_trends import DetectTrendsUseCase
 from ai_news_digest.domain.enums.source_status import SourceStatus
 from ai_news_digest.domain.enums.source_type import SourceType
-from ai_news_digest.domain.enums.story_activity_status import StoryActivityStatus
 from ai_news_digest.domain.enums.trend_status import TrendStatus
 from ai_news_digest.domain.enums.trend_type import TrendType
 from ai_news_digest.domain.models.article import Article
@@ -214,9 +213,7 @@ class TestTrendScore:
         company.article_count = 10
 
         mock_company_repository.list_all_with_counts.return_value = [company]
-        mock_source_repository.list_all.return_value = [
-            _make_source(source_id, "Source A")
-        ]
+        mock_source_repository.list_all.return_value = [_make_source(source_id, "Source A")]
         mock_category_repository.list_all.return_value = []
         mock_topic_repository.list_all_with_counts.return_value = []
 
@@ -305,9 +302,7 @@ class TestIdempotency:
         company.article_count = 10
 
         mock_company_repository.list_all_with_counts.return_value = [company]
-        mock_source_repository.list_all.return_value = [
-            _make_source(source_id, "Source A")
-        ]
+        mock_source_repository.list_all.return_value = [_make_source(source_id, "Source A")]
         mock_category_repository.list_all.return_value = []
         mock_topic_repository.list_all_with_counts.return_value = []
 
@@ -409,9 +404,7 @@ class TestStatusThresholds:
         company.article_count = 10
 
         mock_company_repository.list_all_with_counts.return_value = [company]
-        mock_source_repository.list_all.return_value = [
-            _make_source(source_id, "Source A")
-        ]
+        mock_source_repository.list_all.return_value = [_make_source(source_id, "Source A")]
         mock_category_repository.list_all.return_value = []
         mock_topic_repository.list_all_with_counts.return_value = []
 

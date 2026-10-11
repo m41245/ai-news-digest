@@ -15,12 +15,13 @@ class TestDetectStoryActivityTask:
         mock_container = MagicMock()
         mock_container.detect_story_activity = None
 
-        with patch(
-            "ai_news_digest.workers.tasks.story_activity.get_container",
-            container_generator(mock_container),
-        ), patch(
-            "ai_news_digest.workers.tasks.story_activity.get_settings"
-        ) as mock_settings:
+        with (
+            patch(
+                "ai_news_digest.workers.tasks.story_activity.get_container",
+                container_generator(mock_container),
+            ),
+            patch("ai_news_digest.workers.tasks.story_activity.get_settings") as mock_settings,
+        ):
             mock_settings.return_value.breaking_detection_enabled = False
             result = detect_story_activity()
 
@@ -30,12 +31,13 @@ class TestDetectStoryActivityTask:
         mock_container = MagicMock()
         mock_container.detect_story_activity = None
 
-        with patch(
-            "ai_news_digest.workers.tasks.story_activity.get_container",
-            container_generator(mock_container),
-        ), patch(
-            "ai_news_digest.workers.tasks.story_activity.get_settings"
-        ) as mock_settings:
+        with (
+            patch(
+                "ai_news_digest.workers.tasks.story_activity.get_container",
+                container_generator(mock_container),
+            ),
+            patch("ai_news_digest.workers.tasks.story_activity.get_settings") as mock_settings,
+        ):
             mock_settings.return_value.breaking_detection_enabled = True
             result = detect_story_activity()
 

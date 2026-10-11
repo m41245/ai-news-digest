@@ -5,9 +5,8 @@ from dataclasses import dataclass
 from ai_news_digest.application.use_cases.article.ingest_from_source import (
     IngestFromSourceUseCase,
 )
-from ai_news_digest.domain.ports.source_repository import SourceRepository
-
 from ai_news_digest.core.logging import get_logger
+from ai_news_digest.domain.ports.source_repository import SourceRepository
 
 logger = get_logger(__name__)
 

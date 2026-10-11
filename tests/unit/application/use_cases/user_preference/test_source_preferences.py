@@ -174,8 +174,8 @@ class TestPersonalizedFeedSourceIntegration:
             muted_source_ids=frozenset([source_id]),
         )
         use_case._preference_repository.get_by_user_id = AsyncMock(return_value=profile)
-        use_case._article_repository.list_personalized_feed_story_candidates = (
-            AsyncMock(return_value=[])
+        use_case._article_repository.list_personalized_feed_story_candidates = AsyncMock(
+            return_value=[]
         )
         use_case._source_repository.list_all = AsyncMock(return_value=[])
         use_case._category_repository.list_all = AsyncMock(return_value=[])
@@ -187,9 +187,7 @@ class TestPersonalizedFeedSourceIntegration:
         assert source_id in call_kwargs["muted_source_ids"]
 
     @pytest.mark.asyncio
-    async def test_followed_source_boosts_score(
-        self, use_case: GetPersonalizedFeedUseCase
-    ) -> None:
+    async def test_followed_source_boosts_score(self, use_case: GetPersonalizedFeedUseCase) -> None:
         user = _make_user()
         source_id = uuid4()
         article = _make_article(source_id=source_id)
@@ -213,6 +211,4 @@ class TestPersonalizedFeedSourceIntegration:
 
         response = await use_case.execute(user, page=1, page_size=20)
         assert response.total == 1
-        assert any(
-            "followed source" in r.lower() for r in response.items[0].relevance_reasons
-        )
+        assert any("followed source" in r.lower() for r in response.items[0].relevance_reasons)

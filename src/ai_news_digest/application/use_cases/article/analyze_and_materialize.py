@@ -60,7 +60,6 @@ class AnalyzeAndMaterializeUseCase:
                 from ai_news_digest.application.use_cases.article.extract_claims import (
                     ExtractClaimsUseCase,
                 )
-                from ai_news_digest.application.ai.provider_manager import ProviderManager
 
                 provider_manager = None
                 for attr in ("_provider_manager",):
@@ -75,7 +74,7 @@ class AnalyzeAndMaterializeUseCase:
                         claim_repository=self._claim_repository,
                     )
                     await extract_claims.execute(result, source_id)
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
         return result

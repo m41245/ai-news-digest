@@ -54,9 +54,7 @@ class SummarizeArticleUseCase:
             response_format=AIResponseFormat.TEXT,
         )
 
-        response = await self._provider_manager.generate(
-            request, capability="summarization"
-        )
+        response = await self._provider_manager.generate(request, capability="summarization")
         summary_text = (response.content or article.summary).strip()
 
         if not summary_text:

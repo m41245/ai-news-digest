@@ -5,18 +5,17 @@ Unit tests for M96 user collection use cases.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
-from unittest.mock import AsyncMock
 
 from ai_news_digest.application.use_cases.user_collection.manage_collections import (
     CreateCollectionUseCase,
     DeleteCollectionUseCase,
     ListCollectionsUseCase,
-    UpdateCollectionUseCase,
 )
-from ai_news_digest.core.exceptions import DuplicateResourceError, ResourceNotFoundError
+from ai_news_digest.core.exceptions import DuplicateResourceError
 from ai_news_digest.domain.models.user_collection import UserCollection
 
 
@@ -40,7 +39,7 @@ async def test_create_collection():
     repo.get_by_user_and_name.return_value = None
     repo.create.return_value = _make_collection(user_id, "Saved")
 
-    result = await use_case.execute(user_id=user_id, name="Saved", description="My saved stories")
+    await use_case.execute(user_id=user_id, name="Saved", description="My saved stories")
 
     repo.get_by_user_and_name.assert_called_once_with(user_id, "Saved")
     repo.create.assert_called_once()

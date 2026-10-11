@@ -106,4 +106,3 @@ class TestEngineSslHandling:
     def test_session_connect_args_does_not_force_ssl_for_local_url(self) -> None:
         """Local development URL without sslmode must not have ssl forced."""
         assert "ssl" not in connect_args
-

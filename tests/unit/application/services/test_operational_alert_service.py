@@ -52,6 +52,7 @@ class TestOperationalAlertService:
             mock_repo.save_alert.assert_called_once()
 
         import asyncio
+
         asyncio.run(_run())
 
     def test_maybe_create_alert_skips_duplicate(
@@ -72,6 +73,7 @@ class TestOperationalAlertService:
             mock_repo.save_alert.assert_not_called()
 
         import asyncio
+
         asyncio.run(_run())
 
     def test_maybe_create_alert_skips_when_disabled(
@@ -94,6 +96,7 @@ class TestOperationalAlertService:
             mock_repo.save_alert.assert_not_called()
 
         import asyncio
+
         asyncio.run(_run())
 
     def test_resolve_alerts_for_component(self, mock_repo: MagicMock) -> None:
@@ -121,6 +124,7 @@ class TestOperationalAlertService:
             mock_repo.resolve_alert.assert_called_once_with("alert-1")
 
         import asyncio
+
         asyncio.run(_run())
 
 

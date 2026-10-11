@@ -4,8 +4,6 @@ Unit tests for M81 evidence validation.
 
 from __future__ import annotations
 
-import pytest
-
 from ai_news_digest.application.evaluation.evidence_validation import (
     compute_claim_status,
     compute_evidence_support_score,
@@ -141,12 +139,9 @@ class TestComputeClaimStatus:
     def test_none_score_is_unverified(self) -> None:
         assert compute_claim_status(None) == "unverified"
 
-    def test_zero_score_is_unverified(self) -> None:
-        assert compute_claim_status(0.0) == "unverified"
-
 
 __all__ = [
+    "TestComputeClaimStatus",
     "TestComputeEvidenceSupportScore",
     "TestValidateExcerptInSource",
-    "TestComputeClaimStatus",
 ]

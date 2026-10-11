@@ -22,7 +22,6 @@ from enum import StrEnum
 from typing import Any
 
 from ai_news_digest.core.logging import get_logger
-from ai_news_digest.domain.enums.entity_type import EntityType
 from ai_news_digest.domain.enums.relationship_status import RelationshipStatus
 from ai_news_digest.domain.models.relationship import Relationship
 
@@ -225,13 +224,9 @@ class GraphIntelligenceService:
 
             is_source = rel.subject_entity_id == entity_id
             other_type = (
-                rel.object_entity_type.value
-                if is_source
-                else rel.subject_entity_type.value
+                rel.object_entity_type.value if is_source else rel.subject_entity_type.value
             )
-            other_id = (
-                rel.object_entity_id if is_source else rel.subject_entity_id
-            )
+            other_id = rel.object_entity_id if is_source else rel.subject_entity_id
 
             key = f"{other_type}:{other_id}"
             if key not in connections:
@@ -253,9 +248,7 @@ class GraphIntelligenceService:
                 conn.relationship_type = rel.relationship_type.value
                 conn.status = rel.status.value
             else:
-                conn.relationship_type = (
-                    f"{conn.relationship_type}, {rel.relationship_type.value}"
-                )
+                conn.relationship_type = f"{conn.relationship_type}, {rel.relationship_type.value}"
 
             conn.score = max(conn.score, rel_score)
             conn.is_disputed = conn.is_disputed or is_disputed
@@ -401,11 +394,7 @@ class GraphIntelligenceService:
 
         node_limit = self.MAX_BFS_NODES
         edge_limit = self.MAX_BFS_EDGES
-        while (
-            queue
-            and len(visited_nodes) < node_limit
-            and len(visited_edges) < edge_limit
-        ):
+        while queue and len(visited_nodes) < node_limit and len(visited_edges) < edge_limit:
             current, depth = queue.popleft()
 
             if depth >= self.MAX_BFS_DEPTH:
@@ -552,9 +541,7 @@ class GraphIntelligenceService:
         if shared_topics:
             parts.append(f"Shared topic: {', '.join(sorted(shared_topics))}")
         if shared_categories:
-            parts.append(
-                f"Shared category: {', '.join(sorted(shared_categories))}"
-            )
+            parts.append(f"Shared category: {', '.join(sorted(shared_categories))}")
 
         has_verified = ConnectionSignal.VERIFIED_RELATIONSHIP.value in signals
         has_disputed = ConnectionSignal.DISPUTED_RELATIONSHIP.value in signals

@@ -164,9 +164,7 @@ class TestQualityGateService:
         alert = service.build_alert(result)
         assert alert is None
 
-    def test_evaluate_gate_warn_within_margin(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_evaluate_gate_warn_within_margin(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             "ai_news_digest.application.services.quality_gate_service.get_settings",
             lambda: MagicMock(
@@ -193,9 +191,7 @@ class TestQualityGateService:
         assert result.result == QualityGateResult.WARN
         assert result.current_value == 0.65
 
-    def test_evaluate_gate_fail_beyond_margin(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_evaluate_gate_fail_beyond_margin(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             "ai_news_digest.application.services.quality_gate_service.get_settings",
             lambda: MagicMock(
@@ -221,9 +217,7 @@ class TestQualityGateService:
         result = service.evaluate_gate(gate, metrics)
         assert result.result == QualityGateResult.FAIL
 
-    def test_evaluate_gate_warn_with_default_margin(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_evaluate_gate_warn_with_default_margin(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             "ai_news_digest.application.services.quality_gate_service.get_settings",
             lambda: MagicMock(

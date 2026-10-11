@@ -34,4 +34,4 @@ def downgrade() -> None:
     op.drop_column("articles", "ai_input_tokens")
 
 
-__all__ = ["revision", "down_revision"]
+__all__ = ["down_revision", "revision"]

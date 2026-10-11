@@ -5,6 +5,7 @@ Revises: 024
 Create Date: 2026-09-15 00:00:00.000000
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -30,8 +31,12 @@ def upgrade() -> None:
         sa.Column("processing_metadata", sa.Text, nullable=True),
         sa.Column("schema_version", sa.String(32), nullable=False, server_default="v1"),
         sa.Column("sequence", sa.Integer, nullable=False, server_default="0"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
     )
     op.create_index(
         "ix_story_events_cluster",
@@ -45,14 +50,18 @@ def upgrade() -> None:
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column("story_event_id", sa.String(36), nullable=False, index=True),
         sa.Column("article_id", sa.String(36), nullable=False, index=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
     )
     op.create_table(
         "story_event_claims",
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column("story_event_id", sa.String(36), nullable=False, index=True),
         sa.Column("claim_id", sa.String(36), nullable=False, index=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
     )
 
 

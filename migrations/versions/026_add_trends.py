@@ -5,6 +5,7 @@ Revises: 025
 Create Date: 2026-09-15 00:00:00.000000
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -35,8 +36,12 @@ def upgrade() -> None:
         sa.Column("event_count", sa.Integer, nullable=False, server_default="0"),
         sa.Column("explanation", sa.Text, nullable=False),
         sa.Column("trend_metadata", sa.Text, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
     )
     op.create_index(
         "ix_trends_status",

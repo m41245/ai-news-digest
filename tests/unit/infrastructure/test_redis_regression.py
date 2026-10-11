@@ -35,6 +35,7 @@ from ai_news_digest.infrastructure.cache.redis_store import (
 # 1. rediss:// selects SSLConnection
 # ======================================================================
 
+
 class TestURLSchemeSelection:
     """Verify redis-py selects the correct connection class for each scheme."""
 
@@ -45,9 +46,7 @@ class TestURLSchemeSelection:
         assert pool.connection_class is aioredis.SSLConnection
 
     def test_redis_selects_plain_connection(self):
-        pool = aioredis.ConnectionPool.from_url(
-            "redis://default:token@upstash-host.example:6379/0"
-        )
+        pool = aioredis.ConnectionPool.from_url("redis://default:token@upstash-host.example:6379/0")
         assert pool.connection_class is aioredis.Connection
 
     def test_redis_store_uses_ssl_for_rediss_url(self):
@@ -83,6 +82,7 @@ class TestURLSchemeSelection:
 # 2. rediss:// cannot downgrade to plaintext
 # ======================================================================
 
+
 class TestNoDowngrade:
     """Verify rediss:// URLs cannot be downgraded to plaintext."""
 
@@ -113,6 +113,7 @@ class TestNoDowngrade:
 # 3. URL parsing preserves host/port/db
 # ======================================================================
 
+
 class TestURLParsing:
     """Verify redis-py parses URL components correctly."""
 
@@ -137,24 +138,21 @@ class TestURLParsing:
         assert pool.connection_kwargs["port"] == 6380
 
     def test_rejects_malformed_cli_url(self):
-        store = RedisStore(
-            "redis-cli --tls -u rediss://default:token@upstash-host:6379/0"
-        )
+        store = RedisStore("redis-cli --tls -u rediss://default:token@upstash-host:6379/0")
 
         with patch.object(aioredis.ConnectionPool, "from_url") as mock_from_url:
             mock_from_url.side_effect = ValueError(
                 "Redis URL must specify one of the following schemes"
             )
 
-            with pytest.raises(
-                ExternalServiceError, match="Redis connection failed"
-            ):
+            with pytest.raises(ExternalServiceError, match="Redis connection failed"):
                 asyncio.new_event_loop().run_until_complete(store.get("key"))
 
 
 # ======================================================================
 # 4. credentials are not exposed in diagnostics
 # ======================================================================
+
 
 class TestDiagnosticsSecurity:
     """Verify diagnostics never expose credentials."""
@@ -192,6 +190,7 @@ class TestDiagnosticsSecurity:
 # 5. supported query parameters are handled correctly
 # ======================================================================
 
+
 class TestQueryParameters:
     """Verify query parameters are parsed and passed correctly."""
 
@@ -210,6 +209,7 @@ class TestQueryParameters:
 # 6. RedisStore pool lifecycle
 # ======================================================================
 
+
 class TestPoolLifecycle:
     """Verify RedisStore pool lifecycle behavior."""
 
@@ -222,9 +222,7 @@ class TestPoolLifecycle:
         mock_client = AsyncMock()
         mock_client.ping.return_value = True
 
-        with patch.object(
-            RedisStore, "_build_client", return_value=mock_client
-        ) as mock_build:
+        with patch.object(RedisStore, "_build_client", return_value=mock_client) as mock_build:
             await store.ping()
             mock_build.assert_called_once()
 
@@ -234,9 +232,7 @@ class TestPoolLifecycle:
         mock_client = AsyncMock()
         mock_client.get.return_value = "value"
 
-        with patch.object(
-            RedisStore, "_build_client", return_value=mock_client
-        ) as mock_build:
+        with patch.object(RedisStore, "_build_client", return_value=mock_client) as mock_build:
             await store.get("key1")
             await store.get("key2")
             mock_build.assert_called_once()
@@ -261,6 +257,7 @@ class TestPoolLifecycle:
 # 7. RedisStore ping/get/set behavior using mocks
 # ======================================================================
 
+
 class TestRedisStoreOperations:
     """Verify RedisStore CRUD operations using mocks."""
 
@@ -270,9 +267,7 @@ class TestRedisStoreOperations:
         mock_client = AsyncMock()
         mock_client.ping.return_value = True
 
-        with patch.object(
-            RedisStore, "_build_client", return_value=mock_client
-        ):
+        with patch.object(RedisStore, "_build_client", return_value=mock_client):
             result = await store.ping()
             assert result is True
 
@@ -282,9 +277,7 @@ class TestRedisStoreOperations:
         mock_client = AsyncMock()
         mock_client.get.return_value = "test_value"
 
-        with patch.object(
-            RedisStore, "_build_client", return_value=mock_client
-        ):
+        with patch.object(RedisStore, "_build_client", return_value=mock_client):
             result = await store.get("test_key")
             assert result == "test_value"
 
@@ -293,9 +286,7 @@ class TestRedisStoreOperations:
         store = RedisStore("redis://localhost:6379/0")
         mock_client = AsyncMock()
 
-        with patch.object(
-            RedisStore, "_build_client", return_value=mock_client
-        ):
+        with patch.object(RedisStore, "_build_client", return_value=mock_client):
             await store.set("test_key", "test_value")
             mock_client.set.assert_called_once_with("test_key", "test_value")
 
@@ -303,6 +294,7 @@ class TestRedisStoreOperations:
 # ======================================================================
 # 9. Production URL scheme validation
 # ======================================================================
+
 
 class TestProductionURLSchemeValidation:
     """Verify RedisStore rejects plaintext redis:// in production."""
@@ -384,6 +376,7 @@ class TestProductionURLSchemeValidation:
 # 10. Celery rediss:// configuration
 # ======================================================================
 
+
 class TestCeleryRedisConfiguration:
     """Verify Celery/Kombu handles rediss:// URLs correctly."""
 
@@ -403,6 +396,7 @@ class TestCeleryRedisConfiguration:
 
         get_settings.cache_clear()
         import os
+
         os.environ["REDIS_URL"] = "rediss://default:token@upstash-host:6379/0"
         os.environ["CELERY_BROKER_URL"] = "rediss://default:token@upstash-host:6379/1"
         os.environ["CELERY_RESULT_BACKEND"] = "rediss://default:token@upstash-host:6379/2"
@@ -418,7 +412,12 @@ class TestCeleryRedisConfiguration:
         finally:
             get_settings.cache_clear()
             for key in [
-                "REDIS_URL", "CELERY_BROKER_URL", "CELERY_RESULT_BACKEND",
-                "ENVIRONMENT", "EMAIL_DEVELOPMENT_MODE", "EMAIL_PROVIDER", "EMAIL_BASE_URL",
+                "REDIS_URL",
+                "CELERY_BROKER_URL",
+                "CELERY_RESULT_BACKEND",
+                "ENVIRONMENT",
+                "EMAIL_DEVELOPMENT_MODE",
+                "EMAIL_PROVIDER",
+                "EMAIL_BASE_URL",
             ]:
                 os.environ.pop(key, None)

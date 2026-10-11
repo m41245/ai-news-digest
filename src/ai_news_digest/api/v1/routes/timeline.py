@@ -37,9 +37,7 @@ async def get_story_timeline(
                 confidence=e.confidence,
                 event_time=e.event_time.isoformat() if e.event_time else None,
                 representative_article_id=(
-                    str(e.representative_article_id)
-                    if e.representative_article_id
-                    else None
+                    str(e.representative_article_id) if e.representative_article_id else None
                 ),
                 sequence=e.sequence,
                 article_count=len(e.article_ids),

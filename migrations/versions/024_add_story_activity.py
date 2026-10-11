@@ -73,4 +73,4 @@ def downgrade() -> None:
     op.drop_table("story_activity")
 
 
-__all__ = ["revision", "down_revision"]
+__all__ = ["down_revision", "revision"]

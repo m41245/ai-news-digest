@@ -4,7 +4,6 @@ Unit tests for M83 story activity domain models.
 
 from __future__ import annotations
 
-import pytest
 from uuid import uuid4
 
 from ai_news_digest.domain.enums.story_activity_status import StoryActivityStatus
@@ -32,7 +31,7 @@ class TestStoryActivityStatus:
 
 class TestStoryActivity:
     def test_create_breaking(self) -> None:
-        from datetime import datetime, UTC
+        from datetime import UTC, datetime
 
         activity = StoryActivity.create(
             story_cluster_id=uuid4(),
@@ -53,7 +52,7 @@ class TestStoryActivity:
         assert activity.unique_source_count_recent == 7
 
     def test_create_clamps_score(self) -> None:
-        from datetime import datetime, UTC
+        from datetime import UTC, datetime
 
         activity = StoryActivity.create(
             story_cluster_id=uuid4(),
@@ -78,7 +77,7 @@ class TestStoryActivity:
         assert activity_low.activity_score == 0.0
 
     def test_create_clamps_confidence(self) -> None:
-        from datetime import datetime, UTC
+        from datetime import UTC, datetime
 
         activity = StoryActivity.create(
             story_cluster_id=uuid4(),
@@ -92,7 +91,7 @@ class TestStoryActivity:
         assert activity.confidence == 1.0
 
     def test_default_values(self) -> None:
-        from datetime import datetime, UTC
+        from datetime import UTC, datetime
 
         activity = StoryActivity.create(
             story_cluster_id=uuid4(),
@@ -113,4 +112,4 @@ class TestStoryActivity:
         assert activity.state_change_count == 0
 
 
-__all__ = ["TestStoryActivityStatus", "TestStoryActivity"]
+__all__ = ["TestStoryActivity", "TestStoryActivityStatus"]

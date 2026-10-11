@@ -139,7 +139,7 @@ class TestStale:
         use_case: DetectStoryActivityUseCase,
         mock_article_repository: AsyncMock,
     ) -> None:
-        mock_article_repository._session.execute.return_value.scalars.return_value.all.return_value = []  # noqa: E501
+        mock_article_repository._session.execute.return_value.scalars.return_value.all.return_value = []
         result = await use_case.execute()
         assert result["status"] == "completed"
         assert result["evaluated"] == 0
@@ -161,33 +161,15 @@ class TestBreaking:
 
         settings = get_settings()
 
-
         new_settings = settings.model_copy(
-
-
             update={
-
-
                 "breaking_threshold": 0.3,
-
-
                 "developing_threshold": 0.1,
-
-
                 "minimum_independent_sources": 2,
-
-
                 "max_articles_per_story": 50,
-
-
                 "max_claims_per_story": 50,
-
-
             }
-
-
         )
-
 
         monkeypatch.setattr(use_case, "_settings", new_settings)
 
@@ -247,33 +229,15 @@ class TestDeveloping:
 
         settings = get_settings()
 
-
         new_settings = settings.model_copy(
-
-
             update={
-
-
                 "breaking_threshold": 0.8,
-
-
                 "developing_threshold": 0.2,
-
-
                 "minimum_independent_sources": 5,
-
-
                 "max_articles_per_story": 50,
-
-
                 "max_claims_per_story": 50,
-
-
             }
-
-
         )
-
 
         monkeypatch.setattr(use_case, "_settings", new_settings)
 
@@ -332,33 +296,15 @@ class TestOngoing:
 
         settings = get_settings()
 
-
         new_settings = settings.model_copy(
-
-
             update={
-
-
                 "breaking_threshold": 0.8,
-
-
                 "developing_threshold": 0.3,
-
-
                 "minimum_independent_sources": 5,
-
-
                 "max_articles_per_story": 50,
-
-
                 "max_claims_per_story": 50,
-
-
             }
-
-
         )
-
 
         monkeypatch.setattr(use_case, "_settings", new_settings)
 
@@ -383,9 +329,7 @@ class TestOngoing:
         ]
 
         mock_article_repository.list_by_cluster_id.return_value = articles
-        mock_source_repository.list_all.return_value = [
-            _make_source(source_ids[0], "Source A")
-        ]
+        mock_source_repository.list_all.return_value = [_make_source(source_ids[0], "Source A")]
         mock_claim_repository.list_by_article_id.return_value = []
         mock_conflict_repository.list_by_story_cluster_id.return_value = []
 
@@ -416,33 +360,15 @@ class TestFalsePositives:
 
         settings = get_settings()
 
-
         new_settings = settings.model_copy(
-
-
             update={
-
-
                 "breaking_threshold": 0.3,
-
-
                 "developing_threshold": 0.1,
-
-
                 "minimum_independent_sources": 2,
-
-
                 "max_articles_per_story": 50,
-
-
                 "max_claims_per_story": 50,
-
-
             }
-
-
         )
-
 
         monkeypatch.setattr(use_case, "_settings", new_settings)
 
@@ -467,9 +393,7 @@ class TestFalsePositives:
         ]
 
         mock_article_repository.list_by_cluster_id.return_value = articles
-        mock_source_repository.list_all.return_value = [
-            _make_source(source_id, "Source A")
-        ]
+        mock_source_repository.list_all.return_value = [_make_source(source_id, "Source A")]
         mock_claim_repository.list_by_article_id.return_value = []
         mock_conflict_repository.list_by_story_cluster_id.return_value = []
 
@@ -500,33 +424,15 @@ class TestIdempotency:
 
         settings = get_settings()
 
-
         new_settings = settings.model_copy(
-
-
             update={
-
-
                 "breaking_threshold": 0.3,
-
-
                 "developing_threshold": 0.1,
-
-
                 "minimum_independent_sources": 2,
-
-
                 "max_articles_per_story": 50,
-
-
                 "max_claims_per_story": 50,
-
-
             }
-
-
         )
-
 
         monkeypatch.setattr(use_case, "_settings", new_settings)
 

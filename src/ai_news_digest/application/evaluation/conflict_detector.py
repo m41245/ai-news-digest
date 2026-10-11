@@ -95,9 +95,7 @@ def _extract_numbers(text: str) -> list[tuple[float, str | None]]:
             try:
                 value = float(match.group(1))
                 unit = (
-                    match.group(2)
-                    if match.lastindex is not None and match.lastindex >= 2
-                    else None
+                    match.group(2) if match.lastindex is not None and match.lastindex >= 2 else None
                 )
                 results.append((value, unit))
             except (ValueError, IndexError):
@@ -127,11 +125,11 @@ def _normalize_number(value: float, unit: str | None) -> tuple[float, str | None
     elif unit_lower in {"percent", "%"}:
         multiplier = 0.01
     elif unit_lower in {"tb"}:
-        multiplier = 1024 ** 4
+        multiplier = 1024**4
     elif unit_lower in {"gb"}:
-        multiplier = 1024 ** 3
+        multiplier = 1024**3
     elif unit_lower in {"mb"}:
-        multiplier = 1024 ** 2
+        multiplier = 1024**2
     elif unit_lower in {"kb"}:
         multiplier = 1024
     return value * multiplier, unit_lower
@@ -182,8 +180,7 @@ def detect_numeric_conflict(
             status=ConflictStatus.POTENTIAL,
             confidence=0.6,
             explanation=(
-                f"Both claims report different numeric values{unit_desc} "
-                f"for the same subject."
+                f"Both claims report different numeric values{unit_desc} " f"for the same subject."
             ),
             aspects=["differing_value"],
         )
@@ -224,8 +221,7 @@ def detect_date_conflict(
             status=ConflictStatus.POTENTIAL,
             confidence=0.5,
             explanation=(
-                "Both claims contain different dates for what appears "
-                "to be the same event."
+                "Both claims contain different dates for what appears " "to be the same event."
             ),
             aspects=["differing_date"],
         )
@@ -264,8 +260,7 @@ def detect_event_state_conflict(
             status=ConflictStatus.POTENTIAL,
             confidence=0.55,
             explanation=(
-                f"Claims describe incompatible event states: "
-                f"'{state_a}' vs '{state_b}'."
+                f"Claims describe incompatible event states: " f"'{state_a}' vs '{state_b}'."
             ),
             aspects=["differing_status"],
         )

@@ -347,9 +347,7 @@ async def test_extract_article_sets_metadata_on_fallback(
     """Metadata is set correctly when content falls back to RSS."""
     extracted_at = datetime.now(UTC)
     article_fetcher = MagicMock()
-    article_fetcher.fetch = AsyncMock(
-        return_value=_make_fetch_result(extracted_at=extracted_at)
-    )
+    article_fetcher.fetch = AsyncMock(return_value=_make_fetch_result(extracted_at=extracted_at))
 
     html_extractor = MagicMock()
     html_extractor.extract = AsyncMock(return_value="Too short.")
@@ -386,9 +384,7 @@ async def test_extract_article_handles_fetch_ssrf_failure(
     article_fetcher.fetch = AsyncMock(
         return_value=FetchResult(
             content="",
-            failure_reason=(
-                "SSRF validation failed: Feed URL host 'localhost' is not permitted."
-            ),
+            failure_reason=("SSRF validation failed: Feed URL host 'localhost' is not permitted."),
         )
     )
 

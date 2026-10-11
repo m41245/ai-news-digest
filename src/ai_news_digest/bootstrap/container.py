@@ -498,6 +498,7 @@ class Container:
             from ai_news_digest.infrastructure.quota.redis_provider_quota_registry import (
                 RedisProviderQuotaRegistry,
             )
+
             return RedisProviderQuotaRegistry()
         except Exception as exc:
             logger.warning(
@@ -570,6 +571,7 @@ class Container:
         from ai_news_digest.infrastructure.database.repositories.relationship_repository import (
             SqlAlchemyRelationshipRepository,
         )
+
         return SqlAlchemyRelationshipRepository(self._session)
 
     @property
@@ -999,14 +1001,13 @@ class Container:
                 from ai_news_digest.infrastructure.embedding import (
                     OpenAIEmbeddingProvider,
                 )
+
                 provider = OpenAIEmbeddingProvider(
                     model=self._settings.embedding_model,
                     dimension=self._settings.embedding_dimension,
                 )
                 providers.append(provider)
-                self._capability_registry.register_provider(
-                    "embedding", provider.id
-                )
+                self._capability_registry.register_provider("embedding", provider.id)
             except Exception as exc:
                 logger.warning(
                     "Failed to create OpenAI embedding provider",
@@ -1327,6 +1328,7 @@ class Container:
         from ai_news_digest.infrastructure.database.repositories.intelligence_operations_repository import (  # noqa: E501
             QualityGateRepository,
         )
+
         return QualityGateRepository(self._session, settings=self._settings)
 
     @property
@@ -1334,6 +1336,7 @@ class Container:
         from ai_news_digest.infrastructure.database.repositories.intelligence_operations_repository import (  # noqa: E501
             OperationalAlertRepository,
         )
+
         return OperationalAlertRepository(self._session)
 
     @property
@@ -1341,6 +1344,7 @@ class Container:
         from ai_news_digest.infrastructure.database.repositories.intelligence_operations_repository import (  # noqa: E501
             ComponentHealthRepository,
         )
+
         return ComponentHealthRepository(self._session)
 
     @property

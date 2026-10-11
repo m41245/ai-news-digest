@@ -4,7 +4,7 @@ Unit tests for provider health model and failure classification.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -62,19 +62,32 @@ class TestClassifyFailure:
         assert classify_failure(AIRateLimitError("rate limit")) == FailureCategory.RATE_LIMITED
 
     def test_classify_auth_failure(self) -> None:
-        assert classify_failure(AIAuthenticationError("auth")) == FailureCategory.AUTHENTICATION_FAILURE
+        assert (
+            classify_failure(AIAuthenticationError("auth"))
+            == FailureCategory.AUTHENTICATION_FAILURE
+        )
 
     def test_classify_config_error(self) -> None:
-        assert classify_failure(AIConfigurationError("config")) == FailureCategory.CONFIGURATION_ERROR
+        assert (
+            classify_failure(AIConfigurationError("config")) == FailureCategory.CONFIGURATION_ERROR
+        )
 
     def test_classify_invalid_response(self) -> None:
-        assert classify_failure(AIInvalidResponseError("invalid")) == FailureCategory.INVALID_RESPONSE
+        assert (
+            classify_failure(AIInvalidResponseError("invalid")) == FailureCategory.INVALID_RESPONSE
+        )
 
     def test_classify_unsupported(self) -> None:
-        assert classify_failure(AIUnsupportedProviderError("unsupported")) == FailureCategory.UNSUPPORTED_CAPABILITY
+        assert (
+            classify_failure(AIUnsupportedProviderError("unsupported"))
+            == FailureCategory.UNSUPPORTED_CAPABILITY
+        )
 
     def test_classify_permanent(self) -> None:
-        assert classify_failure(AIPermanentProcessingError("permanent")) == FailureCategory.PERMANENT_PROCESSING_ERROR
+        assert (
+            classify_failure(AIPermanentProcessingError("permanent"))
+            == FailureCategory.PERMANENT_PROCESSING_ERROR
+        )
 
     def test_classify_unknown_exception(self) -> None:
         assert classify_failure(ValueError("unknown")) == FailureCategory.TEMPORARY_FAILURE
@@ -117,7 +130,7 @@ class TestProviderHealthState:
         state = ProviderHealthState(
             provider_id="openai",
             state=CircuitState.OPEN,
-            cooldown_until=datetime.now(timezone.utc) - timedelta(seconds=1),
+            cooldown_until=datetime.now(UTC) - timedelta(seconds=1),
         )
         assert state.is_stale(utc_now()) is True
 
@@ -125,7 +138,7 @@ class TestProviderHealthState:
         state = ProviderHealthState(
             provider_id="openai",
             state=CircuitState.OPEN,
-            cooldown_until=datetime.now(timezone.utc) + timedelta(seconds=30),
+            cooldown_until=datetime.now(UTC) + timedelta(seconds=30),
         )
         assert state.is_stale(utc_now()) is False
 

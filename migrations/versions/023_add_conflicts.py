@@ -90,4 +90,4 @@ def downgrade() -> None:
     op.drop_table("conflicts")
 
 
-__all__ = ["revision", "down_revision"]
+__all__ = ["down_revision", "revision"]

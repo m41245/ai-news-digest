@@ -100,7 +100,9 @@ class TestStructuredIntelligence:
             StructuredIntelligence(summary="s", importance="not-a-number")
 
     def test_duplicate_categories_removed(self) -> None:
-        obj = StructuredIntelligence(summary="s", categories=("ai_research", "ai_research", "ai_models"))
+        obj = StructuredIntelligence(
+            summary="s", categories=("ai_research", "ai_research", "ai_models")
+        )
         assert obj.categories == ("ai_research", "ai_models")
 
     def test_duplicate_companies_removed(self) -> None:
@@ -165,9 +167,7 @@ class TestValidateStructuredOutput:
 
     def test_oversized_field_raises(self) -> None:
         with pytest.raises(ValueError, match="key_takeaways"):
-            validate_structured_output(
-                {"summary": "s", "key_takeaways": ["t"] * 9}
-            )
+            validate_structured_output({"summary": "s", "key_takeaways": ["t"] * 9})
 
     def test_wrong_type_confidence_raises(self) -> None:
         with pytest.raises(ValueError):

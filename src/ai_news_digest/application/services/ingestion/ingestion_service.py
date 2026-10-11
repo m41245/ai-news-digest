@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-
 from ai_news_digest.application.services.ingestion.models import IngestionResult
 from ai_news_digest.application.services.rss.exceptions import RSSException
 from ai_news_digest.application.services.rss.feed_service import FeedService
 from ai_news_digest.application.services.rss.models import FeedResult
+from ai_news_digest.core.logging import get_logger
 from ai_news_digest.domain.ports.article_repository import ArticleRepository
 from ai_news_digest.domain.ports.source_repository import SourceRepository
-
-from ai_news_digest.core.logging import get_logger
 
 logger = get_logger(__name__)
 

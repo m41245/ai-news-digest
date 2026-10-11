@@ -162,9 +162,7 @@ def test_redis_store_rejects_malformed_cli_url(
     mock_settings_rediss: Settings,
 ) -> None:
     """Test that a redis-cli command string is rejected as an invalid URL."""
-    store = RedisStore(
-        "redis-cli --tls -u rediss://default:token@upstash-host:6379/0"
-    )
+    store = RedisStore("redis-cli --tls -u rediss://default:token@upstash-host:6379/0")
 
     with (
         patch.object(aioredis.ConnectionPool, "from_url") as mock_from_url,
@@ -175,9 +173,7 @@ def test_redis_store_rejects_malformed_cli_url(
 
         import asyncio
 
-        with pytest.raises(
-            ExternalServiceError, match="Redis connection failed"
-        ):
+        with pytest.raises(ExternalServiceError, match="Redis connection failed"):
             asyncio.new_event_loop().run_until_complete(store.get("key"))
 
 
@@ -200,9 +196,7 @@ async def test_redis_store_is_connected_returns_false_on_failure() -> None:
     """Test is_connected returns False when Redis is unavailable."""
     store = RedisStore("redis://localhost:6379/0")
 
-    with patch.object(
-        RedisStore, "_build_client", side_effect=Exception("connection refused")
-    ):
+    with patch.object(RedisStore, "_build_client", side_effect=Exception("connection refused")):
         result = await store.is_connected()
         assert result is False
 
@@ -226,9 +220,7 @@ async def test_redis_store_ping_returns_false_on_failure() -> None:
     """Test ping returns False when Redis is unavailable."""
     store = RedisStore("redis://localhost:6379/0")
 
-    with patch.object(
-        RedisStore, "_build_client", side_effect=Exception("connection refused")
-    ):
+    with patch.object(RedisStore, "_build_client", side_effect=Exception("connection refused")):
         result = await store.ping()
         assert result is False
 
@@ -239,12 +231,8 @@ async def test_redis_store_startup_check_logs_warning() -> None:
     store = RedisStore("redis://localhost:6379/0")
 
     with (
-        patch.object(
-            RedisStore, "_build_client", side_effect=Exception("connection refused")
-        ),
-        patch(
-            "ai_news_digest.infrastructure.cache.redis_store.logger"
-        ) as mock_logger,
+        patch.object(RedisStore, "_build_client", side_effect=Exception("connection refused")),
+        patch("ai_news_digest.infrastructure.cache.redis_store.logger") as mock_logger,
     ):
         await store.startup_check()
         warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
@@ -260,9 +248,7 @@ async def test_redis_store_startup_check_succeeds_when_available() -> None:
 
     with (
         patch.object(RedisStore, "_build_client", return_value=mock_client),
-        patch(
-            "ai_news_digest.infrastructure.cache.redis_store.logger"
-        ) as mock_logger,
+        patch("ai_news_digest.infrastructure.cache.redis_store.logger") as mock_logger,
     ):
         await store.startup_check()
         assert not mock_logger.warning.called
@@ -273,9 +259,7 @@ async def test_redis_store_failure_does_not_crash_unrelated() -> None:
     """Test that Redis failures in non-critical paths don't raise."""
     store = RedisStore("redis://localhost:6379/0")
 
-    with patch.object(
-        RedisStore, "_build_client", side_effect=Exception("Redis down")
-    ):
+    with patch.object(RedisStore, "_build_client", side_effect=Exception("Redis down")):
         is_conn = await store.is_connected()
         ping_result = await store.ping()
         assert is_conn is False
@@ -307,9 +291,7 @@ async def test_redis_store_connection_reuses_pool() -> None:
     mock_client.get.return_value = "value"
 
     with (
-        patch.object(
-            RedisStore, "_build_client", return_value=mock_client
-        ) as mock_build,
+        patch.object(RedisStore, "_build_client", return_value=mock_client) as mock_build,
     ):
         await store.get("key1")
         await store.get("key2")

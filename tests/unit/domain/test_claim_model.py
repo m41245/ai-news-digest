@@ -4,7 +4,6 @@ Unit tests for M81 claim and evidence domain models.
 
 from __future__ import annotations
 
-import pytest
 from uuid import uuid4
 
 from ai_news_digest.domain.enums.claim_status import ClaimStatus

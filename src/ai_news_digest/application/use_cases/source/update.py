@@ -39,11 +39,7 @@ class UpdateSourceUseCase:
         if source is None:
             raise SourceNotFoundError(str(request.id))
 
-        status = (
-            SourceStatus(request.status)
-            if request.status is not None
-            else None
-        )
+        status = SourceStatus(request.status) if request.status is not None else None
 
         source.update(
             name=request.name,

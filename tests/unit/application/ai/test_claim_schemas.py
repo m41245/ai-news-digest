@@ -10,7 +10,6 @@ from ai_news_digest.application.ai.claim_schemas import (
     ClaimSchema,
     EvidenceAnchorSchema,
     EvidenceSchema,
-    StructuredClaimsOutput,
     validate_claims_output,
 )
 from ai_news_digest.domain.enums.claim_type import ClaimType
@@ -127,9 +126,7 @@ class TestStructuredClaimsOutput:
         assert len(output.claims) == 2
 
     def test_too_many_claims_limited(self) -> None:
-        claims = [
-            {"claim": f"Claim {i}", "type": "FACT"} for i in range(25)
-        ]
+        claims = [{"claim": f"Claim {i}", "type": "FACT"} for i in range(25)]
         data = {"claims": claims}
         output = validate_claims_output(data)
         assert len(output.claims) == 20
@@ -156,7 +153,7 @@ class TestStructuredClaimsOutput:
 
 __all__ = [
     "TestClaimSchema",
-    "TestEvidenceSchema",
     "TestEvidenceAnchorSchema",
+    "TestEvidenceSchema",
     "TestStructuredClaimsOutput",
 ]

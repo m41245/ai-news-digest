@@ -7,20 +7,14 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
-import pytest
-
 from ai_news_digest.application.services.graph_intelligence.graph_intelligence_service import (
     ConnectionSignal,
-    EntityNeighborhood,
-    GraphConnection,
     GraphIntelligenceService,
-    GraphPath,
-    RelatedStoryGraphSignal,
 )
 from ai_news_digest.domain.enums.entity_type import EntityType
 from ai_news_digest.domain.enums.relationship_status import RelationshipStatus
 from ai_news_digest.domain.enums.relationship_type import RelationshipType
-from ai_news_digest.domain.models.relationship import Relationship, ProvenanceSource
+from ai_news_digest.domain.models.relationship import ProvenanceSource, Relationship
 
 
 def _make_relationship(
@@ -224,7 +218,7 @@ class TestGraphIntelligenceService:
         """Neighborhood should respect bounds."""
         center_id = str(uuid4())
         rels = []
-        for i in range(5):
+        for _i in range(5):
             rel = _make_relationship(
                 subject_type="story",
                 subject_id=center_id,

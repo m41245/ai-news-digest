@@ -137,9 +137,7 @@ class TestEditorialSchemas:
             for i in range(21)
         ]
         with pytest.raises(ValueError, match="at most 20 items"):
-            validate_editorial_output(
-                {"title": "T", "introduction": "I", "stories": stories}
-            )
+            validate_editorial_output({"title": "T", "introduction": "I", "stories": stories})
 
     def test_prompt_injection_in_title_rejected_as_story(self) -> None:
         data = {

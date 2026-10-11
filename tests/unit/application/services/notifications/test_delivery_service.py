@@ -285,7 +285,7 @@ def _make_user(email: str) -> User:
     return User(
         id=uuid4(),
         email=email,
-        hashed_password="hashed",
+        hashed_password="hashed",  # noqa: S106 - test fixture
         is_active=True,
         is_admin=False,
         created_at=datetime.now(UTC),

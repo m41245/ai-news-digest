@@ -370,12 +370,10 @@ async def get_entity_relationship_history(
             entity_id=str(entity_id),
         )
 
-    history = (
-        await container.relationship_repository.get_entity_relationship_history(
-            entity_type=normalized_type,
-            entity_id=entity_id,
-            limit=limit,
-        )
+    history = await container.relationship_repository.get_entity_relationship_history(
+        entity_type=normalized_type,
+        entity_id=entity_id,
+        limit=limit,
     )
 
     return PublicEntityRelationshipHistoryResponse(

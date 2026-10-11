@@ -87,19 +87,11 @@ async def _cluster_pending_articles_impl(
 
     async for container in get_container():
         article_repository: ArticleRepository = container.article_repository
-        categorized = await article_repository.list_by_status(
-            ArticleStatus.CATEGORIZED, limit=100
-        )
-        analyzed = await article_repository.list_by_status(
-            ArticleStatus.ANALYZED, limit=100
-        )
-        ready = await article_repository.list_by_status(
-            ArticleStatus.READY, limit=100
-        )
+        categorized = await article_repository.list_by_status(ArticleStatus.CATEGORIZED, limit=100)
+        analyzed = await article_repository.list_by_status(ArticleStatus.ANALYZED, limit=100)
+        ready = await article_repository.list_by_status(ArticleStatus.READY, limit=100)
 
-        candidates = [
-            a for a in (categorized + analyzed + ready) if a.cluster_id is None
-        ]
+        candidates = [a for a in (categorized + analyzed + ready) if a.cluster_id is None]
 
         if not candidates:
             logger.info("No unclustered articles found")
@@ -169,9 +161,7 @@ async def cluster_pending_articles() -> dict[str, int]:
     start = time.monotonic()
     try:
         result = await _cluster_pending_articles_impl()
-        await record_celery_task_success(
-            "workers.tasks.cluster.cluster_pending_articles"
-        )
+        await record_celery_task_success("workers.tasks.cluster.cluster_pending_articles")
         return result
     except Exception as exc:
         logger.error(
@@ -179,9 +169,7 @@ async def cluster_pending_articles() -> dict[str, int]:
             error=str(exc),
             exc_info=True,
         )
-        await record_celery_task_failure(
-            "workers.tasks.cluster.cluster_pending_articles"
-        )
+        await record_celery_task_failure("workers.tasks.cluster.cluster_pending_articles")
         raise
     finally:
         await record_celery_task_duration(

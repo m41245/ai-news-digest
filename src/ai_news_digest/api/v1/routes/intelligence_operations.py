@@ -130,9 +130,7 @@ async def get_intelligence_health(
                 sample_count=snap.sample_count,
                 baseline_value=snap.baseline_value,
                 drift_state=snap.drift_state,
-                last_evaluation_at=(
-                    snap.created_at.isoformat() if snap.created_at else None
-                ),
+                last_evaluation_at=(snap.created_at.isoformat() if snap.created_at else None),
                 evaluation_run_id=snap.evaluation_run_id,
                 warnings=snap.warnings.split("; ") if snap.warnings else [],
             )
@@ -285,9 +283,7 @@ async def trigger_quality_gate_evaluation(
 ) -> TriggerQualityGateEvaluationResponse:
     """Trigger bounded quality gate evaluation (admin only)."""
     if not get_settings().quality_gates_enabled:
-        raise HTTPException(
-            status_code=400, detail="Quality gates are disabled by configuration."
-        )
+        raise HTTPException(status_code=400, detail="Quality gates are disabled by configuration.")
 
     from ai_news_digest.workers.tasks.quality_gates import evaluate_quality_gates
 

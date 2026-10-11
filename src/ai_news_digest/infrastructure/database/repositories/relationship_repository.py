@@ -38,15 +38,19 @@ class SqlAlchemyRelationshipRepository(RelationshipRepository):
         offset: int = 0,
     ) -> list[Relationship]:
         statement = select(RelationshipModel).where(
-            ((RelationshipModel.subject_entity_type == entity_type)
-             & (RelationshipModel.subject_entity_id == str(entity_id)))
-            | ((RelationshipModel.object_entity_type == entity_type)
-             & (RelationshipModel.object_entity_id == str(entity_id)))
+            (
+                (RelationshipModel.subject_entity_type == entity_type)
+                & (RelationshipModel.subject_entity_id == str(entity_id))
+            )
+            | (
+                (RelationshipModel.object_entity_type == entity_type)
+                & (RelationshipModel.object_entity_id == str(entity_id))
+            )
         )
         if status:
             statement = statement.where(RelationshipModel.status == status)
-        statement = statement.limit(limit).offset(offset).order_by(
-            RelationshipModel.created_at.desc()
+        statement = (
+            statement.limit(limit).offset(offset).order_by(RelationshipModel.created_at.desc())
         )
         result = await self._session.execute(statement)
         return [self._to_domain(m) for m in result.scalars().all()]
@@ -61,15 +65,17 @@ class SqlAlchemyRelationshipRepository(RelationshipRepository):
         limit: int = 50,
     ) -> list[Relationship]:
         statement = select(RelationshipModel).where(
-            ((RelationshipModel.subject_entity_type == entity_type)
-             & (RelationshipModel.subject_entity_id == str(entity_id)))
-            | ((RelationshipModel.object_entity_type == entity_type)
-             & (RelationshipModel.object_entity_id == str(entity_id)))
+            (
+                (RelationshipModel.subject_entity_type == entity_type)
+                & (RelationshipModel.subject_entity_id == str(entity_id))
+            )
+            | (
+                (RelationshipModel.object_entity_type == entity_type)
+                & (RelationshipModel.object_entity_id == str(entity_id))
+            )
         )
         if relationship_types:
-            statement = statement.where(
-                RelationshipModel.relationship_type.in_(relationship_types)
-            )
+            statement = statement.where(RelationshipModel.relationship_type.in_(relationship_types))
         if status:
             statement = statement.where(RelationshipModel.status == status)
         statement = statement.limit(limit).order_by(RelationshipModel.created_at.desc())
@@ -82,9 +88,7 @@ class SqlAlchemyRelationshipRepository(RelationshipRepository):
         await self._session.flush()
         return self._to_domain(model)
 
-    async def bulk_create(
-        self, relationships: list[Relationship]
-    ) -> list[Relationship]:
+    async def bulk_create(self, relationships: list[Relationship]) -> list[Relationship]:
         models = [self._to_model(r) for r in relationships]
         self._session.add_all(models)
         await self._session.flush()
@@ -98,9 +102,7 @@ class SqlAlchemyRelationshipRepository(RelationshipRepository):
         source_id: UUID | None = None,
     ) -> Relationship | None:
         result = await self._session.execute(
-            select(RelationshipModel).where(
-                RelationshipModel.id == str(relationship_id)
-            )
+            select(RelationshipModel).where(RelationshipModel.id == str(relationship_id))
         )
         model = result.scalar_one_or_none()
         if model is None:
@@ -129,32 +131,32 @@ class SqlAlchemyRelationshipRepository(RelationshipRepository):
         offset: int = 0,
     ) -> list[Relationship]:
         statement = select(RelationshipModel).where(
-            ((RelationshipModel.subject_entity_type == entity_type)
-             & (RelationshipModel.subject_entity_id == str(entity_id)))
-            | ((RelationshipModel.object_entity_type == entity_type)
-             & (RelationshipModel.object_entity_id == str(entity_id)))
+            (
+                (RelationshipModel.subject_entity_type == entity_type)
+                & (RelationshipModel.subject_entity_id == str(entity_id))
+            )
+            | (
+                (RelationshipModel.object_entity_type == entity_type)
+                & (RelationshipModel.object_entity_id == str(entity_id))
+            )
         )
         if status:
             statement = statement.where(RelationshipModel.status == status)
         if observed_from is not None:
-            statement = statement.where(
-                RelationshipModel.last_observed_at >= observed_from
-            )
+            statement = statement.where(RelationshipModel.last_observed_at >= observed_from)
         if observed_to is not None:
-            statement = statement.where(
-                RelationshipModel.last_observed_at <= observed_to
-            )
+            statement = statement.where(RelationshipModel.last_observed_at <= observed_to)
         if active_at is not None:
             statement = statement.where(
                 (RelationshipModel.valid_to.is_(None) | (RelationshipModel.valid_to >= active_at))
                 & (RelationshipModel.first_observed_at <= active_at)
             )
         if changed_since is not None:
-            statement = statement.where(
-                RelationshipModel.updated_at >= changed_since
-            )
-        statement = statement.limit(limit).offset(offset).order_by(
-            RelationshipModel.last_observed_at.desc()
+            statement = statement.where(RelationshipModel.updated_at >= changed_since)
+        statement = (
+            statement.limit(limit)
+            .offset(offset)
+            .order_by(RelationshipModel.last_observed_at.desc())
         )
         result = await self._session.execute(statement)
         return [self._to_domain(m) for m in result.scalars().all()]
@@ -194,10 +196,14 @@ class SqlAlchemyRelationshipRepository(RelationshipRepository):
                 func.count().label("change_count"),
             )
             .where(
-                ((RelationshipModel.subject_entity_type == entity_type)
-                 & (RelationshipModel.subject_entity_id == str(entity_id)))
-                | ((RelationshipModel.object_entity_type == entity_type)
-                 & (RelationshipModel.object_entity_id == str(entity_id)))
+                (
+                    (RelationshipModel.subject_entity_type == entity_type)
+                    & (RelationshipModel.subject_entity_id == str(entity_id))
+                )
+                | (
+                    (RelationshipModel.object_entity_type == entity_type)
+                    & (RelationshipModel.object_entity_id == str(entity_id))
+                )
             )
             .group_by(
                 RelationshipModel.relationship_type,
@@ -222,9 +228,7 @@ class SqlAlchemyRelationshipRepository(RelationshipRepository):
         status: str,
     ) -> Relationship | None:
         result = await self._session.execute(
-            select(RelationshipModel).where(
-                RelationshipModel.id == str(relationship_id)
-            )
+            select(RelationshipModel).where(RelationshipModel.id == str(relationship_id))
         )
         model = result.scalar_one_or_none()
         if model is None:
@@ -235,9 +239,7 @@ class SqlAlchemyRelationshipRepository(RelationshipRepository):
 
     async def delete(self, relationship_id: UUID) -> None:
         result = await self._session.execute(
-            select(RelationshipModel).where(
-                RelationshipModel.id == str(relationship_id)
-            )
+            select(RelationshipModel).where(RelationshipModel.id == str(relationship_id))
         )
         model = result.scalar_one_or_none()
         if model is not None:
@@ -254,10 +256,14 @@ class SqlAlchemyRelationshipRepository(RelationshipRepository):
             select(func.count())
             .select_from(RelationshipModel)
             .where(
-                ((RelationshipModel.subject_entity_type == entity_type)
-                 & (RelationshipModel.subject_entity_id == str(entity_id)))
-                | ((RelationshipModel.object_entity_type == entity_type)
-                 & (RelationshipModel.object_entity_id == str(entity_id)))
+                (
+                    (RelationshipModel.subject_entity_type == entity_type)
+                    & (RelationshipModel.subject_entity_id == str(entity_id))
+                )
+                | (
+                    (RelationshipModel.object_entity_type == entity_type)
+                    & (RelationshipModel.object_entity_id == str(entity_id))
+                )
             )
         )
         if status:
@@ -345,9 +351,7 @@ class SqlAlchemyRelationshipRepository(RelationshipRepository):
             provenance_source=relationship.provenance_source,
             article_id=str(relationship.article_id) if relationship.article_id else None,
             story_cluster_id=(
-                str(relationship.story_cluster_id)
-                if relationship.story_cluster_id
-                else None
+                str(relationship.story_cluster_id) if relationship.story_cluster_id else None
             ),
             claim_id=str(relationship.claim_id) if relationship.claim_id else None,
             evidence_id=str(relationship.evidence_id) if relationship.evidence_id else None,

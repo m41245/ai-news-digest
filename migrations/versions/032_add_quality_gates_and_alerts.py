@@ -3,6 +3,7 @@
 Revision ID: 032
 Revises: 031
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -31,14 +32,18 @@ def upgrade() -> None:
         sa.Column("explanation", sa.Text(), nullable=True),
         sa.Column("evaluation_run_id", sa.String(36), nullable=True),
         sa.Column("configuration_version", sa.String(64), nullable=False, server_default="v1"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_quality_gate_results_gate_id", "quality_gate_results", ["gate_id"])
     op.create_index("ix_quality_gate_results_component", "quality_gate_results", ["component"])
     op.create_index("ix_quality_gate_results_metric_type", "quality_gate_results", ["metric_type"])
     op.create_index("ix_quality_gate_results_result", "quality_gate_results", ["result"])
-    op.create_index("ix_quality_gate_results_evaluation_run_id", "quality_gate_results", ["evaluation_run_id"])
+    op.create_index(
+        "ix_quality_gate_results_evaluation_run_id", "quality_gate_results", ["evaluation_run_id"]
+    )
     op.create_index("ix_quality_gate_results_created_at", "quality_gate_results", ["created_at"])
 
     op.create_table(
@@ -53,10 +58,14 @@ def upgrade() -> None:
         sa.Column("resolved", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("resolved_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("deduplication_key", sa.String(256), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_operational_alerts_alert_id", "operational_alerts", ["alert_id"], unique=True)
+    op.create_index(
+        "ix_operational_alerts_alert_id", "operational_alerts", ["alert_id"], unique=True
+    )
     op.create_index("ix_operational_alerts_severity", "operational_alerts", ["severity"])
     op.create_index("ix_operational_alerts_component", "operational_alerts", ["component"])
     op.create_index("ix_operational_alerts_gate_id", "operational_alerts", ["gate_id"])
@@ -78,20 +87,39 @@ def upgrade() -> None:
         sa.Column("evaluation_run_id", sa.String(36), nullable=True),
         sa.Column("configuration_version", sa.String(64), nullable=False, server_default="v1"),
         sa.Column("warnings", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_component_health_snapshots_snapshot_id", "component_health_snapshots", ["snapshot_id"], unique=True)
-    op.create_index("ix_component_health_snapshots_component", "component_health_snapshots", ["component"])
-    op.create_index("ix_component_health_snapshots_status", "component_health_snapshots", ["status"])
-    op.create_index("ix_component_health_snapshots_created_at", "component_health_snapshots", ["created_at"])
+    op.create_index(
+        "ix_component_health_snapshots_snapshot_id",
+        "component_health_snapshots",
+        ["snapshot_id"],
+        unique=True,
+    )
+    op.create_index(
+        "ix_component_health_snapshots_component", "component_health_snapshots", ["component"]
+    )
+    op.create_index(
+        "ix_component_health_snapshots_status", "component_health_snapshots", ["status"]
+    )
+    op.create_index(
+        "ix_component_health_snapshots_created_at", "component_health_snapshots", ["created_at"]
+    )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_component_health_snapshots_created_at", table_name="component_health_snapshots")
+    op.drop_index(
+        "ix_component_health_snapshots_created_at", table_name="component_health_snapshots"
+    )
     op.drop_index("ix_component_health_snapshots_status", table_name="component_health_snapshots")
-    op.drop_index("ix_component_health_snapshots_component", table_name="component_health_snapshots")
-    op.drop_index("ix_component_health_snapshots_snapshot_id", table_name="component_health_snapshots")
+    op.drop_index(
+        "ix_component_health_snapshots_component", table_name="component_health_snapshots"
+    )
+    op.drop_index(
+        "ix_component_health_snapshots_snapshot_id", table_name="component_health_snapshots"
+    )
     op.drop_table("component_health_snapshots")
 
     op.drop_index("ix_operational_alerts_dedup_key", table_name="operational_alerts")

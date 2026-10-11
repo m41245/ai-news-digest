@@ -6,6 +6,8 @@ from types import TracebackType
 
 import httpx
 
+from ai_news_digest.core.logging import get_logger
+
 from .constants import (
     DEFAULT_BACKOFF_FACTOR,
     DEFAULT_MAX_RETRIES,
@@ -18,8 +20,6 @@ from .exceptions import (
     RSSRequestError,
     RSSTimeoutError,
 )
-
-from ai_news_digest.core.logging import get_logger
 
 logger = get_logger(__name__)
 

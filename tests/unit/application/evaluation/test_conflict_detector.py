@@ -4,18 +4,16 @@ Unit tests for M82 deterministic conflict detection.
 
 from __future__ import annotations
 
-import pytest
 from uuid import uuid4
 
-from ai_news_digest.domain.enums.claim_type import ClaimType
-from ai_news_digest.domain.models.claim import Claim
 from ai_news_digest.application.evaluation.conflict_detector import (
-    DeterministicResult,
     detect_date_conflict,
     detect_event_state_conflict,
     detect_numeric_conflict,
     run_deterministic_detection,
 )
+from ai_news_digest.domain.enums.claim_type import ClaimType
+from ai_news_digest.domain.models.claim import Claim
 
 
 def _make_claim(text: str, claim_type: ClaimType = ClaimType.FACT) -> Claim:
@@ -119,8 +117,8 @@ class TestRunDeterministicDetection:
 
 
 __all__ = [
-    "TestNumericConflict",
     "TestDateConflict",
     "TestEventStateConflict",
+    "TestNumericConflict",
     "TestRunDeterministicDetection",
 ]

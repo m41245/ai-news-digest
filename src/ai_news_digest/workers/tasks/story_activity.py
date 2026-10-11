@@ -29,7 +29,7 @@ async def _detect_story_activity_impl() -> dict[str, int | str | float]:
     async for container in get_container():
         if not settings.breaking_detection_enabled:
             logger.info("Story activity detection is disabled")
-            return {"status": "disabled" }
+            return {"status": "disabled"}
 
         detect_use_case = container.detect_story_activity
         if detect_use_case is None:

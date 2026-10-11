@@ -157,10 +157,7 @@ class GeminiProvider(AIProvider):
             raise AIConfigurationError("Gemini API key not configured.")
 
         api_key = self._config.api_key
-        url = (
-            f"{_GEMINI_API_BASE}/models/{self._model_name}:generateContent"
-            f"?key={api_key}"
-        )
+        url = f"{_GEMINI_API_BASE}/models/{self._model_name}:generateContent" f"?key={api_key}"
 
         start_time = time.time()
 

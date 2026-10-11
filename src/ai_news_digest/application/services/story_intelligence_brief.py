@@ -137,7 +137,12 @@ class StoryIntelligenceBriefService:
         brief["latest_activity_at"] = latest_activity_at
 
         sources_section = self._build_sources_section(
-            articles, source_map, source_name_map, source_type_map, source_role_map, article_limit,
+            articles,
+            source_map,
+            source_name_map,
+            source_type_map,
+            source_role_map,
+            article_limit,
         )
         brief["sources"] = sources_section
 
@@ -145,7 +150,9 @@ class StoryIntelligenceBriefService:
         brief["claims"] = claims_section
 
         conflicts_section = await self._build_conflicts_section(
-            cluster.id, articles, source_name_map,
+            cluster.id,
+            articles,
+            source_name_map,
         )
         brief["conflicts"] = conflicts_section
 
@@ -164,7 +171,9 @@ class StoryIntelligenceBriefService:
         brief["entities"] = entities_section
 
         related_stories = await self._build_related_stories_section(
-            cluster, articles, article_limit,
+            cluster,
+            articles,
+            article_limit,
         )
         brief["related_stories"] = related_stories
 
@@ -172,13 +181,15 @@ class StoryIntelligenceBriefService:
         brief["provenance"] = provenance
 
         quality = await self._build_quality(
-            cluster, articles, article_count, source_count, conflicts_section,
+            cluster,
+            articles,
+            article_count,
+            source_count,
+            conflicts_section,
         )
         brief["quality"] = quality
 
-        updated_at = self._compute_updated_at(
-            cluster, articles, activity, latest_activity_at
-        )
+        updated_at = self._compute_updated_at(cluster, articles, activity, latest_activity_at)
         brief["updated_at"] = updated_at
 
         personalization = self._build_personalization(user_id, cluster, articles)
@@ -187,7 +198,9 @@ class StoryIntelligenceBriefService:
         return brief
 
     def _build_summary_fallback(
-        self, articles: list[Any], source_name_map: dict[str, str],
+        self,
+        articles: list[Any],
+        source_name_map: dict[str, str],
     ) -> str | None:
         if not articles:
             return None
@@ -245,35 +258,40 @@ class StoryIntelligenceBriefService:
 
             if source_id not in unique_sources:
                 unique_sources[source_id] = {
-                "publisher": source_name,
-                "source_type": source_type,
-                "source_role": source_role,
-                "provenance_source": (
-                    "ai_extracted"
-                    if getattr(article, "ai_provider", None) or getattr(article, "ai_model", None)
-                    else "deterministic"
-                ),
-                "articles": [],
-            }
+                    "publisher": source_name,
+                    "source_type": source_type,
+                    "source_role": source_role,
+                    "provenance_source": (
+                        "ai_extracted"
+                        if getattr(article, "ai_provider", None)
+                        or getattr(article, "ai_model", None)
+                        else "deterministic"
+                    ),
+                    "articles": [],
+                }
 
-            unique_sources[source_id]["articles"].append({
-                "headline": article.title,
-                "publication_date": (
-                    article.published_at.isoformat() if article.published_at else None
-                ),
-                "url": article.url,
-                "source_id": source_id,
-            })
+            unique_sources[source_id]["articles"].append(
+                {
+                    "headline": article.title,
+                    "publication_date": (
+                        article.published_at.isoformat() if article.published_at else None
+                    ),
+                    "url": article.url,
+                    "source_id": source_id,
+                }
+            )
 
         result = []
         for _source_id, data in unique_sources.items():
-            result.append({
-                "publisher": data["publisher"],
-                "source_type": data["source_type"],
-                "source_role": data["source_role"],
-                "article_count": len(data["articles"]),
-                "articles": data["articles"][:5],
-            })
+            result.append(
+                {
+                    "publisher": data["publisher"],
+                    "source_type": data["source_type"],
+                    "source_role": data["source_role"],
+                    "article_count": len(data["articles"]),
+                    "articles": data["articles"][:5],
+                }
+            )
         return result[:limit]
 
     async def _build_claims_section(
@@ -310,34 +328,40 @@ class StoryIntelligenceBriefService:
                 try:
                     evidence_list = await claim_repo.list_evidence_by_claim_id(claim.id)
                     for ev in evidence_list[:5]:
-                        evidence_items.append({
-                            "evidence_type": ev.evidence_type.value,
-                            "excerpt": ev.excerpt[:500] if ev.excerpt else None,
-                            "source_location": ev.source_location,
-                            "strength": ev.strength.value if ev.strength else None,
-                            "article_title": None,
-                            "source_name": source_name_map.get(str(claim.source_id)),
-                            "published_at": (
-                                articles[0].published_at.isoformat()
-                                if articles and articles[0].published_at
-                                else None
-                            ),
-                        })
+                        evidence_items.append(
+                            {
+                                "evidence_type": ev.evidence_type.value,
+                                "excerpt": ev.excerpt[:500] if ev.excerpt else None,
+                                "source_location": ev.source_location,
+                                "strength": ev.strength.value if ev.strength else None,
+                                "article_title": None,
+                                "source_name": source_name_map.get(str(claim.source_id)),
+                                "published_at": (
+                                    articles[0].published_at.isoformat()
+                                    if articles and articles[0].published_at
+                                    else None
+                                ),
+                            }
+                        )
                 except Exception:
                     evidence_items = []
 
-                claims_section.append({
-                    "claim_text": claim.claim_text[:1000],
-                    "type": claim.claim_type.value,
-                    "status": claim.status.value,
-                    "confidence": claim.confidence,
-                    "evidence_support_score": claim.evidence_support_score,
-                    "evidence_count": len(evidence_items),
-                    "evidence": evidence_items if evidence_items else None,
-                    "provenance_source": (
-                        claim.ai_provider or (claim.ai_model and "ai_extracted") or "deterministic"
-                    ),
-                })
+                claims_section.append(
+                    {
+                        "claim_text": claim.claim_text[:1000],
+                        "type": claim.claim_type.value,
+                        "status": claim.status.value,
+                        "confidence": claim.confidence,
+                        "evidence_support_score": claim.evidence_support_score,
+                        "evidence_count": len(evidence_items),
+                        "evidence": evidence_items if evidence_items else None,
+                        "provenance_source": (
+                            claim.ai_provider
+                            or (claim.ai_model and "ai_extracted")
+                            or "deterministic"
+                        ),
+                    }
+                )
 
                 if len(claims_section) >= 20:
                     break
@@ -356,7 +380,8 @@ class StoryIntelligenceBriefService:
             conflict_repo = self._container.conflict_repository
             recent_conflicts = await conflict_repo.list_recent(limit=200)
             cluster_conflicts = [
-                c for c in recent_conflicts
+                c
+                for c in recent_conflicts
                 if c.article_a_id in article_ids or c.article_b_id in article_ids
             ]
 
@@ -372,17 +397,19 @@ class StoryIntelligenceBriefService:
                     if article.id == conflict.article_b_id and article.published_at:
                         pub_b = article.published_at.isoformat()
 
-                result.append({
-                    "conflict_type": conflict.conflict_type.value,
-                    "status": conflict.status.value,
-                    "confidence": conflict.confidence,
-                    "explanation": conflict.explanation,
-                    "source_a_name": source_a_name,
-                    "source_b_name": source_b_name,
-                    "same_source": conflict.same_source,
-                    "published_at_a": pub_a,
-                    "published_at_b": pub_b,
-                })
+                result.append(
+                    {
+                        "conflict_type": conflict.conflict_type.value,
+                        "status": conflict.status.value,
+                        "confidence": conflict.confidence,
+                        "explanation": conflict.explanation,
+                        "source_a_name": source_a_name,
+                        "source_b_name": source_b_name,
+                        "same_source": conflict.same_source,
+                        "published_at_a": pub_a,
+                        "published_at_b": pub_b,
+                    }
+                )
             return result
         except Exception:
             return []
@@ -465,15 +492,17 @@ class StoryIntelligenceBriefService:
                 related_ids += getattr(trend, "related_topic_ids", None) or []
                 related_ids += getattr(trend, "related_category_ids", None) or []
                 if str(cluster.id) in [str(rid) for rid in related_ids]:
-                    related_trends.append({
-                        "id": str(trend.id),
-                        "trend_type": trend.trend_type.value,
-                        "display_name": trend.display_name,
-                        "status": trend.status.value,
-                        "trend_score": trend.trend_score,
-                        "momentum_score": trend.momentum_score,
-                        "explanation": trend.explanation,
-                    })
+                    related_trends.append(
+                        {
+                            "id": str(trend.id),
+                            "trend_type": trend.trend_type.value,
+                            "display_name": trend.display_name,
+                            "status": trend.status.value,
+                            "trend_score": trend.trend_score,
+                            "momentum_score": trend.momentum_score,
+                            "explanation": trend.explanation,
+                        }
+                    )
                 if len(related_trends) >= 5:
                     break
             return related_trends if related_trends else None
@@ -525,11 +554,11 @@ class StoryIntelligenceBriefService:
 
             def name_resolver(e_type: str, e_id: str) -> str:
                 if e_type == "company":
-                    for c in (entities.get("companies") or []):
+                    for c in entities.get("companies") or []:
                         if c["id"] == e_id:
                             return c["name"]
                 if e_type == "topic":
-                    for t in (entities.get("topics") or []):
+                    for t in entities.get("topics") or []:
                         if t["id"] == e_id:
                             return t["name"]
                 return f"{e_type} {e_id[:8]}"
@@ -607,13 +636,11 @@ class StoryIntelligenceBriefService:
                                 limit=50,
                             )
                         )
-                        source_rels = (
-                            await self._container.relationship_repository.list_for_entity(
-                                entity_type="story",
-                                entity_id=cluster.id,
-                                status=None,
-                                limit=50,
-                            )
+                        source_rels = await self._container.relationship_repository.list_for_entity(
+                            entity_type="story",
+                            entity_id=cluster.id,
+                            status=None,
+                            limit=50,
                         )
                         candidate_company_ids = {
                             str(r.object_entity_id)
@@ -653,15 +680,17 @@ class StoryIntelligenceBriefService:
                     if graph_data and graph_data.get("graph_score", 0) > 0:
                         reason = f"{r.reason}; {graph_data['explanation']}"
 
-                    results.append({
-                        "cluster_id": r.cluster_id,
-                        "title": r.title,
-                        "summary": r.summary,
-                        "similarity": r.similarity,
-                        "article_count": r.article_count,
-                        "source_count": r.source_count,
-                        "reason": reason,
-                    })
+                    results.append(
+                        {
+                            "cluster_id": r.cluster_id,
+                            "title": r.title,
+                            "summary": r.summary,
+                            "similarity": r.similarity,
+                            "article_count": r.article_count,
+                            "source_count": r.source_count,
+                            "reason": reason,
+                        }
+                    )
                     if len(results) >= limit:
                         break
                 return results
@@ -682,7 +711,9 @@ class StoryIntelligenceBriefService:
             return []
 
     def _build_provenance(
-        self, cluster: StoryCluster, articles: list[Any],
+        self,
+        cluster: StoryCluster,
+        articles: list[Any],
     ) -> dict[str, Any]:
         def _has_ai(article: Any) -> bool:
             return bool(getattr(article, "ai_provider", None) or getattr(article, "ai_model", None))
@@ -742,11 +773,7 @@ class StoryIntelligenceBriefService:
                     "overall",
                 }
                 blocked_by_gate = any(
-                    (
-                        r.component.value
-                        if hasattr(r.component, "value")
-                        else r.component
-                    )
+                    (r.component.value if hasattr(r.component, "value") else r.component)
                     in story_components
                     for r in recent_fails
                 )
@@ -773,9 +800,7 @@ class StoryIntelligenceBriefService:
 
         degraded = health_status == "degraded"
         degraded_message = (
-            "Some intelligence for this story is currently unavailable."
-            if degraded
-            else None
+            "Some intelligence for this story is currently unavailable." if degraded else None
         )
 
         return {

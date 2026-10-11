@@ -12,9 +12,8 @@ from redis.retry import Retry
 
 from ai_news_digest.core.config import settings
 from ai_news_digest.core.exceptions import ExternalServiceError
-from ai_news_digest.domain.ports.cache_store import CacheStore
-
 from ai_news_digest.core.logging import get_logger
+from ai_news_digest.domain.ports.cache_store import CacheStore
 
 logger = get_logger(__name__)
 

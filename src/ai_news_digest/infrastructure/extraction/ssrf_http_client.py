@@ -62,9 +62,7 @@ class SsrfHttpArticleFetcher:
         try:
             validated_url = await validate_rss_http_url(url)
         except SSRFValidationError as exc:
-            logger.warning(
-                "Article URL rejected by SSRF validation", url=url, error=str(exc)
-            )
+            logger.warning("Article URL rejected by SSRF validation", url=url, error=str(exc))
             return FetchResult(
                 content="",
                 failure_reason=f"SSRF validation failed: {exc}",
@@ -94,9 +92,7 @@ class SsrfHttpArticleFetcher:
                     )
                     return FetchResult(
                         content="",
-                        failure_reason=(
-                            f"Timed out while fetching article '{current_url}'."
-                        ),
+                        failure_reason=(f"Timed out while fetching article '{current_url}'."),
                     )
                 except httpx.HTTPError as exc:
                     logger.warning(
@@ -106,9 +102,7 @@ class SsrfHttpArticleFetcher:
                     )
                     return FetchResult(
                         content="",
-                        failure_reason=(
-                            f"Failed to fetch article '{current_url}': {exc}"
-                        ),
+                        failure_reason=(f"Failed to fetch article '{current_url}': {exc}"),
                     )
 
                 status = response.status_code
@@ -144,9 +138,7 @@ class SsrfHttpArticleFetcher:
                         return FetchResult(
                             content="",
                             status_code=status,
-                            failure_reason=(
-                                f"Article redirect to '{target}' rejected: {exc}"
-                            ),
+                            failure_reason=(f"Article redirect to '{target}' rejected: {exc}"),
                         )
 
                     redirected = True
@@ -162,9 +154,7 @@ class SsrfHttpArticleFetcher:
                     return FetchResult(
                         content="",
                         status_code=status,
-                        failure_reason=(
-                            f"Article '{current_url}' returned HTTP {status}."
-                        ),
+                        failure_reason=(f"Article '{current_url}' returned HTTP {status}."),
                     )
 
                 if not _is_supported_content_type(content_type):
@@ -183,9 +173,7 @@ class SsrfHttpArticleFetcher:
                         ),
                     )
 
-                body_bytes = await _read_body(
-                    response, current_url, self._max_response_bytes
-                )
+                body_bytes = await _read_body(response, current_url, self._max_response_bytes)
                 if body_bytes is None:
                     logger.warning(
                         "Article fetch body too large",
@@ -204,9 +192,7 @@ class SsrfHttpArticleFetcher:
                     )
 
                 try:
-                    text = body_bytes.decode(
-                        response.encoding or "utf-8", errors="replace"
-                    )
+                    text = body_bytes.decode(response.encoding or "utf-8", errors="replace")
                 except (LookupError, UnicodeDecodeError):
                     text = body_bytes.decode("utf-8", errors="replace")
 

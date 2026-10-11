@@ -280,9 +280,7 @@ class StoryRankingEngine:
             explanation=explanation,
         )
 
-    def _category_topic_relevance_signal(
-        self, ctx: ClusterRankingContext
-    ) -> StoryRankingSignal:
+    def _category_topic_relevance_signal(self, ctx: ClusterRankingContext) -> StoryRankingSignal:
         weight = self._category_topic_relevance_weight
 
         article_category_ids = {cid for a in ctx.articles for cid in a.category_ids}
@@ -347,9 +345,7 @@ class StoryRankingEngine:
             explanation=explanation,
         )
 
-    def _official_announcement_signal(
-        self, ctx: ClusterRankingContext
-    ) -> StoryRankingSignal:
+    def _official_announcement_signal(self, ctx: ClusterRankingContext) -> StoryRankingSignal:
         weight = self._official_announcement_weight
         has_official = False
         for article in ctx.articles:

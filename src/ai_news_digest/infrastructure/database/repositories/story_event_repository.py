@@ -34,9 +34,7 @@ class StoryEventRepository(
         return StoryEventMapper.to_domain(model)
 
     async def get_by_id(self, event_id: UUID) -> StoryEvent | None:
-        statement = select(StoryEventModel).where(
-            StoryEventModel.id == str(event_id)
-        )
+        statement = select(StoryEventModel).where(StoryEventModel.id == str(event_id))
         result = await self._session.execute(statement)
         model = result.scalar_one_or_none()
         if model is None:

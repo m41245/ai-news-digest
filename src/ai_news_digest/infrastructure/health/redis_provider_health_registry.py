@@ -229,9 +229,7 @@ class RedisProviderHealthRegistry(ProviderHealthRegistry):
                 str(self._policy.success_threshold_to_close),
             )
             if not raw:
-                return ProviderHealthState(
-                    provider_id=provider_id, state=CircuitState.CLOSED
-                )
+                return ProviderHealthState(provider_id=provider_id, state=CircuitState.CLOSED)
             raw = dict(zip(raw[::2], raw[1::2], strict=True))
             raw["provider_id"] = provider_id
             state = self._decode_state(raw)
@@ -283,9 +281,7 @@ class RedisProviderHealthRegistry(ProviderHealthRegistry):
                     provider_id=provider_id,
                     failure_category=cat_str,
                     consecutive_failures=state.consecutive_failures,
-                    cooldown_until=(
-                        str(state.cooldown_until) if state.cooldown_until else None
-                    ),
+                    cooldown_until=(str(state.cooldown_until) if state.cooldown_until else None),
                 )
             else:
                 logger.info(
@@ -376,9 +372,7 @@ class RedisProviderHealthRegistry(ProviderHealthRegistry):
             )
             await client.expire(key, 3600)
             logger.info("Provider circuit reset", provider_id=provider_id)
-            return ProviderHealthState(
-                provider_id=provider_id, state=CircuitState.CLOSED
-            )
+            return ProviderHealthState(provider_id=provider_id, state=CircuitState.CLOSED)
         except RedisError as exc:
             logger.warning(
                 "Failed to reset provider health",
@@ -403,9 +397,7 @@ class RedisProviderHealthRegistry(ProviderHealthRegistry):
                 result[provider_id] = self._decode_state(raw)
             return result
         except RedisError as exc:
-            logger.warning(
-                "Failed to get all provider health states", error=str(exc)
-            )
+            logger.warning("Failed to get all provider health states", error=str(exc))
             return {}
 
 

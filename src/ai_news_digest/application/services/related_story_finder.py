@@ -66,20 +66,14 @@ class RelatedStoryFinder:
         if not clusters:
             return []
 
-        candidates = [
-            c
-            for c in clusters
-            if str(c.id) != str(existing_cluster_id)
-        ]
+        candidates = [c for c in clusters if str(c.id) != str(existing_cluster_id)]
         if not candidates:
             return []
 
         match_results: dict[str, SemanticMatchResult] = {}
         for cluster in candidates:
             try:
-                result = await self._duplicate_detector.compare_with_cluster(
-                    article, cluster
-                )
+                result = await self._duplicate_detector.compare_with_cluster(article, cluster)
                 match_results[str(cluster.id)] = result
             except Exception as exc:
                 logger.warning(

@@ -11,7 +11,7 @@ import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 from ai_news_digest.core.logging import get_logger
 
@@ -26,9 +26,7 @@ logger = get_logger(__name__)
 class _LLMStoryActivityOutput(BaseModel):
     """Structured output schema for LLM story activity classification."""
 
-    status: str = Field(
-        description="One of: BREAKING, DEVELOPING, ONGOING, STALE"
-    )
+    status: str = Field(description="One of: BREAKING, DEVELOPING, ONGOING, STALE")
     confidence: float = Field(
         ge=0.0,
         le=1.0,
@@ -38,9 +36,7 @@ class _LLMStoryActivityOutput(BaseModel):
         max_length=500,
         description="Brief explanation",
     )
-    meaningful_update: bool = Field(
-        description="Whether there is a meaningful new update"
-    )
+    meaningful_update: bool = Field(description="Whether there is a meaningful new update")
 
 
 @dataclass(slots=True)
@@ -123,21 +119,15 @@ async def run_llm_story_activity_check(
             capability="analysis",
         )
 
-        raw_text = getattr(response, "content", None) or getattr(
-            response, "text", ""
-        )
+        raw_text = getattr(response, "content", None) or getattr(response, "text", "")
         if not raw_text:
-            logger.warning(
-                "LLM returned empty content for story activity classification"
-            )
+            logger.warning("LLM returned empty content for story activity classification")
             return None
 
         try:
             parsed = json.loads(raw_text)
         except (json.JSONDecodeError, ValueError):
-            logger.warning(
-                "LLM returned invalid JSON for story activity classification"
-            )
+            logger.warning("LLM returned invalid JSON for story activity classification")
             return None
 
         validated = _LLMStoryActivityOutput.model_validate(parsed)

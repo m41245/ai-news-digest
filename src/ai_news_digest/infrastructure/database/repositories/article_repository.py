@@ -955,23 +955,23 @@ class ArticleRepository(
                 selectinload(ArticleModel.category_links),
             )
             .where(ArticleModel.published_at >= cutoff)
-            .where(ArticleModel.status.in_(
-                [
-                    ArticleStatus.SUMMARIZED,
-                    ArticleStatus.CATEGORIZED,
-                    ArticleStatus.ANALYZED,
-                    ArticleStatus.READY,
-                ]
-            ))
+            .where(
+                ArticleModel.status.in_(
+                    [
+                        ArticleStatus.SUMMARIZED,
+                        ArticleStatus.CATEGORIZED,
+                        ArticleStatus.ANALYZED,
+                        ArticleStatus.READY,
+                    ]
+                )
+            )
             .where(ArticleModel.id != str(exclude_article_id))
             .order_by(ArticleModel.published_at.desc())
             .limit(limit)
         )
 
         if category_id is not None:
-            statement = statement.where(
-                ArticleModel.category_id == str(category_id)
-            )
+            statement = statement.where(ArticleModel.category_id == str(category_id))
 
         if company_ids:
             company_strs = [str(cid) for cid in company_ids]

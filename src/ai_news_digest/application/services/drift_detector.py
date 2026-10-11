@@ -70,10 +70,7 @@ class DriftDetector:
                 abs(difference) >= self._absolute_threshold
                 and relative_change >= self._relative_threshold
             )
-            watch = (
-                abs(difference) >= self._absolute_threshold * 0.5
-                and not drifted
-            )
+            watch = abs(difference) >= self._absolute_threshold * 0.5 and not drifted
 
             state = DriftState.STABLE
             if drifted:
@@ -81,20 +78,22 @@ class DriftDetector:
             elif watch:
                 state = DriftState.WATCH
 
-            signals.append(DriftSignal(
-                metric_type=baseline_metric.metric_type,
-                baseline_value=baseline_metric.value,
-                current_value=current_metric.value,
-                difference=difference,
-                relative_change=relative_change,
-                baseline_sample_count=baseline_metric.sample_count,
-                current_sample_count=current_metric.sample_count,
-                threshold=self._absolute_threshold,
-                state=state,
-                scope=scope,
-                provider=provider,
-                model=model,
-            ))
+            signals.append(
+                DriftSignal(
+                    metric_type=baseline_metric.metric_type,
+                    baseline_value=baseline_metric.value,
+                    current_value=current_metric.value,
+                    difference=difference,
+                    relative_change=relative_change,
+                    baseline_sample_count=baseline_metric.sample_count,
+                    current_sample_count=current_metric.sample_count,
+                    threshold=self._absolute_threshold,
+                    state=state,
+                    scope=scope,
+                    provider=provider,
+                    model=model,
+                )
+            )
 
         return signals
 

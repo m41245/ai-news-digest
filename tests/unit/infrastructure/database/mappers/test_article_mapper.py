@@ -160,7 +160,7 @@ def test_article_mapper_update_model_without_category(
 
 def test_article_mapper_round_trip_preserves_ai_fields() -> None:
     """Test that structured intelligence fields survive domain -> ORM -> domain.
-    
+
     Note: companies and categories are reconstructed from association tables,
     not direct columns, so they require link setup to survive round trip.
     The JSON columns (key_takeaways, topics) and scalar AI fields do survive.

@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-from uuid import uuid4
 from unittest.mock import AsyncMock, MagicMock
+from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ai_news_digest.domain.enums.entity_type import EntityType
 from ai_news_digest.domain.enums.relationship_status import RelationshipStatus
 from ai_news_digest.domain.enums.relationship_type import RelationshipType
-from ai_news_digest.domain.models.relationship import Relationship, ProvenanceSource
+from ai_news_digest.domain.models.relationship import ProvenanceSource, Relationship
 from ai_news_digest.infrastructure.database.repositories.relationship_repository import (
     SqlAlchemyRelationshipRepository,
 )
@@ -57,9 +56,7 @@ def _relationship_to_model(relationship: Relationship) -> MagicMock:
     model.ai_model = relationship.ai_model
     model.ai_prompt_version = relationship.ai_prompt_version
     model.schema_version = relationship.schema_version
-    model.processing_metadata = (
-        '{"test": true}' if relationship.processing_metadata else None
-    )
+    model.processing_metadata = '{"test": true}' if relationship.processing_metadata else None
     model.created_at = relationship.created_at
     model.updated_at = relationship.updated_at
     model.observed_at = relationship.observed_at
@@ -70,7 +67,9 @@ def _relationship_to_model(relationship: Relationship) -> MagicMock:
     model.observation_count = relationship.observation_count
     model.source_count = relationship.source_count
     model.activity_score = relationship.activity_score
-    model.activity_status = relationship.activity_status.value if relationship.activity_status else None
+    model.activity_status = (
+        relationship.activity_status.value if relationship.activity_status else None
+    )
     return model
 
 
@@ -80,7 +79,9 @@ class TestBidirectionalRelationshipQueries:
         session = AsyncMock(spec=AsyncSession)
         return SqlAlchemyRelationshipRepository(session)
 
-    async def test_list_for_entity_as_subject(self, repository: SqlAlchemyRelationshipRepository) -> None:
+    async def test_list_for_entity_as_subject(
+        self, repository: SqlAlchemyRelationshipRepository
+    ) -> None:
         company_id = uuid4()
         topic_id = uuid4()
         rel = _make_relationship(EntityType.COMPANY, company_id, EntityType.TOPIC, topic_id)
@@ -98,7 +99,9 @@ class TestBidirectionalRelationshipQueries:
         assert results[0].subject_entity_id == company_id
         assert results[0].object_entity_id == topic_id
 
-    async def test_list_for_entity_as_object(self, repository: SqlAlchemyRelationshipRepository) -> None:
+    async def test_list_for_entity_as_object(
+        self, repository: SqlAlchemyRelationshipRepository
+    ) -> None:
         company_id = uuid4()
         topic_id = uuid4()
         rel = _make_relationship(EntityType.COMPANY, company_id, EntityType.TOPIC, topic_id)
@@ -115,11 +118,13 @@ class TestBidirectionalRelationshipQueries:
         assert len(results) == 1
         assert results[0].object_entity_id == topic_id
 
-    async def test_count_for_entity_counts_both_sides(self, repository: SqlAlchemyRelationshipRepository) -> None:
+    async def test_count_for_entity_counts_both_sides(
+        self, repository: SqlAlchemyRelationshipRepository
+    ) -> None:
         company_id = uuid4()
         topic_id = uuid4()
-        rel1 = _make_relationship(EntityType.COMPANY, company_id, EntityType.TOPIC, topic_id)
-        rel2 = _make_relationship(EntityType.TOPIC, topic_id, EntityType.COMPANY, company_id)
+        _make_relationship(EntityType.COMPANY, company_id, EntityType.TOPIC, topic_id)
+        _make_relationship(EntityType.TOPIC, topic_id, EntityType.COMPANY, company_id)
 
         mock_result = MagicMock()
         mock_result.scalar_one.return_value = 2
@@ -131,7 +136,9 @@ class TestBidirectionalRelationshipQueries:
         )
         assert count == 2
 
-    async def test_list_for_entity_with_temporal_both_sides(self, repository: SqlAlchemyRelationshipRepository) -> None:
+    async def test_list_for_entity_with_temporal_both_sides(
+        self, repository: SqlAlchemyRelationshipRepository
+    ) -> None:
         company_id = uuid4()
         topic_id = uuid4()
         rel = _make_relationship(EntityType.COMPANY, company_id, EntityType.TOPIC, topic_id)

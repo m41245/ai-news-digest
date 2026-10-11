@@ -90,9 +90,7 @@ async def test_extraction_pipeline_success(
     fetcher = SsrfHttpArticleFetcher(timeout=10.0, max_response_bytes=5_000_000)
     extractor = StdlibHtmlExtractor()
     cleaner = ContentCleaner()
-    validator = ContentQualityValidator(
-        min_char_count=50, min_avg_paragraph_length=20
-    )
+    validator = ContentQualityValidator(min_char_count=50, min_avg_paragraph_length=20)
 
     from ai_news_digest.domain.enums.extraction_method import (
         ExtractionMethod,

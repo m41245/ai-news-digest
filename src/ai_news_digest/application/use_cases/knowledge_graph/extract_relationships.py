@@ -104,9 +104,7 @@ class RelationshipExtractionUseCase:
 
         return bounded
 
-    async def _extract_ai_relationships_for_article(
-        self, article: Any
-    ) -> list[Relationship]:
+    async def _extract_ai_relationships_for_article(self, article: Any) -> list[Relationship]:
         if self._provider_manager is None:
             return []
 
@@ -142,9 +140,7 @@ class RelationshipExtractionUseCase:
         )
 
         try:
-            response = await self._provider_manager.generate(
-                request, capability="analysis"
-            )
+            response = await self._provider_manager.generate(request, capability="analysis")
         except Exception as exc:
             logger.warning("AI relationship extraction failed: %s", str(exc))
             return []
@@ -169,9 +165,7 @@ class RelationshipExtractionUseCase:
         if not raw_rels:
             return []
 
-        known_companies = {
-            c.name: c.id for c in await self._company_repository.list_all()
-        }
+        known_companies = {c.name: c.id for c in await self._company_repository.list_all()}
         known_topics = {t.name: t.id for t in await self._topic_repository.list_all()}
 
         relationships: list[Relationship] = []
@@ -241,9 +235,7 @@ class RelationshipExtractionUseCase:
 
         return None, None
 
-    def _build_deterministic_article_relationships(
-        self, article: Any
-    ) -> list[Relationship]:
+    def _build_deterministic_article_relationships(self, article: Any) -> list[Relationship]:
         relationships: list[Relationship] = []
         for company_id in article.company_ids or []:
             for topic_id in article.topic_ids or []:
@@ -299,9 +291,7 @@ class RelationshipExtractionUseCase:
             )
         return relationships
 
-    def _deduplicate_relationships(
-        self, relationships: list[Relationship]
-    ) -> list[Relationship]:
+    def _deduplicate_relationships(self, relationships: list[Relationship]) -> list[Relationship]:
         seen: dict[tuple[Any, Any, Any, Any, Any], Relationship] = {}
         for rel in relationships:
             key = (

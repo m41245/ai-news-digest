@@ -29,6 +29,4 @@ class UserMutedSourceModel(Base):
     )
 
     user: Mapped[UserModel] = relationship(back_populates="muted_sources", lazy="selectin")
-    source: Mapped[SourceModel] = relationship(
-        back_populates="muted_by_users", lazy="selectin"
-    )
+    source: Mapped[SourceModel] = relationship(back_populates="muted_by_users", lazy="selectin")

@@ -5,9 +5,8 @@ Application tests for GetRecommendationsUseCase.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -15,6 +14,12 @@ from ai_news_digest.application.dto.recommendation import RecommendationResponse
 from ai_news_digest.application.use_cases.recommendation.get_recommendations import (
     GetRecommendationsUseCase,
 )
+from ai_news_digest.domain.enums.article_status import ArticleStatus
+from ai_news_digest.domain.enums.source_status import SourceStatus
+from ai_news_digest.domain.enums.source_type import SourceType
+from ai_news_digest.domain.enums.story_activity_status import StoryActivityStatus
+from ai_news_digest.domain.enums.trend_status import TrendStatus
+from ai_news_digest.domain.enums.trend_type import TrendType
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.models.source import Source
 from ai_news_digest.domain.models.story_activity import StoryActivity
@@ -23,19 +28,13 @@ from ai_news_digest.domain.models.story_event import StoryEvent
 from ai_news_digest.domain.models.trend import Trend
 from ai_news_digest.domain.models.user import User
 from ai_news_digest.domain.models.user_preference import UserPreferenceProfile
-from ai_news_digest.domain.enums.article_status import ArticleStatus
-from ai_news_digest.domain.enums.story_activity_status import StoryActivityStatus
-from ai_news_digest.domain.enums.trend_status import TrendStatus
-from ai_news_digest.domain.enums.trend_type import TrendType
-from ai_news_digest.domain.enums.source_type import SourceType
-from ai_news_digest.domain.enums.source_status import SourceStatus
 
 
 def _make_user() -> User:
     return User(
         id=uuid4(),
         email="me@example.com",
-        hashed_password="hashed",
+        hashed_password="hashed",  # noqa: S106
         is_active=True,
         is_admin=False,
         created_at=datetime.now(UTC),
@@ -192,7 +191,9 @@ def _build_container(
     container.user_preference_repository.create = AsyncMock(side_effect=lambda p: p)
 
     container.article_repository = AsyncMock()
-    container.article_repository.list_personalized_feed_story_candidates = AsyncMock(return_value=articles)
+    container.article_repository.list_personalized_feed_story_candidates = AsyncMock(
+        return_value=articles
+    )
 
     container.story_cluster_repository = AsyncMock()
     container.story_cluster_repository.get_by_ids = AsyncMock(return_value=clusters)
@@ -271,7 +272,7 @@ class TestGetRecommendationsUseCase:
         user = _make_user()
         company_id = uuid4()
         cluster = _make_cluster()
-        article = _make_article(
+        _make_article(
             source_id=uuid4(),
             company_ids=(company_id,),
             companies=("Acme",),
@@ -279,7 +280,9 @@ class TestGetRecommendationsUseCase:
         )
         profile = _make_profile(user_id=user.id, muted_company_ids=frozenset([company_id]))
         container = _build_container(profile, [], [cluster], [], {}, [])
-        container.article_repository.list_personalized_feed_story_candidates = AsyncMock(return_value=[])
+        container.article_repository.list_personalized_feed_story_candidates = AsyncMock(
+            return_value=[]
+        )
         use_case = GetRecommendationsUseCase(
             preference_repository=container.user_preference_repository,
             article_repository=container.article_repository,

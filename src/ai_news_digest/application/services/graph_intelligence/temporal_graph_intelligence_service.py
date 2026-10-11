@@ -211,13 +211,9 @@ class TemporalGraphIntelligenceService:
 
             is_source = rel.subject_entity_id == entity_id
             other_type = (
-                rel.object_entity_type.value
-                if is_source
-                else rel.subject_entity_type.value
+                rel.object_entity_type.value if is_source else rel.subject_entity_type.value
             )
-            other_id = (
-                rel.object_entity_id if is_source else rel.subject_entity_id
-            )
+            other_id = rel.object_entity_id if is_source else rel.subject_entity_id
 
             key = f"{other_type}:{other_id}"
             if key not in connections:
@@ -240,9 +236,7 @@ class TemporalGraphIntelligenceService:
                 conn.relationship_type = rel.relationship_type.value
                 conn.status = rel.status.value
             else:
-                conn.relationship_type = (
-                    f"{conn.relationship_type}, {rel.relationship_type.value}"
-                )
+                conn.relationship_type = f"{conn.relationship_type}, {rel.relationship_type.value}"
 
             conn.score = max(conn.score, rel_score)
             conn.is_disputed = conn.is_disputed or is_disputed
@@ -254,14 +248,12 @@ class TemporalGraphIntelligenceService:
 
             if rel.first_observed_at and (
                 conn.first_observed_at is None
-                or rel.first_observed_at
-                < datetime.fromisoformat(conn.first_observed_at)
+                or rel.first_observed_at < datetime.fromisoformat(conn.first_observed_at)
             ):
                 conn.first_observed_at = rel.first_observed_at.isoformat()
             if rel.last_observed_at and (
                 conn.last_observed_at is None
-                or rel.last_observed_at
-                > datetime.fromisoformat(conn.last_observed_at)
+                or rel.last_observed_at > datetime.fromisoformat(conn.last_observed_at)
             ):
                 conn.last_observed_at = rel.last_observed_at.isoformat()
 
@@ -300,12 +292,8 @@ class TemporalGraphIntelligenceService:
                 conn.signals.append("declining")
 
             if conn.first_observed_at:
-                formatted = datetime.fromisoformat(
-                    conn.first_observed_at
-                ).strftime("%b %Y")
-                explanation_parts.append(
-                    f"First observed {formatted}"
-                )
+                formatted = datetime.fromisoformat(conn.first_observed_at).strftime("%b %Y")
+                explanation_parts.append(f"First observed {formatted}")
 
             conn.explanation = "; ".join(explanation_parts) if explanation_parts else "Connected"
             result.append(conn)
@@ -402,13 +390,9 @@ class TemporalGraphIntelligenceService:
 
             is_source = rel.subject_entity_id == entity_id
             other_type = (
-                rel.object_entity_type.value
-                if is_source
-                else rel.subject_entity_type.value
+                rel.object_entity_type.value if is_source else rel.subject_entity_type.value
             )
-            other_id = (
-                rel.object_entity_id if is_source else rel.subject_entity_id
-            )
+            other_id = rel.object_entity_id if is_source else rel.subject_entity_id
             other_name = name_resolver(other_type, str(other_id))
 
             activity_status = self.compute_activity_status(rel, now)
@@ -416,20 +400,19 @@ class TemporalGraphIntelligenceService:
             if rel.first_observed_at is not None:
                 age_hours = (now - rel.first_observed_at).total_seconds() / 3600.0
                 if age_hours < 24:
-                        changes.append(
-                            RelationshipChangeEvent(
-                                change_type="new_connection",
-                                relationship_type=rel.relationship_type.value,
-                                object_entity_type=other_type,
-                                object_entity_id=str(other_id),
-                                object_name=other_name,
-                                observed_at=rel.first_observed_at.isoformat(),
-                                explanation=(
-                                    f"New {rel.relationship_type.value}"
-                                    " relationship first observed"
-                                ),
-                            )
+                    changes.append(
+                        RelationshipChangeEvent(
+                            change_type="new_connection",
+                            relationship_type=rel.relationship_type.value,
+                            object_entity_type=other_type,
+                            object_entity_id=str(other_id),
+                            object_name=other_name,
+                            observed_at=rel.first_observed_at.isoformat(),
+                            explanation=(
+                                f"New {rel.relationship_type.value}" " relationship first observed"
+                            ),
                         )
+                    )
 
             if (
                 activity_status == RelationshipActivityStatus.ACTIVE
@@ -444,9 +427,7 @@ class TemporalGraphIntelligenceService:
                         object_entity_id=str(other_id),
                         object_name=other_name,
                         observed_at=(
-                            rel.last_observed_at.isoformat()
-                            if rel.last_observed_at
-                            else None
+                            rel.last_observed_at.isoformat() if rel.last_observed_at else None
                         ),
                         explanation=f"Relationship re-observed {rel.observation_count} times",
                     )
@@ -461,9 +442,7 @@ class TemporalGraphIntelligenceService:
                         object_entity_id=str(other_id),
                         object_name=other_name,
                         observed_at=(
-                            rel.last_observed_at.isoformat()
-                            if rel.last_observed_at
-                            else None
+                            rel.last_observed_at.isoformat() if rel.last_observed_at else None
                         ),
                         explanation="Reduced recent observation activity",
                     )
@@ -478,9 +457,7 @@ class TemporalGraphIntelligenceService:
                         object_entity_id=str(other_id),
                         object_name=other_name,
                         observed_at=(
-                            rel.last_observed_at.isoformat()
-                            if rel.last_observed_at
-                            else None
+                            rel.last_observed_at.isoformat() if rel.last_observed_at else None
                         ),
                         explanation="No recent supporting observation",
                     )
@@ -495,9 +472,7 @@ class TemporalGraphIntelligenceService:
                         object_entity_id=str(other_id),
                         object_name=other_name,
                         observed_at=(
-                            rel.last_observed_at.isoformat()
-                            if rel.last_observed_at
-                            else None
+                            rel.last_observed_at.isoformat() if rel.last_observed_at else None
                         ),
                         explanation="Relationship has conflicting evidence",
                     )
@@ -572,9 +547,7 @@ class TemporalGraphIntelligenceService:
 
             first_at = rel.first_observed_at or rel.created_at
 
-            if first_at <= at_time and (
-                rel.valid_to is None or rel.valid_to >= at_time
-            ):
+            if first_at <= at_time and (rel.valid_to is None or rel.valid_to >= at_time):
                 result.append(rel)
 
         return result

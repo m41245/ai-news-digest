@@ -82,9 +82,7 @@ class SemanticSearchService:
             candidate_embedding = embeddings.get(article.id)
             if candidate_embedding is None:
                 continue
-            sim = self._similarity.normalized_similarity(
-                query_embedding, candidate_embedding
-            )
+            sim = self._similarity.normalized_similarity(query_embedding, candidate_embedding)
             importance = article.importance_score or 0.0
             age_hours = (
                 (now - article.published_at).total_seconds() / 3600.0
@@ -136,9 +134,7 @@ class SemanticSearchService:
             cluster_embedding = embeddings.get(cluster.id)
             if cluster_embedding is None:
                 continue
-            sim = self._similarity.normalized_similarity(
-                query_embedding, cluster_embedding
-            )
+            sim = self._similarity.normalized_similarity(query_embedding, cluster_embedding)
             results.append(
                 ScoredCluster(
                     cluster=cluster,

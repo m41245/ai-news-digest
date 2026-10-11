@@ -88,10 +88,13 @@ async def test_fetch_success_html(fetcher: SsrfHttpArticleFetcher) -> None:
         url="https://example.com/article",
     )
 
-    with _with_mock_transport(response), patch(
-        "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
-        new_callable=AsyncMock,
-        return_value="https://example.com/article",
+    with (
+        _with_mock_transport(response),
+        patch(
+            "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
+            new_callable=AsyncMock,
+            return_value="https://example.com/article",
+        ),
     ):
         result = await fetcher.fetch("https://example.com/article")
 
@@ -155,9 +158,7 @@ async def test_fetch_ssrf_private_ip_172(fetcher: SsrfHttpArticleFetcher) -> Non
     with patch(
         "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
         new_callable=AsyncMock,
-        side_effect=SSRFValidationError(
-            "Feed URL host '172.16.0.1' is not permitted."
-        ),
+        side_effect=SSRFValidationError("Feed URL host '172.16.0.1' is not permitted."),
     ):
         result = await fetcher.fetch("http://172.16.0.1/article")
 
@@ -172,9 +173,7 @@ async def test_fetch_ssrf_private_ip_192(fetcher: SsrfHttpArticleFetcher) -> Non
     with patch(
         "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
         new_callable=AsyncMock,
-        side_effect=SSRFValidationError(
-            "Feed URL host '192.168.1.1' is not permitted."
-        ),
+        side_effect=SSRFValidationError("Feed URL host '192.168.1.1' is not permitted."),
     ):
         result = await fetcher.fetch("http://192.168.1.1/article")
 
@@ -189,9 +188,7 @@ async def test_fetch_ssrf_link_local(fetcher: SsrfHttpArticleFetcher) -> None:
     with patch(
         "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
         new_callable=AsyncMock,
-        side_effect=SSRFValidationError(
-            "Feed URL host '169.254.1.1' is not permitted."
-        ),
+        side_effect=SSRFValidationError("Feed URL host '169.254.1.1' is not permitted."),
     ):
         result = await fetcher.fetch("http://169.254.1.1/article")
 
@@ -221,9 +218,7 @@ async def test_fetch_ssrf_ipv4_mapped_ipv6(fetcher: SsrfHttpArticleFetcher) -> N
     with patch(
         "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
         new_callable=AsyncMock,
-        side_effect=SSRFValidationError(
-            "Feed URL host '::ffff:127.0.0.1' is not permitted."
-        ),
+        side_effect=SSRFValidationError("Feed URL host '::ffff:127.0.0.1' is not permitted."),
     ):
         result = await fetcher.fetch("http://[::ffff:127.0.0.1]/article")
 
@@ -244,9 +239,7 @@ async def test_fetch_redirect_to_localhost_rejected(
         call_count += 1
         if call_count == 1:
             return raw
-        raise SSRFValidationError(
-            f"Feed URL host '{httpx.URL(raw).host}' is not permitted."
-        )
+        raise SSRFValidationError(f"Feed URL host '{httpx.URL(raw).host}' is not permitted.")
 
     redirect_response = _make_response(
         status_code=302,
@@ -254,10 +247,13 @@ async def test_fetch_redirect_to_localhost_rejected(
         url="https://example.com/article",
     )
 
-    with _with_mock_transport(redirect_response), patch(
-        "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
-        new_callable=AsyncMock,
-        side_effect=mock_validate,
+    with (
+        _with_mock_transport(redirect_response),
+        patch(
+            "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
+            new_callable=AsyncMock,
+            side_effect=mock_validate,
+        ),
     ):
         result = await fetcher.fetch("https://example.com/article")
 
@@ -279,9 +275,7 @@ async def test_fetch_redirect_to_private_ip_rejected(
         call_count += 1
         if call_count == 1:
             return raw
-        raise SSRFValidationError(
-            f"Feed URL host '{httpx.URL(raw).host}' is not permitted."
-        )
+        raise SSRFValidationError(f"Feed URL host '{httpx.URL(raw).host}' is not permitted.")
 
     redirect_response = _make_response(
         status_code=302,
@@ -289,10 +283,13 @@ async def test_fetch_redirect_to_private_ip_rejected(
         url="https://example.com/article",
     )
 
-    with _with_mock_transport(redirect_response), patch(
-        "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
-        new_callable=AsyncMock,
-        side_effect=mock_validate,
+    with (
+        _with_mock_transport(redirect_response),
+        patch(
+            "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
+            new_callable=AsyncMock,
+            side_effect=mock_validate,
+        ),
     ):
         result = await fetcher.fetch("https://example.com/article")
 
@@ -313,10 +310,13 @@ async def test_fetch_redirect_loop_exceeds_max(
         url="https://example.com/article",
     )
 
-    with _with_mock_transport(redirect_response), patch(
-        "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
-        new_callable=AsyncMock,
-        return_value="https://example.com/article",
+    with (
+        _with_mock_transport(redirect_response),
+        patch(
+            "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
+            new_callable=AsyncMock,
+            return_value="https://example.com/article",
+        ),
     ):
         result = await fetcher.fetch("https://example.com/article")
 
@@ -333,14 +333,15 @@ async def test_fetch_timeout(fetcher: SsrfHttpArticleFetcher) -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.TimeoutException("Timed out!")
 
-    with _with_mock_handler(handler), patch(
-        "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
-        new_callable=AsyncMock,
-        return_value="https://example.com/article",
+    with (
+        _with_mock_handler(handler),
+        patch(
+            "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
+            new_callable=AsyncMock,
+            return_value="https://example.com/article",
+        ),
     ):
-        result = await SsrfHttpArticleFetcher(timeout=0.001).fetch(
-            "https://example.com/article"
-        )
+        result = await SsrfHttpArticleFetcher(timeout=0.001).fetch("https://example.com/article")
 
     assert isinstance(result, FetchResult)
     assert result.content == ""
@@ -358,10 +359,13 @@ async def test_fetch_http_404(fetcher: SsrfHttpArticleFetcher) -> None:
         url="https://example.com/article",
     )
 
-    with _with_mock_transport(response), patch(
-        "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
-        new_callable=AsyncMock,
-        return_value="https://example.com/article",
+    with (
+        _with_mock_transport(response),
+        patch(
+            "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
+            new_callable=AsyncMock,
+            return_value="https://example.com/article",
+        ),
     ):
         result = await fetcher.fetch("https://example.com/article")
 
@@ -382,10 +386,13 @@ async def test_fetch_http_403(fetcher: SsrfHttpArticleFetcher) -> None:
         url="https://example.com/article",
     )
 
-    with _with_mock_transport(response), patch(
-        "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
-        new_callable=AsyncMock,
-        return_value="https://example.com/article",
+    with (
+        _with_mock_transport(response),
+        patch(
+            "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
+            new_callable=AsyncMock,
+            return_value="https://example.com/article",
+        ),
     ):
         result = await fetcher.fetch("https://example.com/article")
 
@@ -406,10 +413,13 @@ async def test_fetch_http_500(fetcher: SsrfHttpArticleFetcher) -> None:
         url="https://example.com/article",
     )
 
-    with _with_mock_transport(response), patch(
-        "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
-        new_callable=AsyncMock,
-        return_value="https://example.com/article",
+    with (
+        _with_mock_transport(response),
+        patch(
+            "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
+            new_callable=AsyncMock,
+            return_value="https://example.com/article",
+        ),
     ):
         result = await fetcher.fetch("https://example.com/article")
 
@@ -432,10 +442,13 @@ async def test_fetch_unsupported_content_type_pdf(
         url="https://example.com/article",
     )
 
-    with _with_mock_transport(response), patch(
-        "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
-        new_callable=AsyncMock,
-        return_value="https://example.com/article",
+    with (
+        _with_mock_transport(response),
+        patch(
+            "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
+            new_callable=AsyncMock,
+            return_value="https://example.com/article",
+        ),
     ):
         result = await fetcher.fetch("https://example.com/article")
 
@@ -457,10 +470,13 @@ async def test_fetch_oversized_content_length(fetcher: SsrfHttpArticleFetcher) -
         url="https://example.com/article",
     )
 
-    with _with_mock_transport(response), patch(
-        "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
-        new_callable=AsyncMock,
-        return_value="https://example.com/article",
+    with (
+        _with_mock_transport(response),
+        patch(
+            "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
+            new_callable=AsyncMock,
+            return_value="https://example.com/article",
+        ),
     ):
         result = await fetcher.fetch("https://example.com/article")
 
@@ -484,10 +500,13 @@ async def test_fetch_oversized_streamed_body(fetcher: SsrfHttpArticleFetcher) ->
             request=request,
         )
 
-    with _with_mock_handler(handler), patch(
-        "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
-        new_callable=AsyncMock,
-        return_value="https://example.com/article",
+    with (
+        _with_mock_handler(handler),
+        patch(
+            "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
+            new_callable=AsyncMock,
+            return_value="https://example.com/article",
+        ),
     ):
         result = await fetcher.fetch("https://example.com/article")
 
@@ -505,10 +524,13 @@ async def test_fetch_connection_failure(fetcher: SsrfHttpArticleFetcher) -> None
     async def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("Connection refused")
 
-    with _with_mock_handler(handler), patch(
-        "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
-        new_callable=AsyncMock,
-        return_value="https://example.com/article",
+    with (
+        _with_mock_handler(handler),
+        patch(
+            "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
+            new_callable=AsyncMock,
+            return_value="https://example.com/article",
+        ),
     ):
         result = await fetcher.fetch("https://example.com/article")
 
@@ -530,10 +552,13 @@ async def test_fetch_malformed_redirect_missing_location(
         url="https://example.com/article",
     )
 
-    with _with_mock_transport(response), patch(
-        "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
-        new_callable=AsyncMock,
-        return_value="https://example.com/article",
+    with (
+        _with_mock_transport(response),
+        patch(
+            "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
+            new_callable=AsyncMock,
+            return_value="https://example.com/article",
+        ),
     ):
         result = await fetcher.fetch("https://example.com/article")
 
@@ -564,10 +589,13 @@ async def test_fetch_redirect_to_unsupported_scheme(
         url="https://example.com/article",
     )
 
-    with _with_mock_transport(redirect_response), patch(
-        "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
-        new_callable=AsyncMock,
-        side_effect=mock_validate,
+    with (
+        _with_mock_transport(redirect_response),
+        patch(
+            "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
+            new_callable=AsyncMock,
+            side_effect=mock_validate,
+        ),
     ):
         result = await fetcher.fetch("https://example.com/article")
 
@@ -591,10 +619,13 @@ async def test_fetch_success_xhtml(fetcher: SsrfHttpArticleFetcher) -> None:
         url="https://example.com/article",
     )
 
-    with _with_mock_transport(response), patch(
-        "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
-        new_callable=AsyncMock,
-        return_value="https://example.com/article",
+    with (
+        _with_mock_transport(response),
+        patch(
+            "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
+            new_callable=AsyncMock,
+            return_value="https://example.com/article",
+        ),
     ):
         result = await fetcher.fetch("https://example.com/article")
 
@@ -615,10 +646,13 @@ async def test_fetch_success_text_plain(fetcher: SsrfHttpArticleFetcher) -> None
         url="https://example.com/article",
     )
 
-    with _with_mock_transport(response), patch(
-        "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
-        new_callable=AsyncMock,
-        return_value="https://example.com/article",
+    with (
+        _with_mock_transport(response),
+        patch(
+            "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
+            new_callable=AsyncMock,
+            return_value="https://example.com/article",
+        ),
     ):
         result = await fetcher.fetch("https://example.com/article")
 
@@ -643,13 +677,16 @@ async def test_fetch_redirects_once(fetcher: SsrfHttpArticleFetcher) -> None:
         url="https://example.com/final",
     )
 
-    with _with_mock_transport(redirect_response, final_response), patch(
-        "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
-        new_callable=AsyncMock,
-        side_effect=[
-            "https://example.com/article",
-            "https://example.com/final",
-        ],
+    with (
+        _with_mock_transport(redirect_response, final_response),
+        patch(
+            "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
+            new_callable=AsyncMock,
+            side_effect=[
+                "https://example.com/article",
+                "https://example.com/final",
+            ],
+        ),
     ):
         result = await fetcher.fetch("https://example.com/article")
 
@@ -681,10 +718,13 @@ async def test_fetch_image_content_type_rejected(
         url="https://example.com/article",
     )
 
-    with _with_mock_transport(response), patch(
-        "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
-        new_callable=AsyncMock,
-        return_value="https://example.com/article",
+    with (
+        _with_mock_transport(response),
+        patch(
+            "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
+            new_callable=AsyncMock,
+            return_value="https://example.com/article",
+        ),
     ):
         result = await fetcher.fetch("https://example.com/article")
 
@@ -705,10 +745,13 @@ async def test_fetch_decode_error_handled(fetcher: SsrfHttpArticleFetcher) -> No
         url="https://example.com/article",
     )
 
-    with _with_mock_transport(response), patch(
-        "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
-        new_callable=AsyncMock,
-        return_value="https://example.com/article",
+    with (
+        _with_mock_transport(response),
+        patch(
+            "ai_news_digest.infrastructure.extraction.ssrf_http_client.validate_rss_http_url",
+            new_callable=AsyncMock,
+            return_value="https://example.com/article",
+        ),
     ):
         result = await fetcher.fetch("https://example.com/article")
 

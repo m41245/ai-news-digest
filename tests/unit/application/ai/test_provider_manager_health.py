@@ -4,7 +4,6 @@ Unit tests for ProviderManager health-aware routing integration.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -12,19 +11,18 @@ import pytest
 from ai_news_digest.application.ai.capability import Capability
 from ai_news_digest.application.ai.capability_registry import CapabilityRegistry
 from ai_news_digest.application.ai.decision_engine import DecisionEngine
-from ai_news_digest.application.ai.errors import AITimeoutError, AITransientError
+from ai_news_digest.application.ai.errors import AITimeoutError
 from ai_news_digest.application.ai.models import (
     AIRequest,
     AIResponse,
     AIUsage,
 )
-from ai_news_digest.application.ai.provider_health import CircuitState, FailureCategory
+from ai_news_digest.application.ai.provider_health import FailureCategory
+from ai_news_digest.application.ai.provider_health_registry import ProviderHealthRegistry
 from ai_news_digest.application.ai.provider_manager import ProviderManager
 from ai_news_digest.application.ai.provider_registry import ProviderRegistry
 from ai_news_digest.application.ai.providers.base import AIProvider
-from ai_news_digest.application.ai.provider_health_registry import ProviderHealthRegistry
 from ai_news_digest.core.config import Settings
-from ai_news_digest.core.exceptions import ExternalServiceError
 
 
 @pytest.fixture
@@ -35,9 +33,7 @@ def provider_registry() -> ProviderRegistry:
 @pytest.fixture
 def capability_registry() -> CapabilityRegistry:
     registry = CapabilityRegistry()
-    registry.register_capability(
-        Capability(id="test_capability", name="Test Capability")
-    )
+    registry.register_capability(Capability(id="test_capability", name="Test Capability"))
     return registry
 
 

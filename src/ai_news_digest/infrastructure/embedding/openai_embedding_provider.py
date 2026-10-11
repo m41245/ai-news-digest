@@ -134,9 +134,7 @@ else:
         _config: Any = None
 
         def __post_init__(self) -> None:
-            raise ImportError(
-                "openai package is required for OpenAIEmbeddingProvider."
-            )
+            raise ImportError("openai package is required for OpenAIEmbeddingProvider.")
 
 
 __all__ = ["OpenAIEmbeddingProvider"]

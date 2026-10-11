@@ -58,9 +58,7 @@ class LLMConflictOutput(BaseModel):
         allowed = {"CONFLICT", "NO_CONFLICT", "UNCERTAIN"}
         normalized = value.strip().upper()
         if normalized not in allowed:
-            raise ValueError(
-                f"relationship must be one of {sorted(allowed)}, got '{value}'."
-            )
+            raise ValueError(f"relationship must be one of {sorted(allowed)}, got '{value}'.")
         return normalized
 
     @field_validator("confidence")
@@ -142,9 +140,7 @@ async def run_llm_conflict_analysis(
     quota exhausted, provider failure, or invalid output).
     """
     try:
-        prompt = _build_llm_prompt(
-            candidate.claim_a, candidate.claim_b, deterministic
-        )
+        prompt = _build_llm_prompt(candidate.claim_a, candidate.claim_b, deterministic)
         request = type(
             "AIRequest",
             (),
@@ -161,9 +157,7 @@ async def run_llm_conflict_analysis(
             capability="analysis",
         )
 
-        raw_text = getattr(response, "content", None) or getattr(
-            response, "text", ""
-        )
+        raw_text = getattr(response, "content", None) or getattr(response, "text", "")
         if not raw_text:
             logger.warning(
                 "LLM returned empty content for conflict analysis",

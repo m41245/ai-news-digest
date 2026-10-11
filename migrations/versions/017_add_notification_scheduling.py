@@ -3,6 +3,7 @@
 Revision ID: 017
 Revises: 016
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -79,10 +80,18 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_notification_deliveries_status_scheduled_for", table_name="notification_deliveries")
-    op.drop_index("ix_notification_deliveries_status_next_attempt_at", table_name="notification_deliveries")
-    op.drop_index("ix_notification_deliveries_provider_idempotency_key", table_name="notification_deliveries")
-    op.drop_index("ix_notification_deliveries_next_attempt_at", table_name="notification_deliveries")
+    op.drop_index(
+        "ix_notification_deliveries_status_scheduled_for", table_name="notification_deliveries"
+    )
+    op.drop_index(
+        "ix_notification_deliveries_status_next_attempt_at", table_name="notification_deliveries"
+    )
+    op.drop_index(
+        "ix_notification_deliveries_provider_idempotency_key", table_name="notification_deliveries"
+    )
+    op.drop_index(
+        "ix_notification_deliveries_next_attempt_at", table_name="notification_deliveries"
+    )
     op.drop_column("notification_deliveries", "suppression_reason")
     op.drop_column("notification_deliveries", "delivery_window")
     op.drop_column("notification_deliveries", "provider_idempotency_key")

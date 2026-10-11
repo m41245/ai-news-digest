@@ -55,17 +55,13 @@ class QualityGateRepository:
         result: str | None = None,
         evaluation_run_id: str | None = None,
     ) -> tuple[list[QualityGateResultModel], int]:
-        query = select(QualityGateResultModel).order_by(
-            desc(QualityGateResultModel.created_at)
-        )
+        query = select(QualityGateResultModel).order_by(desc(QualityGateResultModel.created_at))
         if component:
             query = query.where(QualityGateResultModel.component == component)
         if result:
             query = query.where(QualityGateResultModel.result == result)
         if evaluation_run_id:
-            query = query.where(
-                QualityGateResultModel.evaluation_run_id == evaluation_run_id
-            )
+            query = query.where(QualityGateResultModel.evaluation_run_id == evaluation_run_id)
 
         count_query = select(func.count()).select_from(query.subquery())
         total = (await self._session.execute(count_query)).scalar_one_or_none() or 0
@@ -77,9 +73,7 @@ class QualityGateRepository:
 
     async def cleanup_old_results(self, retention_days: int) -> int:
         cutoff = datetime.now(UTC) - __import__("datetime").timedelta(days=retention_days)
-        stmt = delete(QualityGateResultModel).where(
-            QualityGateResultModel.created_at < cutoff
-        )
+        stmt = delete(QualityGateResultModel).where(QualityGateResultModel.created_at < cutoff)
         result = cast(CursorResult[Any], await self._session.execute(stmt))
         await self._session.flush()
         return int(result.rowcount)
@@ -113,17 +107,13 @@ class OperationalAlertRepository:
         severity: str | None = None,
         resolved: bool | None = None,
     ) -> tuple[list[OperationalAlertModel], int]:
-        query = select(OperationalAlertModel).order_by(
-            desc(OperationalAlertModel.created_at)
-        )
+        query = select(OperationalAlertModel).order_by(desc(OperationalAlertModel.created_at))
         if component:
             query = query.where(OperationalAlertModel.component == component)
         if severity:
             query = query.where(OperationalAlertModel.severity == severity)
         if resolved is not None:
-            query = query.where(
-                OperationalAlertModel.resolved == (1 if resolved else 0)
-            )
+            query = query.where(OperationalAlertModel.resolved == (1 if resolved else 0))
 
         count_query = select(func.count()).select_from(query.subquery())
         total = (await self._session.execute(count_query)).scalar_one_or_none() or 0
@@ -143,9 +133,7 @@ class OperationalAlertRepository:
 
     async def resolve_alert(self, alert_id: str) -> OperationalAlertModel | None:
         result = await self._session.execute(
-            select(OperationalAlertModel).where(
-                OperationalAlertModel.alert_id == alert_id
-            )
+            select(OperationalAlertModel).where(OperationalAlertModel.alert_id == alert_id)
         )
         model = result.scalar_one_or_none()
         if model is None:
@@ -157,9 +145,7 @@ class OperationalAlertRepository:
 
     async def cleanup_old_alerts(self, retention_days: int) -> int:
         cutoff = datetime.now(UTC) - __import__("datetime").timedelta(days=retention_days)
-        stmt = delete(OperationalAlertModel).where(
-            OperationalAlertModel.created_at < cutoff
-        )
+        stmt = delete(OperationalAlertModel).where(OperationalAlertModel.created_at < cutoff)
         result = cast(CursorResult[Any], await self._session.execute(stmt))
         await self._session.flush()
         return int(result.rowcount)

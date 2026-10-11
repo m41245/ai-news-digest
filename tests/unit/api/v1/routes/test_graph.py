@@ -65,15 +65,9 @@ def _make_story_cluster(cluster_id: str | None = None) -> StoryCluster:
 def mock_container() -> MagicMock:
     container = MagicMock()
     container.relationship_repository.list_for_entity = AsyncMock(return_value=[])
-    container.relationship_repository.list_for_entity_with_temporal = AsyncMock(
-        return_value=[]
-    )
-    container.relationship_repository.get_entity_relationship_history = (
-        AsyncMock(return_value=[])
-    )
-    container.story_cluster_repository.get_by_id = AsyncMock(
-        return_value=_make_story_cluster()
-    )
+    container.relationship_repository.list_for_entity_with_temporal = AsyncMock(return_value=[])
+    container.relationship_repository.get_entity_relationship_history = AsyncMock(return_value=[])
+    container.story_cluster_repository.get_by_id = AsyncMock(return_value=_make_story_cluster())
     container.company_repository.list_by_ids = AsyncMock(return_value=[])
     container.topic_repository.list_by_ids = AsyncMock(return_value=[])
     container.category_repository.list_by_ids = AsyncMock(return_value=[])
@@ -103,24 +97,18 @@ class TestGraphRoutes:
         with patch("ai_news_digest.api.v1.routes.graph.get_settings") as mock_settings:
             mock_settings.return_value.knowledge_graph_enabled = True
             entity_id = uuid4()
-            response = client.get(
-                f"/api/v1/public/graph/entities/company/{entity_id}/connections"
-            )
+            response = client.get(f"/api/v1/public/graph/entities/company/{entity_id}/connections")
             assert response.status_code == 200
             data = response.json()
             assert "connections" in data
             assert data["total"] == 0
 
-    def test_get_entity_connections_invalid_type(
-        self, client: TestClient
-    ) -> None:
+    def test_get_entity_connections_invalid_type(self, client: TestClient) -> None:
         """Invalid entity type should return empty."""
         with patch("ai_news_digest.api.v1.routes.graph.get_settings") as mock_settings:
             mock_settings.return_value.knowledge_graph_enabled = True
             entity_id = uuid4()
-            response = client.get(
-                f"/api/v1/public/graph/entities/invalid/{entity_id}/connections"
-            )
+            response = client.get(f"/api/v1/public/graph/entities/invalid/{entity_id}/connections")
             assert response.status_code == 200
             data = response.json()
             assert data["connections"] == []
@@ -129,23 +117,17 @@ class TestGraphRoutes:
         self, client: TestClient, mock_container: MagicMock
     ) -> None:
         """Non-existent story cluster should return 404."""
-        mock_container.story_cluster_repository.get_by_id = AsyncMock(
-            return_value=None
-        )
+        mock_container.story_cluster_repository.get_by_id = AsyncMock(return_value=None)
         with patch("ai_news_digest.api.v1.routes.graph.get_settings") as mock_settings:
             mock_settings.return_value.knowledge_graph_enabled = True
-            response = client.get(
-                f"/api/v1/public/graph/story-clusters/{uuid4()}/connections"
-            )
+            response = client.get(f"/api/v1/public/graph/story-clusters/{uuid4()}/connections")
             assert response.status_code == 404
 
     def test_find_graph_path_enabled(self, client: TestClient) -> None:
         """When knowledge_graph_enabled is True, return path response."""
         with patch("ai_news_digest.api.v1.routes.graph.get_settings") as mock_settings:
             mock_settings.return_value.knowledge_graph_enabled = True
-            response = client.get(
-                f"/api/v1/public/graph/path/story/{uuid4()}/company/{uuid4()}"
-            )
+            response = client.get(f"/api/v1/public/graph/path/story/{uuid4()}/company/{uuid4()}")
             assert response.status_code == 200
             data = response.json()
             assert "length" in data
@@ -155,9 +137,7 @@ class TestGraphRoutes:
         """Unconnected entities should return empty path."""
         with patch("ai_news_digest.api.v1.routes.graph.get_settings") as mock_settings:
             mock_settings.return_value.knowledge_graph_enabled = True
-            response = client.get(
-                f"/api/v1/public/graph/path/story/{uuid4()}/company/{uuid4()}"
-            )
+            response = client.get(f"/api/v1/public/graph/path/story/{uuid4()}/company/{uuid4()}")
             assert response.status_code == 200
             data = response.json()
             assert data["length"] == 0

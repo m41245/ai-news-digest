@@ -7,8 +7,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
-import pytest
-
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.models.claim import Claim
 from ai_news_digest.domain.models.conflict import Conflict
@@ -18,7 +16,6 @@ from ai_news_digest.domain.models.relationship import (
     Relationship,
 )
 from ai_news_digest.domain.models.story_cluster import StoryCluster
-from ai_news_digest.domain.models.story_event import StoryEvent
 from ai_news_digest.domain.models.trend import Trend
 from ai_news_digest.domain.provenance import (
     for_article,
@@ -28,7 +25,6 @@ from ai_news_digest.domain.provenance import (
     for_evidence,
     for_relationship,
     for_story_cluster,
-    for_story_event,
     for_trend,
 )
 
@@ -165,7 +161,7 @@ class TestProvenanceForConflict:
         provenance = for_conflict(conflict)
         assert provenance.source == ProvenanceSource.DETERMINISTIC
         assert provenance.detection_version == "v1"
-        claim_lines = [l for l in provenance.lineage if l.startswith("claim_")]
+        claim_lines = [ln for ln in provenance.lineage if ln.startswith("claim_")]
         assert len(claim_lines) == 2
 
 

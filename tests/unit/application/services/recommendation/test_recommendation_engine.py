@@ -7,15 +7,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-import pytest
-
-from ai_news_digest.application.services.personalization.personalized_relevance_engine import (
-    PersonalizedRelevanceEngine,
-)
 from ai_news_digest.application.services.recommendation.constants import (
-    RecommendationDefaults,
-    RecommendationSignal,
-    RecommendationWeights,
     ScoredCluster,
 )
 from ai_news_digest.application.services.recommendation.recommendation_engine import (
@@ -221,7 +213,9 @@ class TestRecommendationEngine:
         cluster = _make_story_cluster()
         profile = _make_user_preference()
         activity = _make_activity(StoryActivityStatus.BREAKING)
-        result = self._engine.score_cluster(cluster, article, [article], profile, activity=activity, now=self._now)
+        result = self._engine.score_cluster(
+            cluster, article, [article], profile, activity=activity, now=self._now
+        )
         assert result.score > 30.0
         assert any("breaking" in r.lower() for r in result.reasons)
 
@@ -230,7 +224,9 @@ class TestRecommendationEngine:
         cluster = _make_story_cluster()
         profile = _make_user_preference()
         activity = _make_activity(StoryActivityStatus.DEVELOPING)
-        result = self._engine.score_cluster(cluster, article, [article], profile, activity=activity, now=self._now)
+        result = self._engine.score_cluster(
+            cluster, article, [article], profile, activity=activity, now=self._now
+        )
         assert result.score > 30.0
         assert any("developing" in r.lower() for r in result.reasons)
 
@@ -240,8 +236,12 @@ class TestRecommendationEngine:
         profile = _make_user_preference()
         activity_stale = _make_activity(StoryActivityStatus.STALE)
         activity_developing = _make_activity(StoryActivityStatus.DEVELOPING)
-        result_stale = self._engine.score_cluster(cluster, article, [article], profile, activity=activity_stale, now=self._now)
-        result_developing = self._engine.score_cluster(cluster, article, [article], profile, activity=activity_developing, now=self._now)
+        result_stale = self._engine.score_cluster(
+            cluster, article, [article], profile, activity=activity_stale, now=self._now
+        )
+        result_developing = self._engine.score_cluster(
+            cluster, article, [article], profile, activity=activity_developing, now=self._now
+        )
         assert result_stale.score < result_developing.score
         assert any("stale" in r.lower() for r in result_stale.reasons)
 
@@ -253,7 +253,9 @@ class TestRecommendationEngine:
             related_company_ids=frozenset([uuid4()]),
             momentum_score=75.0,
         )
-        result = self._engine.score_cluster(cluster, article, [article], profile, trend=trend, now=self._now)
+        result = self._engine.score_cluster(
+            cluster, article, [article], profile, trend=trend, now=self._now
+        )
         assert result.score > 30.0
         assert any("accelerating" in r.lower() for r in result.reasons)
 
@@ -262,7 +264,9 @@ class TestRecommendationEngine:
         cluster = _make_story_cluster()
         profile = _make_user_preference()
         events = [_make_event(hours_ago=1)]
-        result = self._engine.score_cluster(cluster, article, [article], profile, events=events, now=self._now)
+        result = self._engine.score_cluster(
+            cluster, article, [article], profile, events=events, now=self._now
+        )
         assert result.score > 30.0
         assert any("recent story update" in r.lower() for r in result.reasons)
 
@@ -271,7 +275,9 @@ class TestRecommendationEngine:
         cluster = _make_story_cluster()
         profile = _make_user_preference()
         events = [_make_event(hours_ago=1), _make_event(hours_ago=2)]
-        result = self._engine.score_cluster(cluster, article, [article], profile, events=events, now=self._now)
+        result = self._engine.score_cluster(
+            cluster, article, [article], profile, events=events, now=self._now
+        )
         assert result.score > 30.0
         assert any("multiple recent updates" in r.lower() for r in result.reasons)
 

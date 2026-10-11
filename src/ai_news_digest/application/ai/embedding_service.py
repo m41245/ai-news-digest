@@ -86,9 +86,7 @@ class EmbeddingService:
                 )
                 await self._record_failure(candidate.id, exc)
 
-        raise NoEmbeddingProviderError(
-            "All embedding providers failed."
-        ) from last_exception
+        raise NoEmbeddingProviderError("All embedding providers failed.") from last_exception
 
     async def generate_batch(
         self,
@@ -96,9 +94,7 @@ class EmbeddingService:
     ) -> BatchEmbeddingResult:
         if not documents:
             return BatchEmbeddingResult(results=(), provider="", model="")
-        estimated_tokens = sum(
-            self._estimate_tokens(doc) for doc in documents[:50]
-        )
+        estimated_tokens = sum(self._estimate_tokens(doc) for doc in documents[:50])
         primary = await self._select_provider_with_governance(estimated_tokens)
         if primary is None:
             raise NoEmbeddingProviderError("No embedding provider available.")
@@ -136,9 +132,7 @@ class EmbeddingService:
                 )
                 await self._record_failure(candidate.id, exc)
 
-        raise NoEmbeddingProviderError(
-            "All embedding providers failed."
-        ) from last_exception
+        raise NoEmbeddingProviderError("All embedding providers failed.") from last_exception
 
     def _iter_candidates(
         self, primary: EmbeddingProvider
@@ -149,10 +143,7 @@ class EmbeddingService:
                 yield candidate
 
     def _sorted_candidates(self, estimated_tokens: int = 0) -> list[EmbeddingProvider]:
-        candidates = [
-            p for p in self._providers
-            if p.enabled
-        ]
+        candidates = [p for p in self._providers if p.enabled]
         candidates.sort(key=lambda p: (p.priority(), p.id))
         return candidates
 
@@ -188,6 +179,7 @@ class EmbeddingService:
             return True
         try:
             from ai_news_digest.application.ai.quota import QuotaWindow
+
             eligibility = await self._quota_registry.check_quota_eligibility(
                 provider_id,
                 window=QuotaWindow.DAY,
@@ -226,6 +218,7 @@ class EmbeddingService:
             return
         try:
             from ai_news_digest.application.ai.provider_health import classify_failure
+
             category = classify_failure(exc)
             await self._health_registry.record_failure(provider_id, category)
         except Exception as exc2:
@@ -242,6 +235,7 @@ class EmbeddingService:
             from decimal import Decimal
 
             from ai_news_digest.application.ai.quota import ProviderUsage
+
             usage = ProviderUsage(
                 provider_id=provider_id,
                 request_count=1,

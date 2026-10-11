@@ -105,10 +105,13 @@ async def test_cluster_pending_articles_queues_new(
     analyzed = make_article(ArticleStatus.ANALYZED)
     ready = make_article(ArticleStatus.READY)
     mock_container.article_repository.list_by_status.side_effect = lambda s, limit: (
-        [categorized] if s == ArticleStatus.CATEGORIZED else
-        [analyzed] if s == ArticleStatus.ANALYZED else
-        [ready] if s == ArticleStatus.READY else
-        []
+        [categorized]
+        if s == ArticleStatus.CATEGORIZED
+        else [analyzed]
+        if s == ArticleStatus.ANALYZED
+        else [ready]
+        if s == ArticleStatus.READY
+        else []
     )
 
     with (
@@ -150,10 +153,7 @@ async def test_cluster_pending_articles_failure_propagates(
 
 def test_cluster_task_registration() -> None:
     assert cluster.cluster_article.name == "workers.tasks.cluster.cluster_article"
-    assert (
-        cluster.cluster_pending_articles.name
-        == "workers.tasks.cluster.cluster_pending_articles"
-    )
+    assert cluster.cluster_pending_articles.name == "workers.tasks.cluster.cluster_pending_articles"
 
     for task in (
         cluster.cluster_article,

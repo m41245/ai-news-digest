@@ -24,7 +24,7 @@ def _make_user() -> User:
     return User(
         id=uuid4(),
         email="me@example.com",
-        hashed_password="hashed",
+        hashed_password="hashed",  # noqa: S106 - test fixture
         is_active=True,
         is_admin=False,
         created_at=datetime.now(UTC),
@@ -82,7 +82,9 @@ def test_recommendations_requires_auth(profile: UserPreferenceProfile) -> None:
     assert response.status_code == 401
 
 
-def test_recommendations_returns_paginated_data(mock_user: User, profile: UserPreferenceProfile) -> None:
+def test_recommendations_returns_paginated_data(
+    mock_user: User, profile: UserPreferenceProfile
+) -> None:
     app = FastAPI()
     setup_exception_handlers(app)
     app.include_router(router)
@@ -91,6 +93,7 @@ def test_recommendations_returns_paginated_data(mock_user: User, profile: UserPr
 
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
     from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
     app.dependency_overrides[get_container] = lambda: container
 
     response = TestClient(app).get("/me/recommendations?page=1&page_size=10")
@@ -102,7 +105,9 @@ def test_recommendations_returns_paginated_data(mock_user: User, profile: UserPr
     assert data["offset"] == 0
 
 
-def test_recommendations_scoped_to_authenticated_user(mock_user: User, profile: UserPreferenceProfile) -> None:
+def test_recommendations_scoped_to_authenticated_user(
+    mock_user: User, profile: UserPreferenceProfile
+) -> None:
     app = FastAPI()
     setup_exception_handlers(app)
     app.include_router(router)
@@ -110,10 +115,15 @@ def test_recommendations_scoped_to_authenticated_user(mock_user: User, profile: 
     container = _build_container(mock_user, profile)
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
     from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
     app.dependency_overrides[get_container] = lambda: container
 
     response = TestClient(app).get("/me/recommendations")
     assert response.status_code == 200
 
 
-__all__ = ["test_recommendations_requires_auth", "test_recommendations_returns_paginated_data", "test_recommendations_scoped_to_authenticated_user"]
+__all__ = [
+    "test_recommendations_requires_auth",
+    "test_recommendations_returns_paginated_data",
+    "test_recommendations_scoped_to_authenticated_user",
+]

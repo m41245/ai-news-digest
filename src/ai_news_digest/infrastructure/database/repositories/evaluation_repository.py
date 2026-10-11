@@ -7,7 +7,12 @@ from sqlalchemy import delete, desc, func, select
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_news_digest.domain.evaluation.metrics import EvaluationReport, MetricValue, QualitySnapshot
+from ai_news_digest.domain.evaluation.metrics import (
+    EvaluationMetricType,
+    EvaluationReport,
+    MetricValue,
+    QualitySnapshot,
+)
 from ai_news_digest.infrastructure.database.models.evaluation_metric_model import (
     EvaluationMetricModel,
 )
@@ -80,9 +85,7 @@ class EvaluationRepository:
             benchmark_version=snapshot.benchmark_version,
             configuration_version=snapshot.configuration_version,
             overall_quality=metric_map.get("overall_quality"),
-            structured_output_validity=metric_map.get(
-                "structured_output_validity"
-            ),
+            structured_output_validity=metric_map.get("structured_output_validity"),
             summary_presence=metric_map.get("summary_presence"),
             provenance_completeness=metric_map.get("provenance_completeness"),
             evidence_attachment_rate=metric_map.get("evidence_attachment_rate"),
@@ -134,9 +137,7 @@ class EvaluationRepository:
         run_id: str,
         metric_type: str | None = None,
     ) -> list[EvaluationMetricModel]:
-        query = select(EvaluationMetricModel).where(
-            EvaluationMetricModel.run_id == run_id
-        )
+        query = select(EvaluationMetricModel).where(EvaluationMetricModel.run_id == run_id)
         if metric_type:
             query = query.where(EvaluationMetricModel.metric_type == metric_type)
         result = await self._session.execute(query)
@@ -179,9 +180,7 @@ class EvaluationRepository:
         offset: int = 0,
         scope: str | None = None,
     ) -> tuple[list[QualitySnapshotModel], int]:
-        query = select(QualitySnapshotModel).order_by(
-            desc(QualitySnapshotModel.evaluated_at)
-        )
+        query = select(QualitySnapshotModel).order_by(desc(QualitySnapshotModel.evaluated_at))
         if scope:
             query = query.where(QualitySnapshotModel.scope == scope)
         count_query = select(func.count()).select_from(query.subquery())

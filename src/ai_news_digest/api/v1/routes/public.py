@@ -114,9 +114,8 @@ def _to_public_article(
                 confidence=c.confidence,
                 status=c.status.value,
                 evidence_support_score=c.evidence_support_score,
-                provenance_source=(
-                    c.ai_provider or (c.ai_model and "ai_extracted")
-                ) or "deterministic",
+                provenance_source=(c.ai_provider or (c.ai_model and "ai_extracted"))
+                or "deterministic",
                 schema_version=c.schema_version,
                 prompt_version=c.prompt_version,
                 evidence=[
@@ -127,27 +126,23 @@ def _to_public_article(
                         strength=ev.strength.value if ev.strength else None,
                         article_title=None,
                         source_name=(
-                            source_map.get(str(article.source_id))
-                            if article.source_id
-                            else None
+                            source_map.get(str(article.source_id)) if article.source_id else None
                         ),
                         published_at=(
-                            article.published_at.isoformat()
-                            if article.published_at
-                            else None
+                            article.published_at.isoformat() if article.published_at else None
                         ),
                     )
                     for ev in (evidence_items or [])
-                ] if (evidence_items := getattr(c, 'evidence_items', None)) else None,
+                ]
+                if (evidence_items := getattr(c, "evidence_items", None))
+                else None,
             )
             for c in claims
         ]
 
     ai_provider = getattr(article, "ai_provider", None)
     ai_model = getattr(article, "ai_model", None)
-    provenance_source = (
-        "ai_extracted" if ai_provider or ai_model else "deterministic"
-    )
+    provenance_source = "ai_extracted" if ai_provider or ai_model else "deterministic"
 
     return PublicArticleResponse(
         id=str(article.id),
@@ -328,6 +323,7 @@ async def get_related_stories(
     article = await container.article_repository.get_public_article(article_id)
     if article is None:
         from ai_news_digest.core.exceptions import ResourceNotFoundError
+
         raise ResourceNotFoundError(f"Article {article_id} not found.")
 
     cutoff = datetime.now(UTC) - timedelta(hours=72)
@@ -336,9 +332,7 @@ async def get_related_stories(
         limit=200,
     )
 
-    existing_cluster_id = (
-        str(article.cluster_id) if article.cluster_id is not None else None
-    )
+    existing_cluster_id = str(article.cluster_id) if article.cluster_id is not None else None
 
     related = await container.related_story_finder.find_for_article(
         article=article,
@@ -723,15 +717,14 @@ async def get_story_intelligence_brief(
 
     if settings.quality_gates_enabled and health_status == "blocked":
         from fastapi import HTTPException
+
         raise HTTPException(
             status_code=403,
             detail="Intelligence for this story is currently blocked by quality gates.",
         )
 
     if settings.quality_gates_enabled and quality.get("degraded"):
-        degraded_message = (
-            "Some intelligence for this story is currently unavailable."
-        )
+        degraded_message = "Some intelligence for this story is currently unavailable."
         if quality.get("degraded_message"):
             degraded_message = quality["degraded_message"]
         quality["degraded"] = True
@@ -800,7 +793,8 @@ async def get_public_story_cluster(
         recent_conflicts = await container.conflict_repository.list_recent(limit=200)
         article_ids = {a.id for a in articles}
         conflict_count = sum(
-            1 for c in recent_conflicts
+            1
+            for c in recent_conflicts
             if c.article_a_id in article_ids or c.article_b_id in article_ids
         )
         if conflict_count > 0:
@@ -1285,6 +1279,7 @@ async def get_public_trend(
     trend = await container.trend_repository.get_by_id(trend_id)
     if trend is None:
         from ai_news_digest.core.exceptions import ResourceNotFoundError
+
         raise ResourceNotFoundError(f"Trend {trend_id} not found.")
     return PublicTrendResponse(
         id=str(trend.id),

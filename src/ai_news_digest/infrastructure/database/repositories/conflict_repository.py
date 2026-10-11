@@ -30,9 +30,7 @@ class SqlAlchemyConflictRepository(BaseRepository[ConflictModel], ConflictReposi
         return ConflictMapper.to_domain(model)
 
     async def get_by_id(self, conflict_id: UUID) -> Conflict | None:
-        statement = select(ConflictModel).where(
-            ConflictModel.id == str(conflict_id)
-        )
+        statement = select(ConflictModel).where(ConflictModel.id == str(conflict_id))
         result = await self._session.execute(statement)
         model = result.scalar_one_or_none()
         if model is None:
@@ -65,9 +63,12 @@ class SqlAlchemyConflictRepository(BaseRepository[ConflictModel], ConflictReposi
         offset: int = 0,
         status: str | None = None,
     ) -> list[Conflict]:
-        statement = select(ConflictModel).order_by(
-            ConflictModel.created_at.desc()
-        ).limit(limit).offset(offset)
+        statement = (
+            select(ConflictModel)
+            .order_by(ConflictModel.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
         if status is not None:
             statement = statement.where(ConflictModel.status == status)
         result = await self._session.execute(statement)
@@ -89,9 +90,7 @@ class SqlAlchemyConflictRepository(BaseRepository[ConflictModel], ConflictReposi
         return [ConflictMapper.to_domain(model) for model in result.scalars().all()]
 
     async def update(self, conflict: Conflict) -> Conflict:
-        statement = select(ConflictModel).where(
-            ConflictModel.id == str(conflict.id)
-        )
+        statement = select(ConflictModel).where(ConflictModel.id == str(conflict.id))
         result = await self._session.execute(statement)
         model = result.scalar_one_or_none()
         if model is None:

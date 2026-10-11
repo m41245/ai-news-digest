@@ -65,9 +65,10 @@ class FakeRelationshipRepository:
 
     async def list_for_entity(self, entity_type, entity_id, status=None, limit=50, offset=0):
         return [
-            r for r in self._relationships
+            r
+            for r in self._relationships
             if r.subject_entity_type.value == entity_type and r.subject_entity_id == entity_id
-        ][offset:offset + limit]
+        ][offset : offset + limit]
 
     async def bulk_create(self, relationships: list[Relationship]) -> list[Relationship]:
         self._relationships.extend(relationships)
@@ -97,7 +98,9 @@ def _make_article(article_id, company_ids=(), topic_ids=(), cluster_id=None):
         category_id=None,
         published_at=__import__("datetime").datetime.now(__import__("datetime").timezone.utc),
         fetched_at=__import__("datetime").datetime.now(__import__("datetime").timezone.utc),
-        status=__import__("ai_news_digest.domain.enums.article_status", fromlist=["ArticleStatus"]).ArticleStatus.READY,  # noqa: E501
+        status=__import__(
+            "ai_news_digest.domain.enums.article_status", fromlist=["ArticleStatus"]
+        ).ArticleStatus.READY,
         company_ids=company_ids,
         topic_ids=topic_ids,
         cluster_id=cluster_id,
@@ -144,7 +147,14 @@ class TestRelationshipExtractionUseCase:
 
         monkeypatch.setattr(
             "ai_news_digest.application.use_cases.knowledge_graph.extract_relationships.get_settings",
-            lambda: type("Settings", (), {"knowledge_graph_enabled": True, "knowledge_graph_max_relationships_per_article": 10})(),  # noqa: E501
+            lambda: type(
+                "Settings",
+                (),
+                {
+                    "knowledge_graph_enabled": True,
+                    "knowledge_graph_max_relationships_per_article": 10,
+                },
+            )(),
         )
 
         result = await use_case.extract_for_article(article.id)
@@ -213,7 +223,14 @@ class TestRelationshipExtractionUseCase:
 
         monkeypatch.setattr(
             "ai_news_digest.application.use_cases.knowledge_graph.extract_relationships.get_settings",
-            lambda: type("Settings", (), {"knowledge_graph_enabled": True, "knowledge_graph_max_relationships_per_article": 10})(),  # noqa: E501
+            lambda: type(
+                "Settings",
+                (),
+                {
+                    "knowledge_graph_enabled": True,
+                    "knowledge_graph_max_relationships_per_article": 10,
+                },
+            )(),
         )
 
         result1 = await use_case.extract_for_article(article.id)

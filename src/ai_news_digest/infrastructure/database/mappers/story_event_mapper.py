@@ -19,9 +19,7 @@ class StoryEventMapper:
             if event.representative_article_id is not None
             else None
         )
-        metadata = (
-            json.dumps(event.processing_metadata) if event.processing_metadata else None
-        )
+        metadata = json.dumps(event.processing_metadata) if event.processing_metadata else None
         return StoryEventModel(
             id=str(event.id),
             story_cluster_id=str(event.story_cluster_id),
@@ -46,9 +44,7 @@ class StoryEventMapper:
             if event.representative_article_id is not None
             else None
         )
-        metadata = (
-            json.dumps(event.processing_metadata) if event.processing_metadata else None
-        )
+        metadata = json.dumps(event.processing_metadata) if event.processing_metadata else None
         model.event_type = event.event_type.value
         model.title = event.title
         model.description = event.description

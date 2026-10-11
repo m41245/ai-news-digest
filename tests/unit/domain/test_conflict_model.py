@@ -4,7 +4,6 @@ Unit tests for M82 conflict domain models.
 
 from __future__ import annotations
 
-import pytest
 from uuid import uuid4
 
 from ai_news_digest.domain.enums.conflict_status import ConflictStatus
@@ -176,4 +175,4 @@ class TestConflict:
         assert conflict.same_source is True
 
 
-__all__ = ["TestConflictType", "TestConflictStatus", "TestConflict"]
+__all__ = ["TestConflict", "TestConflictStatus", "TestConflictType"]

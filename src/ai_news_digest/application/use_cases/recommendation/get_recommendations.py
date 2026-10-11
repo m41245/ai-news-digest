@@ -84,8 +84,8 @@ class GetRecommendationsUseCase:
             profile = UserPreferenceProfile(user_id=current_user.id)
             await self._preference_repository.create(profile)
 
-        source_map, category_map, preferred_source_type_ids = (
-            await self._load_reference_data(profile)
+        source_map, category_map, preferred_source_type_ids = await self._load_reference_data(
+            profile
         )
         now = datetime.now(UTC)
 
@@ -133,7 +133,14 @@ class GetRecommendationsUseCase:
         trend_by_cluster = self._match_trends_to_clusters(clusters, trends)
 
         scored_items: list[
-            tuple[ScoredCluster, StoryCluster | None, Article, list[Article] | None, Trend | None, Any | None]
+            tuple[
+                ScoredCluster,
+                StoryCluster | None,
+                Article,
+                list[Article] | None,
+                Trend | None,
+                Any | None,
+            ]
         ] = []
 
         for cluster_id, cluster_articles in cluster_map.items():
@@ -168,7 +175,9 @@ class GetRecommendationsUseCase:
                 source_map=source_map,
                 now=now,
             )
-            scored_items.append((scored, cluster, representative, cluster_articles, trend, activity))
+            scored_items.append(
+                (scored, cluster, representative, cluster_articles, trend, activity)
+            )
 
         scored_trend_items: list[tuple[ScoredCluster, Trend]] = []
         for trend in trends:
@@ -458,9 +467,7 @@ class GetRecommendationsUseCase:
         activity_score = None
         if activity is not None:
             activity_status = (
-                activity.status.value
-                if hasattr(activity.status, "value")
-                else str(activity.status)
+                activity.status.value if hasattr(activity.status, "value") else str(activity.status)
             )
             activity_score = activity.activity_score
 
@@ -489,9 +496,7 @@ class GetRecommendationsUseCase:
             published_at=representative.published_at.isoformat()
             if representative.published_at
             else None,
-            latest_update_at=cluster.last_updated_at.isoformat()
-            if cluster
-            else None,
+            latest_update_at=cluster.last_updated_at.isoformat() if cluster else None,
             importance_score=cluster.importance_score
             if cluster
             else representative.importance_score,
@@ -528,9 +533,7 @@ class GetRecommendationsUseCase:
             importance_score=None,
             confidence=None,
             activity_status=(
-                trend.status.value
-                if hasattr(trend.status, "value")
-                else str(trend.status)
+                trend.status.value if hasattr(trend.status, "value") else str(trend.status)
             ),
             activity_score=None,
             trend_score=trend.trend_score,

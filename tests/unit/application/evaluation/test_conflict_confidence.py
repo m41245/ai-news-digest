@@ -4,8 +4,6 @@ Unit tests for M82 conflict confidence model.
 
 from __future__ import annotations
 
-import pytest
-
 from ai_news_digest.application.evaluation.conflict_confidence import (
     ConflictConfidenceFactors,
     compute_conflict_confidence,

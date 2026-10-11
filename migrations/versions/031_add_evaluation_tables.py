@@ -3,6 +3,7 @@
 Revision ID: 031
 Revises: 030
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -35,7 +36,9 @@ def upgrade() -> None:
         sa.Column("metric_count", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("error", sa.Text(), nullable=True),
         sa.Column("metadata", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_evaluation_runs_run_id", "evaluation_runs", ["run_id"], unique=True)
@@ -60,7 +63,9 @@ def upgrade() -> None:
         sa.Column("dataset_version", sa.String(64), nullable=False, server_default="production"),
         sa.Column("benchmark_version", sa.String(64), nullable=False, server_default="m93-v1"),
         sa.Column("metadata", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_evaluation_metrics_run_id", "evaluation_metrics", ["run_id"])
@@ -88,10 +93,14 @@ def upgrade() -> None:
         sa.Column("evidence_attachment_rate", sa.Float(), nullable=True),
         sa.Column("extraction_success_rate", sa.Float(), nullable=True),
         sa.Column("metadata", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_quality_snapshots_snapshot_id", "quality_snapshots", ["snapshot_id"], unique=True)
+    op.create_index(
+        "ix_quality_snapshots_snapshot_id", "quality_snapshots", ["snapshot_id"], unique=True
+    )
     op.create_index("ix_quality_snapshots_evaluated_at", "quality_snapshots", ["evaluated_at"])
     op.create_index("ix_quality_snapshots_scope", "quality_snapshots", ["scope"])
 

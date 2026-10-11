@@ -12,27 +12,17 @@ EXPLANATION_TEMPLATES: dict[ConflictType, str] = {
     ConflictType.NUMERIC: (
         "Both claims refer to the same subject but report different numeric values."
     ),
-    ConflictType.DATE: (
-        "The claims describe different dates for the same event."
-    ),
-    ConflictType.EVENT_STATUS: (
-        "The claims describe incompatible event statuses."
-    ),
+    ConflictType.DATE: ("The claims describe different dates for the same event."),
+    ConflictType.EVENT_STATUS: ("The claims describe incompatible event statuses."),
     ConflictType.PRODUCT_ATTRIBUTE: (
         "The claims report different attributes for the same product."
     ),
     ConflictType.COMPANY_STATEMENT: (
         "The claims contain incompatible statements about the same company."
     ),
-    ConflictType.AVAILABILITY: (
-        "The claims disagree on the availability of the same item."
-    ),
-    ConflictType.ANNOUNCEMENT: (
-        "The claims describe incompatible announcements."
-    ),
-    ConflictType.QUANTITY: (
-        "The claims report different quantities for the same subject."
-    ),
+    ConflictType.AVAILABILITY: ("The claims disagree on the availability of the same item."),
+    ConflictType.ANNOUNCEMENT: ("The claims describe incompatible announcements."),
+    ConflictType.QUANTITY: ("The claims report different quantities for the same subject."),
     ConflictType.OTHER: (
         "The claims appear to describe incompatible facts about the same subject."
     ),
@@ -46,9 +36,7 @@ def build_conflict_explanation(
     extra_detail: str = "",
 ) -> str:
     """Build a structured, explainable conflict explanation."""
-    base = EXPLANATION_TEMPLATES.get(
-        conflict_type, EXPLANATION_TEMPLATES[ConflictType.OTHER]
-    )
+    base = EXPLANATION_TEMPLATES.get(conflict_type, EXPLANATION_TEMPLATES[ConflictType.OTHER])
     detail = f" {extra_detail}" if extra_detail else ""
     return f"{base}{detail}"
 

@@ -153,9 +153,7 @@ class GenerateStoryTimelineUseCase:
                     ]
                 }
             )
-            conflict_count = sum(
-                article_conflict_counts.get(aid, 0) for aid in article_ids
-            )
+            conflict_count = sum(article_conflict_counts.get(aid, 0) for aid in article_ids)
             confidence = _compute_event_confidence(
                 article_count=len(group_articles),
                 distinct_source_count=len({a.source_id for a in group_articles}),
@@ -243,8 +241,7 @@ class GenerateStoryTimelineUseCase:
 
             candidates = articles[: self._settings.timeline_max_llm_evaluations]
             article_context = "\n".join(
-                f"- [{a.published_at.isoformat()}] {a.title}: {a.summary or ''}"
-                for a in candidates
+                f"- [{a.published_at.isoformat()}] {a.title}: {a.summary or ''}" for a in candidates
             )
             prompt = (
                 "Identify meaningful story events from the following articles. "
@@ -265,12 +262,8 @@ class GenerateStoryTimelineUseCase:
             }
             events: list[dict[str, Any]] = []
             for ev in parsed.events:
-                article_ids = [
-                    aid for aid in ev.article_ids if aid in valid_article_ids
-                ][:10]
-                claim_ids = [
-                    cid for cid in ev.claim_ids if cid in valid_claim_ids
-                ][:5]
+                article_ids = [aid for aid in ev.article_ids if aid in valid_article_ids][:10]
+                claim_ids = [cid for cid in ev.claim_ids if cid in valid_claim_ids][:5]
                 if not article_ids:
                     continue
                 event_type = (

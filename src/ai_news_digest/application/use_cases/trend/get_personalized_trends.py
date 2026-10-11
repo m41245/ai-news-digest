@@ -12,7 +12,6 @@ from ai_news_digest.application.services.personalization.personalized_relevance_
     PersonalizedRelevanceEngine,
 )
 from ai_news_digest.application.services.ranking.constants import FeedDefaults
-from ai_news_digest.api.v1.schemas.user_preference import PersonalizedTrendResponse
 from ai_news_digest.domain.models.user import User
 from ai_news_digest.domain.models.user_preference import UserPreferenceProfile
 from ai_news_digest.domain.ports.trend_repository import TrendRepository
@@ -58,25 +57,27 @@ class GetPersonalizedTrendsUseCase:
         scored: list[dict[str, Any]] = []
         for trend in trends:
             explanation = self._engine.score_trend(trend, profile)
-            scored.append({
-                "id": str(trend.id),
-                "trend_type": trend.trend_type.value,
-                "display_name": trend.display_name,
-                "status": trend.status.value,
-                "trend_score": trend.trend_score,
-                "momentum_score": trend.momentum_score,
-                "recent_activity": trend.recent_activity,
-                "baseline_activity": trend.baseline_activity,
-                "source_count": trend.source_count,
-                "story_count": trend.story_count,
-                "event_count": trend.event_count,
-                "explanation": trend.explanation,
-                "personalized_relevance_score": explanation.score,
-                "relevance_reasons": explanation.all_reasons,
-                "first_detected_at": trend.first_detected_at.isoformat(),
-                "last_detected_at": trend.last_detected_at.isoformat(),
-                "trend_metadata": trend.trend_metadata,
-            })
+            scored.append(
+                {
+                    "id": str(trend.id),
+                    "trend_type": trend.trend_type.value,
+                    "display_name": trend.display_name,
+                    "status": trend.status.value,
+                    "trend_score": trend.trend_score,
+                    "momentum_score": trend.momentum_score,
+                    "recent_activity": trend.recent_activity,
+                    "baseline_activity": trend.baseline_activity,
+                    "source_count": trend.source_count,
+                    "story_count": trend.story_count,
+                    "event_count": trend.event_count,
+                    "explanation": trend.explanation,
+                    "personalized_relevance_score": explanation.score,
+                    "relevance_reasons": explanation.all_reasons,
+                    "first_detected_at": trend.first_detected_at.isoformat(),
+                    "last_detected_at": trend.last_detected_at.isoformat(),
+                    "trend_metadata": trend.trend_metadata,
+                }
+            )
 
         scored.sort(key=lambda x: (-x["personalized_relevance_score"], -x["trend_score"], x["id"]))
 

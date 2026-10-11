@@ -51,9 +51,7 @@ class CategorizeArticleUseCase:
             response_format=AIResponseFormat.TEXT,
         )
 
-        response = await self._provider_manager.generate(
-            request, capability="categorization"
-        )
+        response = await self._provider_manager.generate(request, capability="categorization")
         raw_category = (response.content or "").strip()
 
         category_name = normalize_category(raw_category).value

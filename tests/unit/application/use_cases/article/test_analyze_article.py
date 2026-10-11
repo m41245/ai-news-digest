@@ -163,7 +163,5 @@ async def test_analyze_article_invalid_json(
         provider_manager=mock_provider_manager,
     )
 
-    with pytest.raises(
-        ExternalServiceError, match="Invalid JSON response from AI provider"
-    ):
+    with pytest.raises(ExternalServiceError, match="Invalid JSON response from AI provider"):
         await use_case.execute(sample_article)

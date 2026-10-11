@@ -49,11 +49,7 @@ class ContentCleaner:
             paragraph = paragraph.strip()
             paragraphs.append(paragraph)
 
-        meaningful = [
-            p
-            for p in paragraphs
-            if p and not (len(p) < 20 and len(p.split()) < 3)
-        ]
+        meaningful = [p for p in paragraphs if p and not (len(p) < 20 and len(p.split()) < 3)]
 
         cleaned = "\n".join(meaningful) if meaningful else "\n".join(paragraphs)
 

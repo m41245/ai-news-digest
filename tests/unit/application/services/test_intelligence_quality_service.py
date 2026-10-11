@@ -7,8 +7,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
-import pytest
-
 from ai_news_digest.application.services.intelligence_quality_service import (
     IntelligenceQualityService,
     QualityFlag,
@@ -60,9 +58,7 @@ class TestIntelligenceQualityService:
             evidence_type="article_text",
             strength="strong",
         )
-        result = self.service.evaluate_claim(
-            claim, evidence_items=[evidence], conflicts=[]
-        )
+        result = self.service.evaluate_claim(claim, evidence_items=[evidence], conflicts=[])
         assert QualityFlag.MISSING_EVIDENCE.value not in result.flags
         assert result.evidence_count == 1
 
@@ -74,10 +70,14 @@ class TestIntelligenceQualityService:
             claim_text="Test claim",
             status="supported",
         )
-        conflict = type("Conflict", (), {
-            "claim_a_id": claim.id,
-            "claim_b_id": uuid4(),
-        })()
+        conflict = type(
+            "Conflict",
+            (),
+            {
+                "claim_a_id": claim.id,
+                "claim_b_id": uuid4(),
+            },
+        )()
         result = self.service.evaluate_claim(claim, evidence_items=[], conflicts=[conflict])
         assert QualityFlag.CONFLICTING_EVIDENCE.value in result.flags
         assert result.conflict_present is True
@@ -177,12 +177,16 @@ class TestIntelligenceQualityService:
         assert QualityFlag.HIGH_CONFLICT.value in result.flags
 
     def test_evaluate_trend_single_source(self) -> None:
-        trend = type("Trend", (), {
-            "id": uuid4(),
-            "source_count": 1,
-            "story_count": 3,
-            "last_detected_at": datetime.now(UTC),
-        })()
+        trend = type(
+            "Trend",
+            (),
+            {
+                "id": uuid4(),
+                "source_count": 1,
+                "story_count": 3,
+                "last_detected_at": datetime.now(UTC),
+            },
+        )()
         result = self.service.evaluate_trend(trend)
         assert QualityFlag.SINGLE_SOURCE.value in result.flags
 

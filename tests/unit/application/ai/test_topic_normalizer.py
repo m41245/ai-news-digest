@@ -4,7 +4,6 @@ Unit tests for topic normalization.
 
 from __future__ import annotations
 
-
 from ai_news_digest.application.ai.topic_normalizer import dedupe_topics, normalize_topic
 
 
@@ -42,4 +41,4 @@ class TestDedupeTopics:
         assert len(result) == 100
 
 
-__all__ = ["TestNormalizeTopic", "TestDedupeTopics"]
+__all__ = ["TestDedupeTopics", "TestNormalizeTopic"]

@@ -5,17 +5,17 @@ Unit tests for M96 followed story use cases.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
-from unittest.mock import AsyncMock
 
 from ai_news_digest.application.use_cases.followed_story.manage_followed_stories import (
     FollowStoryUseCase,
     ListFollowedStoriesUseCase,
     UnfollowStoryUseCase,
 )
-from ai_news_digest.core.exceptions import DuplicateResourceError, ResourceNotFoundError
+from ai_news_digest.core.exceptions import DuplicateResourceError
 from ai_news_digest.domain.models.followed_story import FollowedStory
 
 
@@ -38,7 +38,7 @@ async def test_follow_story_creates_follow():
     repo.get_by_user_and_story.return_value = None
     repo.create.return_value = _make_followed(user_id, story_cluster_id)
 
-    result = await use_case.execute(user_id=user_id, story_cluster_id=story_cluster_id)
+    await use_case.execute(user_id=user_id, story_cluster_id=story_cluster_id)
 
     repo.get_by_user_and_story.assert_called_once_with(user_id, story_cluster_id)
     repo.create.assert_called_once()

@@ -54,13 +54,9 @@ async def test_list_enabled_excludes_pending_sources(
     mock_session: AsyncSession,
 ) -> None:
     """Only sources with status=verified and is_active=true are enabled."""
-    verified_active = _make_model(
-        str(uuid4()), "Verified", True, SourceStatus.VERIFIED.value
-    )
+    verified_active = _make_model(str(uuid4()), "Verified", True, SourceStatus.VERIFIED.value)
     _make_model(str(uuid4()), "VerifiedInactive", False, SourceStatus.VERIFIED.value)
-    _make_model(
-        str(uuid4()), "Pending", True, SourceStatus.PENDING_REVIEW.value
-    )
+    _make_model(str(uuid4()), "Pending", True, SourceStatus.PENDING_REVIEW.value)
     _make_model(str(uuid4()), "Rejected", True, SourceStatus.REJECTED.value)
 
     mock_result = MagicMock()

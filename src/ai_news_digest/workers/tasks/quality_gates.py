@@ -97,13 +97,9 @@ async def _evaluate_quality_gates_impl(
 
         if settings.drift_gate_enabled:
             try:
-                baseline_run = await eval_repo.get_latest_completed_run(
-                    scope, report.run_id
-                )
+                baseline_run = await eval_repo.get_latest_completed_run(scope, report.run_id)
                 if baseline_run is not None:
-                    baseline_metrics = await eval_repo.list_metrics_by_run_id(
-                        baseline_run.run_id
-                    )
+                    baseline_metrics = await eval_repo.list_metrics_by_run_id(baseline_run.run_id)
                     drift_detector = DriftDetector()
                     drift_signals = drift_detector.detect_drift(
                         baseline_metrics,

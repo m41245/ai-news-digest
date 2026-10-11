@@ -165,8 +165,7 @@ async def get_entity_quality(
         evidence_items = await container.claim_repository.list_evidence_by_claim_id(eid)
         recent_conflicts = await container.conflict_repository.list_recent(limit=500)
         claim_conflicts = [
-            c for c in recent_conflicts
-            if c.claim_a_id == eid or c.claim_b_id == eid
+            c for c in recent_conflicts if c.claim_a_id == eid or c.claim_b_id == eid
         ]
         result = quality_service.evaluate_claim(
             claim=claim,
@@ -232,7 +231,8 @@ async def get_entity_quality(
             recent_conflicts = await container.conflict_repository.list_recent(limit=500)
             article_ids = {a.id for a in articles}
             conflict_count = sum(
-                1 for c in recent_conflicts
+                1
+                for c in recent_conflicts
                 if getattr(c, "article_a_id", None) in article_ids
                 or getattr(c, "article_b_id", None) in article_ids
             )

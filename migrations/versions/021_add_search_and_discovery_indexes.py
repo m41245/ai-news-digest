@@ -8,7 +8,6 @@ Create Date: 2026-09-14 00:00:00.000000
 
 from __future__ import annotations
 
-import sqlalchemy as sa
 from alembic import op
 
 revision: str = "021"
@@ -31,4 +30,4 @@ def downgrade() -> None:
     op.drop_index("ix_articles_importance_published", table_name="articles")
 
 
-__all__ = ["revision", "down_revision"]
+__all__ = ["down_revision", "revision"]
