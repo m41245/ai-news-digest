@@ -25,6 +25,7 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
         frozen=True,
+        populate_by_name=True,
     )
 
     # ======================================================================

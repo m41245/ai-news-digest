@@ -70,19 +70,29 @@ def redis_container() -> Generator[object, None, None]:
         pytest.skip(f"Docker is not available for integration tests: {exc}")
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 async def async_engine(
     postgres_container: object,
 ) -> AsyncGenerator[AsyncEngine, None]:
     """
     Create a test database engine using testcontainers.
 
-    This fixture creates an async SQLAlchemy engine connected to the
-    test PostgreSQL container.
+    This fixture is deliberately function-scoped: pytest-asyncio's default
+    fixture loop scope (``asyncio_default_fixture_loop_scope``) is ``function``,
+    so a session-scoped async engine would be created in one event loop and
+    later disposed in a different one, raising ``ScopeMismatch`` at setup and
+    leaving pooled connections bound to a closed loop. The container itself is
+    loop-agnostic and stays session-scoped; only the engine follows the loop.
+
+    ``get_connection_url(driver="asyncpg")`` is the supported testcontainers API
+    for selecting the SQLAlchemy dialect. The container's default URL already
+    embeds ``postgresql+psycopg2``, and psycopg2 is intentionally not installed
+    as a dependency, so the previous ``postgresql://`` -> ``postgresql+asyncpg://``
+    string replacement was a no-op.
     """
-    connection_url = postgres_container.get_connection_url()
+    connection_url = postgres_container.get_connection_url(driver="asyncpg")  # type: ignore[attr-defined]
     engine = create_async_engine(
-        connection_url.replace("postgresql://", "postgresql+asyncpg://"),
+        connection_url,
         echo=False,
         future=True,
     )

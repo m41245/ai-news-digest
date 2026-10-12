@@ -83,9 +83,40 @@ class TestCeleryAppConfiguration:
 class TestBeatSchedule:
     """Tests for Celery beat schedule configuration."""
 
+    EXPECTED_SCHEDULE_ENTRIES = frozenset(
+        {
+            "daily-rss-ingestion",
+            "daily-article-summarization",
+            "daily-article-categorization",
+            "daily-article-analysis",
+            "daily-story-clustering",
+            "daily-story-timeline-generation",
+            "daily-story-ranking",
+            "daily-digest-generation",
+            "daily-email-delivery",
+            "notification-scheduling",
+            "notification-immediate-delivery",
+            "notification-scheduled-delivery",
+            "notification-retry-failed",
+            "notification-recover-stuck",
+            "notification-cleanup-deliveries",
+            "notification-cleanup-notifications",
+            "quota-reconcile-reservations",
+            "daily-conflict-detection",
+            "daily-story-activity-detection",
+            "daily-trend-detection",
+            "daily-intelligence-evaluation",
+            "daily-quality-gate-evaluation",
+        }
+    )
+
     def test_beat_schedule_is_configured(self) -> None:
         assert celery_app.conf.beat_schedule is not None
-        assert len(celery_app.conf.beat_schedule) == 21
+        assert len(celery_app.conf.beat_schedule) == len(self.EXPECTED_SCHEDULE_ENTRIES)
+
+    def test_beat_schedule_entry_names_match_expected(self) -> None:
+        """Entry names must match the configured set, not just the count."""
+        assert set(celery_app.conf.beat_schedule) == set(self.EXPECTED_SCHEDULE_ENTRIES)
 
     def test_schedule_names_are_unique(self) -> None:
         names = list(celery_app.conf.beat_schedule.keys())
@@ -126,9 +157,22 @@ class TestBeatSchedule:
             "workers.tasks.trend.detect_trends",
             "workers.tasks.evaluation.run_intelligence_evaluation",
             "workers.tasks.quality_gates.evaluate_quality_gates",
+            "workers.tasks.cleanup.reconcile_reservations",
         }
         actual_tasks = {entry["task"] for entry in celery_app.conf.beat_schedule.values()}
         assert expected_tasks == actual_tasks
+
+    def test_quota_reconcile_reservations_is_scheduled(self) -> None:
+        """The reservation reconciliation task added by commit 8e925f8."""
+        entry = celery_app.conf.beat_schedule.get("quota-reconcile-reservations")
+        assert entry is not None, "quota-reconcile-reservations entry is missing"
+        assert entry["task"] == "workers.tasks.cleanup.reconcile_reservations"
+        assert entry["options"]["expires"] == 900
+
+    def test_all_scheduled_task_names_are_non_empty(self) -> None:
+        for name, entry in celery_app.conf.beat_schedule.items():
+            assert isinstance(entry.get("task"), str), f"Non-string task in {name}"
+            assert entry["task"], f"Empty task name in {name}"
 
     def test_beat_app_is_same_as_celery_app(self) -> None:
         beat_schedule_celery_app = celery_app

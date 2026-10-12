@@ -4,14 +4,65 @@ Backend integration tests for M96 intelligence workspace API endpoints.
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from uuid import uuid4
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
+from ai_news_digest.api.middleware.exception_handler import setup_exception_handlers
+from ai_news_digest.api.v1.dependencies.dependencies import get_container
+from ai_news_digest.api.v1.routes.intelligence_workspace import router
+from ai_news_digest.bootstrap.container import Container
 from ai_news_digest.infrastructure.auth.jwt import create_access_token
 from ai_news_digest.infrastructure.database.models.story_cluster_model import StoryClusterModel
 from ai_news_digest.infrastructure.database.models.user_model import UserModel
+from ai_news_digest.infrastructure.database.session import get_db_session
+
+
+@pytest.fixture
+def client(db_session: AsyncSession) -> TestClient:
+    """Build a test client for the workspace router backed by the real database.
+
+    This follows the established sibling route-test pattern: a bare ``FastAPI``
+    app with only the router under test, exception handlers installed, and the
+    session-bound dependencies overridden. Real JWT authentication is preserved
+    (``get_current_active_user`` is *not* overridden), so the tests exercise the
+    same auth path as production.
+
+    ``TestClient`` serves the ASGI app from its own event loop while
+    ``db_session`` belongs to the pytest-asyncio loop, so the app cannot reuse
+    the test engine's pooled connections. A separate engine against the same
+    database is created instead, using ``NullPool`` so every request opens and
+    closes its own connection and nothing outlives the app's loop.
+    """
+    app = FastAPI()
+    app.include_router(router, prefix="/api/v1")
+
+    engine = create_async_engine(
+        db_session.bind.url.render_as_string(hide_password=False),
+        poolclass=NullPool,
+        future=True,
+    )
+    session_maker = async_sessionmaker(engine, expire_on_commit=False)
+
+    async def _override_db_session() -> AsyncGenerator[AsyncSession, None]:
+        async with session_maker() as session:
+            yield session
+
+    async def _override_container() -> AsyncGenerator[Container, None]:
+        async with session_maker() as session:
+            yield Container(session)
+
+    app.dependency_overrides[get_db_session] = _override_db_session
+    app.dependency_overrides[get_container] = _override_container
+
+    setup_exception_handlers(app)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 def _create_user(session) -> UserModel:

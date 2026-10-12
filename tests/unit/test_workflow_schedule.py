@@ -11,6 +11,10 @@ import pathlib
 
 import yaml
 
+from tests.unit.test_celery import TestBeatSchedule as _CeleryBeatSchedule
+
+_EXPECTED_SCHEDULE_ENTRIES = frozenset(_CeleryBeatSchedule.EXPECTED_SCHEDULE_ENTRIES)
+
 _WORKFLOW_PATH = (
     pathlib.Path(__file__).resolve().parents[2] / ".github" / "workflows" / "scheduled-tasks.yml"
 )
@@ -205,4 +209,6 @@ def test_celery_beat_schedule_is_preserved() -> None:
 
     schedule = celery_app.conf.beat_schedule
     assert schedule is not None
-    assert len(schedule) == 21
+    assert set(schedule) == _EXPECTED_SCHEDULE_ENTRIES
+    scheduled_tasks = {entry["task"] for entry in schedule.values()}
+    assert "workers.tasks.cleanup.reconcile_reservations" in scheduled_tasks

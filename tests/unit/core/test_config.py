@@ -718,6 +718,304 @@ class TestConfigurationIsolation:
         ]
 
 
+class TestSettingsFieldNamePopulation:
+    """Regression tests for ``populate_by_name`` on the settings model.
+
+    Most fields declare an uppercase ``validation_alias``. Without
+    ``populate_by_name=True`` a constructor call such as
+    ``Settings(openai_enabled=True)`` is silently dropped and the default is
+    used instead. These tests pin the field-name and validation-alias behaviour
+    without weakening environment-variable loading or production validation.
+
+    The field-name tests below fail if ``populate_by_name`` is removed, so the
+    guard is not vacuous. The alias-only tests must keep passing either way,
+    because they protect the environment-variable naming that production
+    deployments rely on. Behaviour is verified against the locked dependency
+    versions (pydantic 2.13.x / pydantic-settings 2.14.x), whose
+    ``InitSettingsSource`` honours ``populate_by_name`` for constructor kwargs.
+    """
+
+    CONTAMINATED_ENV_VARS: ClassVar[list[str]] = [
+        "OPENAI_ENABLED",
+        "OPENAI_API_KEY",
+        "OPENAI_MODEL",
+        "ANTHROPIC_ENABLED",
+        "ANTHROPIC_API_KEY",
+        "GEMINI_ENABLED",
+        "GEMINI_API_KEY",
+        "XAI_ENABLED",
+        "XAI_API_KEY",
+        "DATABASE_URL",
+        "DATABASE_POOL_SIZE",
+        "REDIS_URL",
+        "REDIS_MAX_CONNECTIONS",
+        "CELERY_BROKER_URL",
+        "CELERY_RESULT_BACKEND",
+        "AI_DAILY_COST_BUDGET",
+    ]
+
+    @pytest.fixture(autouse=True)
+    def _isolated_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        for var in self.CONTAMINATED_ENV_VARS:
+            monkeypatch.delenv(var, raising=False)
+
+    def test_openai_enabled_field_name_is_respected(self) -> None:
+        test_settings = TestSettings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            jwt_secret_key="a" * 64,
+            openai_enabled=True,
+        )
+        assert test_settings.openai_enabled is True
+
+    def test_anthropic_enabled_field_name_is_respected(self) -> None:
+        test_settings = TestSettings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            jwt_secret_key="a" * 64,
+            anthropic_enabled=True,
+        )
+        assert test_settings.anthropic_enabled is True
+
+    def test_openai_enabled_environment_alias_still_populates(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OPENAI_ENABLED", "true")
+
+        test_settings = TestSettings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            jwt_secret_key="a" * 64,
+        )
+        assert test_settings.openai_enabled is True
+
+    def test_openai_model_field_name_and_alias_agree(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        by_field_name = TestSettings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            jwt_secret_key="a" * 64,
+            openai_model="gpt-4o-mini",
+        )
+        monkeypatch.setenv("OPENAI_MODEL", "gpt-4o")
+        from_env_alias = TestSettings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            jwt_secret_key="a" * 64,
+        )
+
+        assert by_field_name.openai_model == "gpt-4o-mini"
+        assert from_env_alias.openai_model == "gpt-4o"
+
+    def test_explicit_field_name_overrides_environment_alias(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OPENAI_MODEL", "gpt-4o")
+
+        test_settings = TestSettings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            jwt_secret_key="a" * 64,
+            openai_model="gpt-4.1",
+        )
+        assert test_settings.openai_model == "gpt-4.1"
+
+    def test_database_and_redis_field_names_are_respected(self) -> None:
+        test_settings = TestSettings(
+            database_url="postgresql+asyncpg://named@db:5432/ai_news_digest",
+            redis_url="redis://named-redis:6379/7",
+            celery_broker_url="redis://named-broker:6379/1",
+            celery_result_backend="redis://named-backend:6379/2",
+            database_pool_size=7,
+            database_max_overflow=3,
+            database_pool_timeout=12,
+            database_pool_recycle=900,
+            database_statement_timeout=60000,
+            redis_socket_connect_timeout=4,
+            redis_max_connections=25,
+            jwt_secret_key="a" * 64,
+        )
+
+        assert test_settings.database_url == "postgresql+asyncpg://named@db:5432/ai_news_digest"
+        assert test_settings.redis_url == "redis://named-redis:6379/7"
+        assert test_settings.celery_broker_url == "redis://named-broker:6379/1"
+        assert test_settings.celery_result_backend == "redis://named-backend:6379/2"
+        assert test_settings.database_pool_size == 7
+        assert test_settings.database_max_overflow == 3
+        assert test_settings.database_pool_timeout == 12
+        assert test_settings.database_pool_recycle == 900
+        assert test_settings.database_statement_timeout == 60000
+        assert test_settings.redis_socket_connect_timeout == 4
+        assert test_settings.redis_max_connections == 25
+
+    def test_database_and_redis_environment_aliases_still_populate(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("DATABASE_URL", "postgresql://env@db:5432/ai_news_digest")
+        monkeypatch.setenv("REDIS_URL", "redis://env-redis:6379/3")
+        monkeypatch.setenv("CELERY_BROKER_URL", "redis://env-broker:6379/1")
+        monkeypatch.setenv("CELERY_RESULT_BACKEND", "redis://env-backend:6379/2")
+
+        test_settings = TestSettings(jwt_secret_key="a" * 64)
+
+        assert test_settings.database_url == "postgresql://env@db:5432/ai_news_digest"
+        assert test_settings.redis_url == "redis://env-redis:6379/3"
+        assert test_settings.celery_broker_url == "redis://env-broker:6379/1"
+        assert test_settings.celery_result_backend == "redis://env-backend:6379/2"
+
+    def test_database_pool_size_environment_alias_still_populates(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("DATABASE_POOL_SIZE", "11")
+
+        test_settings = TestSettings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            jwt_secret_key="a" * 64,
+        )
+        assert test_settings.database_pool_size == 11
+
+    def test_ai_cost_budget_field_name_is_respected(self) -> None:
+        test_settings = TestSettings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            jwt_secret_key="a" * 64,
+            ai_daily_cost_budget=12.5,
+        )
+        assert test_settings.ai_daily_cost_budget == 12.5
+
+
+class TestProductionAIProviderConfiguration:
+    """Production API-key validation must survive field-name population.
+
+    ``TestSettings`` is used rather than ``Settings`` so the assertions do not
+    depend on a developer's ``.env`` file: it inherits every field, validator
+    and the ``populate_by_name`` configuration from the production model and
+    only disables dotenv loading.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _isolated_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        for var in TestSettingsFieldNamePopulation.CONTAMINATED_ENV_VARS:
+            monkeypatch.delenv(var, raising=False)
+
+    def test_production_openai_enabled_field_name_requires_api_key(self) -> None:
+        with pytest.raises(ValidationError, match="OPENAI_API_KEY must be set"):
+            TestSettings(
+                database_url="postgresql://test",
+                redis_url="redis://test",
+                celery_broker_url="redis://broker",
+                celery_result_backend="redis://backend",
+                environment="production",
+                jwt_secret_key="a" * 64,
+                openai_enabled=True,
+                openai_api_key=None,
+                email_provider="smtp",
+                email_development_mode=False,
+                email_base_url="https://example.com",
+                smtp_host="smtp.example.com",
+            )
+
+    def test_production_anthropic_enabled_field_name_requires_api_key(self) -> None:
+        with pytest.raises(ValidationError, match="ANTHROPIC_API_KEY must be set"):
+            TestSettings(
+                database_url="postgresql://test",
+                redis_url="redis://test",
+                celery_broker_url="redis://broker",
+                celery_result_backend="redis://backend",
+                environment="production",
+                jwt_secret_key="a" * 64,
+                anthropic_enabled=True,
+                anthropic_api_key=None,
+                email_provider="smtp",
+                email_development_mode=False,
+                email_base_url="https://example.com",
+                smtp_host="smtp.example.com",
+            )
+
+    def test_production_gemini_enabled_field_name_requires_api_key(self) -> None:
+        with pytest.raises(ValidationError, match="GEMINI_API_KEY must be set"):
+            TestSettings(
+                database_url="postgresql://test",
+                redis_url="redis://test",
+                celery_broker_url="redis://broker",
+                celery_result_backend="redis://backend",
+                environment="production",
+                jwt_secret_key="a" * 64,
+                gemini_enabled=True,
+                gemini_api_key=None,
+                email_provider="smtp",
+                email_development_mode=False,
+                email_base_url="https://example.com",
+                smtp_host="smtp.example.com",
+            )
+
+    def test_production_xai_enabled_field_name_requires_api_key(self) -> None:
+        with pytest.raises(ValidationError, match="XAI_API_KEY must be set"):
+            TestSettings(
+                database_url="postgresql://test",
+                redis_url="redis://test",
+                celery_broker_url="redis://broker",
+                celery_result_backend="redis://backend",
+                environment="production",
+                jwt_secret_key="a" * 64,
+                xai_enabled=True,
+                xai_api_key=None,
+                email_provider="smtp",
+                email_development_mode=False,
+                email_base_url="https://example.com",
+                smtp_host="smtp.example.com",
+            )
+
+    def test_production_openai_enabled_with_api_key_is_valid(self) -> None:
+        test_settings = TestSettings(
+            database_url="postgresql://test",
+            redis_url="redis://test",
+            celery_broker_url="redis://broker",
+            celery_result_backend="redis://backend",
+            environment="production",
+            jwt_secret_key="a" * 64,
+            openai_enabled=True,
+            openai_api_key="sk-test-key-not-a-real-secret",
+            email_provider="smtp",
+            email_development_mode=False,
+            email_base_url="https://example.com",
+            smtp_host="smtp.example.com",
+        )
+        assert test_settings.openai_enabled is True
+        assert test_settings.openai_api_key is not None
+        assert test_settings.openai_api_key.get_secret_value().startswith("sk-")
+
+    def test_production_environment_alias_still_requires_api_key(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OPENAI_ENABLED", "true")
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+        with pytest.raises(ValidationError, match="OPENAI_API_KEY must be set"):
+            TestSettings(
+                environment="production",
+                jwt_secret_key="a" * 64,
+                email_provider="smtp",
+                email_development_mode=False,
+                email_base_url="https://example.com",
+                smtp_host="smtp.example.com",
+            )
+
+
 class TestProductionConfigurationValidation:
     """Tests verifying production configuration is valid and secure."""
 

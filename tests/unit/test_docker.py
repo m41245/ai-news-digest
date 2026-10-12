@@ -8,9 +8,35 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent.parent
+
+ENV_STAGING = ROOT / ".env.staging"
+
+# Why these two assertions are conditional instead of unconditional:
+#
+# ``.env.staging`` is a *host* file that is passed to Compose via
+# ``--env-file .env.staging`` (see docs/DEPLOYMENT.md). It holds real staging
+# credentials, so ``.gitignore`` keeps it out of version control and
+# ``scripts/check_secret_hygiene.py`` treats it as a local secret store. It is
+# therefore intentionally absent from a fresh clone and from CI. Committing a
+# stub would defeat the gitignore, and fabricating placeholder secrets would
+# only exercise the placeholder, so the value of these assertions is guarded by
+# the file's presence: they are enforced wherever the file legitimately exists
+# and skipped, never failed, where it does not.
+ENV_STAGING_SKIP_REASON = (
+    ".env.staging is gitignored because it contains real staging credentials, so it "
+    "exists only on hosts that deploy staging; the assertion is skipped here"
+)
+
+
+def _read_env_staging(path: Path = ENV_STAGING) -> str:
+    """Return the contents of a local env file, skipping when it is absent."""
+    if not path.exists():
+        pytest.skip(ENV_STAGING_SKIP_REASON)
+    return path.read_text(encoding="utf-8")
 
 
 def test_dockerfile_exists() -> None:
@@ -120,17 +146,42 @@ def test_docker_compose_development_unchanged() -> None:
 
 
 def test_env_staging_email_disabled() -> None:
-    env_staging = (ROOT / ".env.staging").read_text()
+    env_staging = _read_env_staging()
     assert (
         "EMAIL_ENABLED=false" in env_staging
     ), ".env.staging must explicitly disable email delivery"
 
 
 def test_env_staging_has_required_fields() -> None:
-    env_staging = (ROOT / ".env.staging").read_text()
+    env_staging = _read_env_staging()
     assert "ENVIRONMENT=staging" in env_staging
     assert "AI_ENABLED=false" in env_staging
     assert "POSTGRES_DB=ai_news_digest_staging" in env_staging
+
+
+def test_env_staging_is_gitignored() -> None:
+    """.env.staging must stay out of version control (secret hygiene policy)."""
+    gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+    patterns = {line.strip() for line in gitignore.splitlines() if line.strip()}
+    assert ".env.staging" in patterns, ".env.staging must be listed in .gitignore"
+
+
+def test_read_env_staging_skips_when_absent(tmp_path: Path) -> None:
+    """Missing local env file must skip, not fail, so CI never red-fails on it."""
+    missing = tmp_path / ".env.staging"
+
+    with pytest.raises(pytest.skip.Exception) as exc_info:
+        _read_env_staging(missing)
+
+    assert ENV_STAGING_SKIP_REASON in str(exc_info.value)
+
+
+def test_read_env_staging_returns_contents_when_present(tmp_path: Path) -> None:
+    """The helper still returns the real file contents when the file exists."""
+    env_file = tmp_path / ".env.staging"
+    env_file.write_text("ENVIRONMENT=staging\nEMAIL_ENABLED=false\n", encoding="utf-8")
+
+    assert _read_env_staging(env_file) == "ENVIRONMENT=staging\nEMAIL_ENABLED=false\n"
 
 
 def test_docker_compose_prod_exists() -> None:

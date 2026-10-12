@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 
 from ai_news_digest.domain.models.conflict import Conflict
 from ai_news_digest.domain.ports.conflict_repository import ConflictRepository
@@ -44,14 +44,36 @@ class SqlAlchemyConflictRepository(BaseRepository[ConflictModel], ConflictReposi
         claim_b_id: UUID,
         detection_version: str,
     ) -> Conflict | None:
-        a, b = _canonical_pair(str(claim_a_id), str(claim_b_id))
-        statement = select(ConflictModel).where(
-            ConflictModel.claim_a_id == a,
-            ConflictModel.claim_b_id == b,
-            ConflictModel.detection_version == detection_version,
+        """Find a previously detected conflict for an unordered claim pair.
+
+        The claim pair is matched in either order: ``Conflict.create`` stores the
+        pair in the order the detector happened to visit the claims in and does
+        not normalize it, so deduplication in ``DetectConflicts`` has to treat
+        ``(a, b)`` and ``(b, a)`` as the same conflict. ``scalars().first()`` is
+        used instead of ``scalar_one_or_none()`` so that rows written by earlier
+        versions, which could store the same pair twice in different orders, are
+        returned rather than raising ``MultipleResultsFound``.
+        """
+        first, second = str(claim_a_id), str(claim_b_id)
+        statement = (
+            select(ConflictModel)
+            .where(
+                or_(
+                    and_(
+                        ConflictModel.claim_a_id == first,
+                        ConflictModel.claim_b_id == second,
+                    ),
+                    and_(
+                        ConflictModel.claim_a_id == second,
+                        ConflictModel.claim_b_id == first,
+                    ),
+                ),
+                ConflictModel.detection_version == detection_version,
+            )
+            .order_by(ConflictModel.created_at.desc())
         )
         result = await self._session.execute(statement)
-        model = result.scalar_one_or_none()
+        model = result.scalars().first()
         if model is None:
             return None
         return ConflictMapper.to_domain(model)
@@ -104,13 +126,6 @@ class SqlAlchemyConflictRepository(BaseRepository[ConflictModel], ConflictReposi
         statement = select(func.count()).select_from(ConflictModel)
         result = await self._session.execute(statement)
         return int(result.scalar_one())
-
-
-def _canonical_pair(a: str, b: str) -> tuple[str, str]:
-    """Return (min, max) ordered pair for deduplication."""
-    if a <= b:
-        return a, b
-    return b, a
 
 
 __all__ = ["SqlAlchemyConflictRepository"]
