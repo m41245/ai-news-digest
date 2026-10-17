@@ -48,9 +48,14 @@ class IngestAllSourcesUseCase:
             try:
                 result = await self._ingest_from_source.execute(source)
             except Exception:
+                source.record_failed_fetch()
+                await self._source_repository.update(source)
                 summary.sources_failed += 1
                 logger.exception("Failed to ingest source '%s'.", source.name)
                 continue
+
+            source.record_successful_fetch()
+            await self._source_repository.update(source)
 
             summary.sources_processed += 1
             summary.fetched += result.fetched

@@ -29,6 +29,14 @@ class Source:
     status: SourceStatus
     created_at: datetime
 
+    # Trust and source-health metadata.
+    publisher: str | None = None
+    verification_notes: str | None = None
+    priority: int = 0
+    last_successful_fetch_at: datetime | None = None
+    last_failed_fetch_at: datetime | None = None
+    failure_count: int = 0
+
     @classmethod
     def create(
         cls,
@@ -40,6 +48,12 @@ class Source:
         is_active: bool = True,
         source_type: SourceType = SourceType.OTHER,
         status: SourceStatus = SourceStatus.PENDING_REVIEW,
+        publisher: str | None = None,
+        verification_notes: str | None = None,
+        priority: int = 0,
+        last_successful_fetch_at: datetime | None = None,
+        last_failed_fetch_at: datetime | None = None,
+        failure_count: int = 0,
     ) -> Source:
         """
         Factory method for creating a new news source.
@@ -56,6 +70,12 @@ class Source:
             source_type=source_type,
             status=status,
             created_at=datetime.now(UTC),
+            publisher=publisher,
+            verification_notes=verification_notes,
+            priority=priority,
+            last_successful_fetch_at=last_successful_fetch_at,
+            last_failed_fetch_at=last_failed_fetch_at,
+            failure_count=failure_count,
         )
 
     def update(
@@ -68,6 +88,9 @@ class Source:
         is_active: bool | None = None,
         source_type: SourceType | None = None,
         status: SourceStatus | None = None,
+        publisher: str | None = None,
+        verification_notes: str | None = None,
+        priority: int | None = None,
     ) -> None:
         """
         Update the source using partial values.
@@ -98,6 +121,15 @@ class Source:
         if status is not None:
             self.status = status
 
+        if publisher is not None:
+            self.publisher = publisher
+
+        if verification_notes is not None:
+            self.verification_notes = verification_notes
+
+        if priority is not None:
+            self.priority = priority
+
     def activate(self) -> None:
         """
         Mark the source as active.
@@ -109,6 +141,38 @@ class Source:
         Mark the source as inactive.
         """
         self.is_active = False
+
+    def is_eligible(self) -> bool:
+        """
+        Return True when the source is active and verified.
+
+        Only eligible sources may contribute to ingestion and production
+        digest generation. Verification status is distinct from general
+        editorial reputation: a source is eligible only when it has been
+        explicitly verified and has not been disabled.
+        """
+        return self.is_active and self.status == SourceStatus.VERIFIED
+
+    def record_successful_fetch(self) -> None:
+        """
+        Record a successful fetch for source-health tracking.
+
+        Resets the consecutive failure count and timestamps the last
+        successful fetch. Does not change the verification status.
+        """
+        self.last_successful_fetch_at = datetime.now(UTC)
+        self.failure_count = 0
+
+    def record_failed_fetch(self) -> None:
+        """
+        Record a failed fetch for source-health tracking.
+
+        Timestamps the last failed fetch and increments the failure count.
+        A temporary failure does not automatically revoke verification or
+        disable the source; trust state changes are explicit and auditable.
+        """
+        self.last_failed_fetch_at = datetime.now(UTC)
+        self.failure_count += 1
 
     @classmethod
     def validate(cls, source: Source) -> None:

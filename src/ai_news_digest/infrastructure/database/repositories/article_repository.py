@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 from ai_news_digest.application.services.rss.parser.models import ParsedArticle
 from ai_news_digest.core.exceptions import ResourceNotFoundError
 from ai_news_digest.domain.enums.article_status import ArticleStatus
+from ai_news_digest.domain.enums.source_status import SourceStatus
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.ports.article_repository import (
     ArticleRepository as ArticleRepositoryPort,
@@ -30,6 +31,9 @@ from ai_news_digest.infrastructure.database.models.article_model import (
 )
 from ai_news_digest.infrastructure.database.models.article_topic_model import (
     ArticleTopicModel,
+)
+from ai_news_digest.infrastructure.database.models.source_model import (
+    SourceModel,
 )
 from ai_news_digest.infrastructure.database.repositories.base_repository import (
     BaseRepository,
@@ -172,6 +176,14 @@ class ArticleRepository(
         self,
         limit: int | None = None,
     ) -> list[Article]:
+        """
+        Return digest-eligible articles from active, verified sources only.
+
+        Production digest eligibility requires the article to be in a
+        digest-ready status AND its source to be active and verified.
+        Unverified, pending-review, or disabled sources never contribute
+        to a production digest.
+        """
         statement = (
             select(ArticleModel)
             .options(
@@ -181,6 +193,7 @@ class ArticleRepository(
                 selectinload(ArticleModel.topic_links),
                 selectinload(ArticleModel.category_links),
             )
+            .join(SourceModel, ArticleModel.source_id == SourceModel.id)
             .where(
                 ArticleModel.status.in_(
                     [
@@ -188,7 +201,9 @@ class ArticleRepository(
                         ArticleStatus.CATEGORIZED,
                         ArticleStatus.ANALYZED,
                     ]
-                )
+                ),
+                SourceModel.is_active.is_(True),
+                SourceModel.status == SourceStatus.VERIFIED.value,
             )
             .order_by(
                 ArticleModel.published_at.desc(),

@@ -4,6 +4,7 @@ Unit tests for migration and schema consistency.
 
 from __future__ import annotations
 
+import importlib.util
 import re
 import subprocess
 import sys
@@ -88,25 +89,36 @@ def test_article_status_enum_in_migration() -> None:
 
 
 def test_migration_files_are_importable() -> None:
-    """Test that all migration modules can be imported without errors."""
+    """Test that all migration modules can be imported without errors.
+
+    Each migration module is imported directly in-process via :mod:`importlib`.
+    A migration module body only defines revision metadata, imports, the
+    ``branch_labels``/``depends_on`` hooks and the ``upgrade``/``downgrade``
+    functions -- it never executes database operations at import time -- so
+    importing one is side-effect free and deterministic.
+
+    This deliberately avoids the previous ``subprocess.run([sys.executable,
+    "-c", ...])`` approach. On Windows the child interpreter can abort during
+    finalization with a native access violation (``0xC0000005``) *after* the
+    module has already been imported successfully (the child still prints
+    ``OK``). Asserting on ``returncode == 0`` therefore failed spuriously even
+    though the migration imported cleanly. Importing in-process surfaces a
+    genuine import error directly as an exception and removes that flakiness
+    (which also made the test slow: one interpreter spawn per migration file).
+    """
     migrations_dir = Path(__file__).resolve().parent.parent.parent / "migrations" / "versions"
-    project_root = Path(__file__).resolve().parent.parent.parent
 
     for migration_file in sorted(migrations_dir.glob("*.py")):
-        result = subprocess.run(
-            [
-                sys.executable,
-                "-c",
-                "import sys; import importlib.util; "
-                f"sys.path.insert(0, r'{project_root}'); "
-                f"spec = importlib.util.spec_from_file_location('migration', r'{migration_file}'); "
-                "mod = importlib.util.module_from_spec(spec); "
-                "spec.loader.exec_module(mod); print('OK')",
-            ],
-            capture_output=True,
-            text=True,
+        spec = importlib.util.spec_from_file_location(
+            f"_migration_under_test_{migration_file.stem}", migration_file
         )
-        assert result.returncode == 0, f"Failed to import {migration_file.name}: {result.stderr}"
+        assert spec is not None, f"Could not build an import spec for {migration_file.name}"
+        assert spec.loader is not None, f"Could not build a loader for {migration_file.name}"
+        module = importlib.util.module_from_spec(spec)
+        try:
+            spec.loader.exec_module(module)
+        except Exception as exc:  # surfacing the real import failure with the file name
+            raise AssertionError(f"Failed to import {migration_file.name}: {exc}") from exc
 
 
 def test_migration_revision_ids_are_unique() -> None:
