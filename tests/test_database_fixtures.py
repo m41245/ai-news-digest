@@ -40,7 +40,7 @@ pytestmark = pytest.mark.integration
 # asserted once, after every test has run, so the checks do not depend on
 # execution order.
 _seen_containers: list[int] = []
-_seen_engines: list[int] = []
+_seen_engines: list[AsyncEngine] = []
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -54,7 +54,7 @@ def _assert_fixture_scopes() -> Generator[None, None, None]:
             "serves every test in the module"
         )
     if _seen_engines:
-        assert len(set(_seen_engines)) == len(_seen_engines), (
+        assert len({id(engine) for engine in _seen_engines}) == len(_seen_engines), (
             "async_engine must be function-scoped so each test gets its own "
             "engine bound to its own event loop"
         )
@@ -63,7 +63,7 @@ def _assert_fixture_scopes() -> Generator[None, None, None]:
 def _track(postgres_container: object, engine: AsyncEngine) -> None:
     """Record the fixture identities used by a single test."""
     _seen_containers.append(id(postgres_container))
-    _seen_engines.append(id(engine))
+    _seen_engines.append(engine)
 
 
 async def test_session_container_and_function_engine_work_together(

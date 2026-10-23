@@ -41,6 +41,7 @@ from ai_news_digest.core.config import get_settings
 from ai_news_digest.domain.enums.article_status import ArticleStatus
 from ai_news_digest.domain.enums.delivery_status import DeliveryStatus
 from ai_news_digest.domain.enums.digest_format import DigestFormat
+from ai_news_digest.domain.enums.source_status import SourceStatus
 from ai_news_digest.domain.models.source import Source
 from ai_news_digest.domain.ports.email_sender import EmailSender
 from ai_news_digest.infrastructure.database.base import Base
@@ -394,6 +395,7 @@ class TestE2EPipeline:
             feed_url="https://example.com/feed.xml",
             website_url="https://example.com",
             description="Source for E2E pipeline test",
+            status=SourceStatus.VERIFIED,
         )
         source = await e2e_container.source_repository.create(source)
 
