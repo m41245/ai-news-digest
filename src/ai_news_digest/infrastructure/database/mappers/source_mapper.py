@@ -29,6 +29,12 @@ class SourceMapper:
             is_active=source.is_active,
             source_type=source.source_type.value,
             status=source.status.value,
+            publisher=source.publisher,
+            verification_notes=source.verification_notes,
+            priority=source.priority,
+            last_successful_fetch_at=source.last_successful_fetch_at,
+            last_failed_fetch_at=source.last_failed_fetch_at,
+            failure_count=source.failure_count,
             created_at=source.created_at,
         )
 
@@ -46,6 +52,12 @@ class SourceMapper:
             is_active=model.is_active,
             source_type=SourceType(model.source_type),
             status=SourceStatus(model.status),
+            publisher=model.publisher,
+            verification_notes=model.verification_notes,
+            priority=model.priority,
+            last_successful_fetch_at=model.last_successful_fetch_at,
+            last_failed_fetch_at=model.last_failed_fetch_at,
+            failure_count=model.failure_count,
             created_at=model.created_at,
         )
 
@@ -64,6 +76,12 @@ class SourceMapper:
         model.is_active = source.is_active
         model.source_type = source.source_type.value
         model.status = source.status.value
+        model.publisher = source.publisher
+        model.verification_notes = source.verification_notes
+        model.priority = source.priority
+        model.last_successful_fetch_at = source.last_successful_fetch_at
+        model.last_failed_fetch_at = source.last_failed_fetch_at
+        model.failure_count = source.failure_count
 
 
 __all__ = ["SourceMapper"]

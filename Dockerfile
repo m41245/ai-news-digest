@@ -1,4 +1,4 @@
-FROM python:3.12-slim AS base
+FROM python:3.12-alpine AS base
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -10,12 +10,12 @@ WORKDIR /app
 
 FROM base AS builder
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apk add --no-cache \
     gcc \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+    musl-dev \
+    postgresql-dev
 
-RUN pip install --upgrade pip && pip install "poetry>=2.0,<3.0"
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir "poetry>=2.0,<3.0"
 
 COPY pyproject.toml poetry.lock README.md ./
 RUN poetry config virtualenvs.create false \
@@ -27,19 +27,26 @@ RUN poetry install --only-root --no-interaction --no-ansi
 
 FROM base AS runtime
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache libpq
 
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Remove build-time tooling and its vendored vulnerable dependencies from the runtime image.
+RUN rm -rf /usr/local/lib/python3.12/site-packages/pip \
+           /usr/local/lib/python3.12/site-packages/pip-*.dist-info \
+           /usr/local/lib/python3.12/site-packages/poetry \
+           /usr/local/lib/python3.12/site-packages/poetry-*.dist-info \
+           /usr/local/lib/python3.12/site-packages/poetry_core* \
+           /usr/local/bin/pip /usr/local/bin/pip3 /usr/local/bin/pip3.12 \
+           /usr/local/bin/poetry
+
 COPY --from=builder /app/src ./src/
 COPY README.md alembic.ini ./
 COPY migrations/ ./migrations/
 
 RUN printf '%s\n' \
-  '#!/bin/bash' \
+  '#!/bin/sh' \
   'set -e' \
   '' \
   'echo "Running database migrations..."' \
@@ -50,7 +57,7 @@ RUN printf '%s\n' \
   > /app/entrypoint.sh \
   && chmod +x /app/entrypoint.sh
 
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+RUN adduser -D -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8000

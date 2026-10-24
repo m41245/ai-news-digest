@@ -255,3 +255,13 @@ __all__ = [
     "test_digest_repository_update_found",
     "test_digest_repository_update_not_found",
 ]
+
+
+@pytest.mark.asyncio
+async def test_digest_repository_count(
+    repository: DigestRepository, mock_session: AsyncMock
+) -> None:
+    mock_result = MagicMock()
+    mock_result.scalar_one.return_value = 3
+    mock_session.execute.return_value = mock_result
+    assert await repository.count() == 3

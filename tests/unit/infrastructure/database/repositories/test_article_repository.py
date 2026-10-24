@@ -324,3 +324,54 @@ async def test_mark_status_bulk_updates_in_transaction(
     mock_session.execute.assert_called_once()
     commit_calls = [c for c in mock_session.method_calls if c[0] == "commit"]
     assert len(commit_calls) == 0
+
+
+@pytest.mark.asyncio
+async def test_article_repository_list_public_articles(
+    repository: ArticleRepository, mock_session: AsyncMock
+) -> None:
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [MagicMock()]
+    mock_session.execute.return_value = mock_result
+    with patch(
+        "ai_news_digest.infrastructure.database.repositories.article_repository.ArticleMapper.to_domain",
+        return_value=MagicMock(),
+    ):
+        result = await repository.list_public_articles()
+    assert len(result) == 1
+
+
+@pytest.mark.asyncio
+async def test_article_repository_count_public_articles(
+    repository: ArticleRepository, mock_session: AsyncMock
+) -> None:
+    mock_result = MagicMock()
+    mock_result.scalar_one.return_value = 5
+    mock_session.execute.return_value = mock_result
+    assert await repository.count_public_articles() == 5
+
+
+@pytest.mark.asyncio
+async def test_article_repository_get_public_article_found(
+    repository: ArticleRepository, mock_session: AsyncMock
+) -> None:
+    model = MagicMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = model
+    mock_session.execute.return_value = mock_result
+    article = MagicMock()
+    with patch(
+        "ai_news_digest.infrastructure.database.repositories.article_repository.ArticleMapper.to_domain",
+        return_value=article,
+    ):
+        assert await repository.get_public_article(uuid4()) == article
+
+
+@pytest.mark.asyncio
+async def test_article_repository_get_public_article_not_found(
+    repository: ArticleRepository, mock_session: AsyncMock
+) -> None:
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = None
+    mock_session.execute.return_value = mock_result
+    assert await repository.get_public_article(uuid4()) is None

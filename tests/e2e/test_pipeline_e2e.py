@@ -17,8 +17,11 @@ unavailable).
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
+import sys
+from collections.abc import AsyncGenerator, Iterator
+from contextlib import ExitStack, contextmanager
 from typing import override
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -34,9 +37,11 @@ from ai_news_digest.application.ai.models import AIRequest, AIResponse, AIUsage
 from ai_news_digest.application.ai.provider_registry import ProviderRegistry
 from ai_news_digest.application.ai.providers.base import AIProvider
 from ai_news_digest.bootstrap.container import Container
+from ai_news_digest.core.config import get_settings
 from ai_news_digest.domain.enums.article_status import ArticleStatus
 from ai_news_digest.domain.enums.delivery_status import DeliveryStatus
 from ai_news_digest.domain.enums.digest_format import DigestFormat
+from ai_news_digest.domain.enums.source_status import SourceStatus
 from ai_news_digest.domain.models.source import Source
 from ai_news_digest.domain.ports.email_sender import EmailSender
 from ai_news_digest.infrastructure.database.base import Base
@@ -271,6 +276,31 @@ def fake_email_sender() -> FakeEmailSender:
     return FakeEmailSender()
 
 
+@contextmanager
+def _ai_enabled_settings() -> Iterator[None]:
+    """Make AI-enabled settings visible to every consumer, without mutating global state.
+
+    ``get_settings`` is bound as a module-level reference in the DI container,
+    ``ProviderManager.route`` and other modules, so patching a single module
+    silently leaves other consumers reading the real (AI-disabled) settings.
+    This patches every already-loaded module that bound ``get_settings`` and
+    restores all of them on exit. The cached ``Settings`` singleton itself is
+    never modified, so no other test can observe or inherit this override.
+    """
+    override = get_settings().model_copy(update={"ai_enabled": True})
+
+    patched_modules = [
+        module
+        for module in sys.modules.values()
+        if getattr(module, "get_settings", None) is get_settings
+    ]
+
+    with ExitStack() as stack:
+        for module in patched_modules:
+            stack.enter_context(patch.object(module, "get_settings", lambda: override))
+        yield
+
+
 @pytest.fixture
 async def e2e_container(
     postgres_container,
@@ -282,6 +312,15 @@ async def e2e_container(
     The Container's internal provider/capability registries are replaced so
     that the *fake* AI provider is used instead of real OpenAI/Anthropic
     clients.
+
+    AI processing is forced on for the duration of the fixture via
+    ``_ai_enabled_settings()``. ``Container.process_article`` (and the
+    summarize/categorize use cases it depends on) return ``None`` when
+    ``ai_enabled`` is False, so the pipeline under test could never be
+    exercised with the default (disabled) configuration. The fake provider
+    registered below supplies the responses, so no real API keys are needed.
+    The override is removed on teardown, leaving the process-wide cached
+    Settings untouched for other tests.
     """
     connection_url = postgres_container.get_connection_url(driver="asyncpg")
     db_url = connection_url.replace("postgresql://", "postgresql+asyncpg://")
@@ -297,23 +336,24 @@ async def e2e_container(
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    async with async_session_factory() as session:
-        container = Container(session)
+    with _ai_enabled_settings():
+        async with async_session_factory() as session:
+            container = Container(session)
 
-        # Replace the AI provider registry with one containing the fake provider
-        container._provider_registry = ProviderRegistry()
-        container._provider_registry.register(fake_provider)
-        container._capability_registry.register_provider("summarization", fake_provider.id)
-        container._capability_registry.register_provider("categorization", fake_provider.id)
-        container._decision_engine = DecisionEngine(
-            container._provider_registry,
-            container._capability_registry,
-        )
+            # Replace the AI provider registry with one containing the fake provider
+            container._provider_registry = ProviderRegistry()
+            container._provider_registry.register(fake_provider)
+            container._capability_registry.register_provider("summarization", fake_provider.id)
+            container._capability_registry.register_provider("categorization", fake_provider.id)
+            container._decision_engine = DecisionEngine(
+                container._provider_registry,
+                container._capability_registry,
+            )
 
-        # Store the fake email sender on the instance so tests can access it
-        container.__dict__["_test_email_sender"] = fake_email_sender
+            # Store the fake email sender on the instance so tests can access it
+            container.__dict__["_test_email_sender"] = fake_email_sender
 
-        yield container
+            yield container
 
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
@@ -355,6 +395,7 @@ class TestE2EPipeline:
             feed_url="https://example.com/feed.xml",
             website_url="https://example.com",
             description="Source for E2E pipeline test",
+            status=SourceStatus.VERIFIED,
         )
         source = await e2e_container.source_repository.create(source)
 

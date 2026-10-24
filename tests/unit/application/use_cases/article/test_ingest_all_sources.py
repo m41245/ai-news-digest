@@ -15,6 +15,7 @@ from ai_news_digest.application.use_cases.article.ingest_all_sources import (
 from ai_news_digest.application.use_cases.article.ingest_from_source import (
     IngestionResult,
 )
+from ai_news_digest.domain.enums.source_status import SourceStatus
 from ai_news_digest.domain.models.source import Source
 
 
@@ -205,3 +206,78 @@ async def test_ingest_all_sources_summary_defaults() -> None:
     assert summary.imported == 0
     assert summary.skipped == 0
     assert summary.failed == 0
+
+
+async def test_ingest_all_sources_records_successful_fetch_health(
+    mock_source_repository: AsyncMock,
+    mock_ingest_from_source: AsyncMock,
+) -> None:
+    """A successfully ingested source has its fetch health recorded."""
+    source = Source.create(
+        name="Healthy Source",
+        feed_url="https://example.com/feed.xml",
+        status=SourceStatus.VERIFIED,
+    )
+    mock_source_repository.list_enabled.return_value = [source]
+    mock_ingest_from_source.execute.return_value = IngestionResult(fetched=2, imported=2, skipped=0)
+
+    updated_sources: list[Source] = []
+
+    async def capture_update(source: Source) -> Source:
+        updated_sources.append(source)
+        return source
+
+    mock_source_repository.update.side_effect = capture_update
+
+    use_case = IngestAllSourcesUseCase(
+        source_repository=mock_source_repository,
+        ingest_from_source=mock_ingest_from_source,
+    )
+
+    result = await use_case.execute()
+
+    assert result.sources_processed == 1
+    assert mock_source_repository.update.call_count == 1
+    updated = updated_sources[0]
+    assert updated.last_successful_fetch_at is not None
+    assert updated.failure_count == 0
+
+
+async def test_ingest_all_sources_records_failed_fetch_health(
+    mock_source_repository: AsyncMock,
+    mock_ingest_from_source: AsyncMock,
+) -> None:
+    """A failed ingestion records failed-fetch health without disabling the source."""
+    source = Source.create(
+        name="Failing Source",
+        feed_url="https://example.com/feed.xml",
+        status=SourceStatus.VERIFIED,
+        failure_count=0,
+    )
+    mock_source_repository.list_enabled.return_value = [source]
+    mock_ingest_from_source.execute.side_effect = ConnectionError("feed unavailable")
+
+    updated_sources: list[Source] = []
+
+    async def capture_update(source: Source) -> Source:
+        updated_sources.append(source)
+        return source
+
+    mock_source_repository.update.side_effect = capture_update
+
+    use_case = IngestAllSourcesUseCase(
+        source_repository=mock_source_repository,
+        ingest_from_source=mock_ingest_from_source,
+    )
+
+    result = await use_case.execute()
+
+    assert result.sources_failed == 1
+    assert result.sources_processed == 0
+    assert mock_source_repository.update.call_count == 1
+    updated = updated_sources[0]
+    assert updated.last_failed_fetch_at is not None
+    assert updated.failure_count == 1
+    # A temporary failure does not revoke verification.
+    assert updated.status == SourceStatus.VERIFIED
+    assert updated.is_eligible() is True
