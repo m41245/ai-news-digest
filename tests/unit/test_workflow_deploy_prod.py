@@ -523,3 +523,62 @@ def test_production_permissions_remain_intact() -> None:
     perms = wf.get("permissions", {})
     assert perms.get("contents") == "read"
     assert perms.get("packages") == "write"
+
+
+# ---------------------------------------------------------------------------
+# Production deploy-executed gating regression tests
+# ---------------------------------------------------------------------------
+
+
+def _backup_step() -> dict:
+    wf = _load_workflow()
+    return next(
+        s for s in wf["jobs"]["deploy"]["steps"] if s.get("name") == "Run pre-deployment backup"
+    )
+
+
+def test_deploy_job_has_deploy_executed_output() -> None:
+    wf = _load_workflow()
+    deploy = wf["jobs"]["deploy"]
+    assert "outputs" in deploy
+    assert deploy["outputs"]["deploy-executed"] == "${{ steps.verify.outputs.deploy-executed }}"
+
+
+def test_verify_step_has_id() -> None:
+    wf = _load_workflow()
+    deploy = wf["jobs"]["deploy"]
+    verify = next(
+        s for s in deploy["steps"] if s.get("name") == "Verify production deployment target"
+    )
+    assert verify["id"] == "verify"
+
+
+def test_verify_step_sets_deploy_executed_true_and_false() -> None:
+    wf = _load_workflow()
+    deploy = wf["jobs"]["deploy"]
+    verify = next(
+        s for s in deploy["steps"] if s.get("name") == "Verify production deployment target"
+    )
+    script = verify["run"]
+    assert 'echo "deploy-executed=false" >> "$GITHUB_OUTPUT"' in script
+    assert 'echo "deploy-executed=true" >> "$GITHUB_OUTPUT"' in script
+
+
+def test_backup_step_uses_verify_output_not_raw_secret() -> None:
+    step = _backup_step()
+    assert "deploy-executed" in step.get("if", "")
+    assert "PROD_DEPLOY_HOST" not in step.get("if", "")
+
+
+def test_deploy_step_uses_verify_output_not_raw_secret() -> None:
+    step = _deploy_step()
+    assert "deploy-executed" in step.get("if", "")
+    assert "PROD_DEPLOY_HOST" not in step.get("if", "")
+
+
+def test_rollback_step_gated_on_failure_and_verify_output() -> None:
+    step = _rollback_step()
+    if_expr = step.get("if", "")
+    assert "failure()" in if_expr
+    assert "steps.verify.outputs.deploy-executed == 'true'" in if_expr
+    assert "PROD_DEPLOY_HOST" not in if_expr
