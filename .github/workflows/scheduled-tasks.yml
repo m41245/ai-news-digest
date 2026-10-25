@@ -7,6 +7,7 @@ on:
         description: "Task to run"
         required: true
         type: choice
+        default: ingest
         options:
           - ingest
           - summarize
@@ -72,7 +73,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: "poetry"
 
       - name: Install Poetry
         run: |
@@ -81,6 +81,41 @@ jobs:
 
       - name: Install dependencies
         run: poetry install --no-interaction --no-ansi
+
+      - name: Validate required production configuration
+        env:
+          DATABASE_URL: ${{ secrets.FREE_DATABASE_URL }}
+          REDIS_URL: ${{ secrets.FREE_REDIS_URL }}
+          CELERY_BROKER_URL: ${{ secrets.FREE_CELERY_BROKER_URL }}
+          CELERY_RESULT_BACKEND: ${{ secrets.FREE_CELERY_RESULT_BACKEND }}
+          JWT_SECRET_KEY: ${{ secrets.FREE_JWT_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "${{ vars.ENABLE_PRODUCTION_SCHEDULE }}" != "true" ]; then
+            echo "Production schedule is disabled."
+            echo "Set repository variable ENABLE_PRODUCTION_SCHEDULE=true to activate."
+            exit 0
+          fi
+          required_secrets="FREE_DATABASE_URL FREE_REDIS_URL FREE_CELERY_BROKER_URL FREE_CELERY_RESULT_BACKEND FREE_JWT_SECRET_KEY"
+          missing=""
+          for secret_name in $required_secrets; do
+            case "$secret_name" in
+              FREE_DATABASE_URL) value="${DATABASE_URL:-}" ;;
+              FREE_REDIS_URL) value="${REDIS_URL:-}" ;;
+              FREE_CELERY_BROKER_URL) value="${CELERY_BROKER_URL:-}" ;;
+              FREE_CELERY_RESULT_BACKEND) value="${CELERY_RESULT_BACKEND:-}" ;;
+              FREE_JWT_SECRET_KEY) value="${JWT_SECRET_KEY:-}" ;;
+            esac
+            if [ -z "$value" ]; then
+              missing="$missing $secret_name"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "Missing required production configuration:$missing"
+            echo "Configure the listed GitHub secrets (names only) before running."
+            exit 1
+          fi
+          echo "Required production configuration present: $required_secrets"
 
       - name: Run scheduled task
         env:
@@ -92,6 +127,10 @@ jobs:
           ENVIRONMENT: production
           DEBUG: "false"
           AI_ENABLED: "false"
+          OPENAI_ENABLED: "false"
+          ANTHROPIC_ENABLED: "false"
+          GEMINI_ENABLED: "false"
+          XAI_ENABLED: "false"
           EMAIL_ENABLED: "false"
           EMAIL_DEVELOPMENT_MODE: "false"
           EMAIL_PROVIDER: console

@@ -212,3 +212,67 @@ def test_celery_beat_schedule_is_preserved() -> None:
     assert set(schedule) == _EXPECTED_SCHEDULE_ENTRIES
     scheduled_tasks = {entry["task"] for entry in schedule.values()}
     assert "workers.tasks.cleanup.reconcile_reservations" in scheduled_tasks
+
+
+def test_workflow_setup_python_does_not_use_poetry_cache() -> None:
+    """setup-python must not evaluate cache: poetry before Poetry is installed."""
+    workflow = _load_workflow()
+    job = workflow["jobs"]["scheduled-task"]
+    setup_step = next(
+        s for s in job["steps"] if s.get("uses", "").startswith("actions/setup-python")
+    )
+    assert "cache" not in (setup_step.get("with") or {})
+
+
+def test_workflow_installs_poetry_before_dependencies() -> None:
+    workflow = _load_workflow()
+    job = workflow["jobs"]["scheduled-task"]
+    step_names = [s.get("name", "") for s in job["steps"]]
+    poetry_idx = step_names.index("Install Poetry")
+    deps_idx = step_names.index("Install dependencies")
+    assert poetry_idx < deps_idx
+
+
+def test_workflow_dispatch_default_task_is_ingest() -> None:
+    workflow = _load_workflow()
+    triggers = workflow.get("on") or workflow.get(True) or {}
+    dispatch = triggers.get("workflow_dispatch", {})
+    task_input = dispatch.get("inputs", {}).get("task", {})
+    assert task_input.get("default") == "ingest"
+
+
+def test_workflow_manual_dispatch_runs_only_selected_task() -> None:
+    workflow = _load_workflow()
+    job = workflow["jobs"]["scheduled-task"]
+    run_step = job["steps"][-1]
+    script = run_step["run"]
+    assert 'run_task.py "$TASK"' in script
+
+
+def test_workflow_validates_required_production_configuration() -> None:
+    workflow = _load_workflow()
+    job = workflow["jobs"]["scheduled-task"]
+    validation_step = next(
+        (
+            s
+            for s in job["steps"]
+            if "Validate required production configuration" in s.get("name", "")
+        ),
+        None,
+    )
+    assert validation_step is not None
+    script = validation_step["run"]
+    assert "exit 1" in script
+    assert "FREE_DATABASE_URL" in script
+    assert "FREE_JWT_SECRET_KEY" in script
+    assert "Missing required production configuration" in script
+
+
+def test_workflow_disables_provider_ai_flags() -> None:
+    workflow = _load_workflow()
+    job = workflow["jobs"]["scheduled-task"]
+    env = job["steps"][-1]["env"]
+    assert env.get("OPENAI_ENABLED") == "false"
+    assert env.get("ANTHROPIC_ENABLED") == "false"
+    assert env.get("GEMINI_ENABLED") == "false"
+    assert env.get("XAI_ENABLED") == "false"
