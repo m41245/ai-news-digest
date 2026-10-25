@@ -4,7 +4,8 @@ Unit tests for M85 Trend domain model.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
 
 from ai_news_digest.domain.enums.trend_status import TrendStatus
 from ai_news_digest.domain.enums.trend_type import TrendType
@@ -89,23 +90,25 @@ class TestTrendCreate:
 class TestTrendUpdate:
     def test_touch_updates_timestamps(self) -> None:
         now = datetime.now(UTC)
-        trend = Trend.create(
-            trend_type=TrendType.COMPANY_TREND,
-            canonical_key="company:openai",
-            display_name="OpenAI",
-            status=TrendStatus.EMERGING,
-            trend_score=75.0,
-            momentum_score=80.0,
-            first_detected_at=now,
-            last_detected_at=now,
-            recent_activity=14,
-            baseline_activity=8,
-            source_count=7,
-            story_count=4,
-            event_count=2,
-            explanation="test",
-        )
-        trend.touch()
+        with patch("ai_news_digest.domain.models.trend.datetime") as mock_datetime:
+            mock_datetime.now.side_effect = [now, now + timedelta(seconds=1)]
+            trend = Trend.create(
+                trend_type=TrendType.COMPANY_TREND,
+                canonical_key="company:openai",
+                display_name="OpenAI",
+                status=TrendStatus.EMERGING,
+                trend_score=75.0,
+                momentum_score=80.0,
+                first_detected_at=now,
+                last_detected_at=now,
+                recent_activity=14,
+                baseline_activity=8,
+                source_count=7,
+                story_count=4,
+                event_count=2,
+                explanation="test",
+            )
+            trend.touch()
         assert trend.last_detected_at > now
         assert trend.updated_at >= trend.last_detected_at
 

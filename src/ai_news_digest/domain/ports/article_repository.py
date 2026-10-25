@@ -137,7 +137,7 @@ class ArticleRepository(ABC):
         """
         Return publicly visible articles with optional filtering.
 
-        Only articles beyond the NEW/FAILED processing stages are returned so
+        Articles from active, verified sources are public unless FAILED.
         the public surface never exposes raw, unprocessed items.
 
         `order_by` accepts ``"published_at"`` (default) or ``"importance"``.
@@ -167,7 +167,7 @@ class ArticleRepository(ABC):
         """
         Return a single publicly visible article by ID.
 
-        Only articles beyond the NEW/FAILED processing stages are returned so
+        Articles from active, verified sources are public unless FAILED.
         the public surface never exposes raw, unprocessed items.
         """
         raise NotImplementedError

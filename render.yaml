@@ -41,10 +41,13 @@ services:
       - key: EMAIL_PROVIDER
         value: console
 
+  # NOTE: Render background workers are not part of the free tier.
+  # The definitions below require a paid Render plan if deployed and are
+  # retained only as optional, explicitly non-free components. The
+  # zero-cost architecture uses the GitHub Actions direct runner instead.
   - type: worker
     name: ai-news-digest-worker
     runtime: docker
-    plan: free
     region: oregon
     branch: main
     dockerfilePath: ./Dockerfile
@@ -55,7 +58,10 @@ services:
       - key: CELERY_BROKER_URL
       - key: CELERY_RESULT_BACKEND
       - key: JWT_SECRET_KEY
-        generateValue: true
+        fromService:
+          type: web
+          name: ai-news-digest-api
+          envVarKey: JWT_SECRET_KEY
       - key: ENVIRONMENT
         value: production
       - key: DEBUG
@@ -78,11 +84,12 @@ services:
         value: "false"
       - key: EMAIL_PROVIDER
         value: console
+      - key: RUN_MIGRATIONS
+        value: "false"
     command: celery -A ai_news_digest.workers.celery_app worker --loglevel=info --pool=solo
   - type: worker
     name: ai-news-digest-beat
     runtime: docker
-    plan: free
     region: oregon
     branch: main
     dockerfilePath: ./Dockerfile
@@ -93,7 +100,10 @@ services:
       - key: CELERY_BROKER_URL
       - key: CELERY_RESULT_BACKEND
       - key: JWT_SECRET_KEY
-        generateValue: true
+        fromService:
+          type: web
+          name: ai-news-digest-api
+          envVarKey: JWT_SECRET_KEY
       - key: ENVIRONMENT
         value: production
       - key: DEBUG
@@ -116,4 +126,6 @@ services:
         value: "false"
       - key: EMAIL_PROVIDER
         value: console
+      - key: RUN_MIGRATIONS
+        value: "false"
     command: celery -A ai_news_digest.workers.celery_app beat --loglevel=info --schedule /tmp/celerybeat-schedule

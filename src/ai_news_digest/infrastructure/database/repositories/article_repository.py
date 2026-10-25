@@ -336,10 +336,14 @@ class ArticleRepository(
                 selectinload(ArticleModel.topic_links),
                 selectinload(ArticleModel.category_links),
             )
+            .join(
+                SourceModel,
+                ArticleModel.source_id == SourceModel.id,
+            )
             .where(
-                ArticleModel.status.not_in(
-                    [ArticleStatus.NEW, ArticleStatus.FAILED],
-                ),
+                ArticleModel.status.not_in([ArticleStatus.FAILED]),
+                SourceModel.is_active.is_(True),
+                SourceModel.status == SourceStatus.VERIFIED.value,
             )
         )
 
@@ -406,10 +410,14 @@ class ArticleRepository(
         statement = (
             select(func.count(func.distinct(ArticleModel.id)))
             .select_from(ArticleModel)
+            .join(
+                SourceModel,
+                ArticleModel.source_id == SourceModel.id,
+            )
             .where(
-                ArticleModel.status.not_in(
-                    [ArticleStatus.NEW, ArticleStatus.FAILED],
-                ),
+                ArticleModel.status.not_in([ArticleStatus.FAILED]),
+                SourceModel.is_active.is_(True),
+                SourceModel.status == SourceStatus.VERIFIED.value,
             )
         )
 
@@ -494,8 +502,6 @@ class ArticleRepository(
                 ),
             )
 
-        statement = statement.distinct()
-
         return statement
 
     async def get_public_article(
@@ -511,11 +517,15 @@ class ArticleRepository(
                 selectinload(ArticleModel.topic_links),
                 selectinload(ArticleModel.category_links),
             )
+            .join(
+                SourceModel,
+                ArticleModel.source_id == SourceModel.id,
+            )
             .where(
                 ArticleModel.id == str(article_id),
-                ArticleModel.status.not_in(
-                    [ArticleStatus.NEW, ArticleStatus.FAILED],
-                ),
+                ArticleModel.status.not_in([ArticleStatus.FAILED]),
+                SourceModel.is_active.is_(True),
+                SourceModel.status == SourceStatus.VERIFIED.value,
             )
         )
 

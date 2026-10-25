@@ -106,11 +106,17 @@ async def test_grok_provider_generate_success(grok_provider: GrokProvider) -> No
     mock_response.usage.completion_tokens = 5
     mock_response.usage.total_tokens = 15
 
-    with patch.object(
-        grok_provider._client.chat.completions,
-        "create",
-        new_callable=AsyncMock,
-    ) as mock_create:
+    with (
+        patch.object(
+            grok_provider._client.chat.completions,
+            "create",
+            new_callable=AsyncMock,
+        ) as mock_create,
+        patch(
+            "ai_news_digest.infrastructure.llm.grok_client.time.time",
+            side_effect=[1000.0, 1000.05],
+        ),
+    ):
         mock_create.return_value = mock_response
 
         result = await grok_provider.generate(request)

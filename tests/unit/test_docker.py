@@ -240,3 +240,30 @@ def test_docker_compose_staging_frontend_preserves_build() -> None:
         data = yaml.safe_load(f)
     frontend = data["services"]["frontend"]
     assert "build" in frontend, "Staging compose frontend must keep build for local development"
+
+
+def test_dockerfile_ends_with_newline() -> None:
+    content = (ROOT / "Dockerfile").read_bytes()
+    assert content.endswith(b"\n"), "Dockerfile must end with a trailing newline"
+
+
+def test_dockerfile_healthcheck_skips_non_web_containers() -> None:
+    content = (ROOT / "Dockerfile").read_text()
+    assert "HEALTHCHECK" in content
+    assert "RUN_MIGRATIONS" in content
+    # Non-web (worker/beat) containers must not be forced through the HTTP check.
+    assert "sys.exit(0)" in content
+
+
+def test_dockerfile_healthcheck_handles_empty_port() -> None:
+    content = (ROOT / "Dockerfile").read_text()
+    assert (
+        'os.environ.get("PORT") or "8000"' in content
+        or "os.environ.get('PORT') or '8000'" in content
+    )
+
+
+def test_dockerfile_preserves_migration_gating() -> None:
+    content = (ROOT / "Dockerfile").read_text()
+    assert "RUN_MIGRATIONS:-true" in content
+    assert "alembic upgrade head" in content

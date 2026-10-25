@@ -49,8 +49,10 @@ RUN printf '%s\n' \
   '#!/bin/sh' \
   'set -e' \
   '' \
-  'echo "Running database migrations..."' \
-  'python -m alembic upgrade head' \
+  'if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then' \
+  '  echo "Running database migrations..."' \
+  '  python -m alembic upgrade head' \
+  'fi' \
   '' \
   'echo "Starting application..."' \
   'exec "$@"' \
@@ -63,7 +65,7 @@ USER appuser
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live', timeout=5)"
+    CMD python -c "import os, sys, urllib.request; rm=(os.environ.get('RUN_MIGRATIONS') or 'true').strip().lower(); sys.exit(0) if rm not in ('true', '1', 'yes', 'on') else urllib.request.urlopen('http://localhost:%s/health/live' % (os.environ.get('PORT') or '8000'), timeout=5)"
 
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["uvicorn", "ai_news_digest.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "exec uvicorn ai_news_digest.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

@@ -99,9 +99,15 @@ async def test_openai_provider_generate_success(openai_provider: OpenAIProvider)
     mock_response.usage.completion_tokens = 5
     mock_response.usage.total_tokens = 15
 
-    with patch.object(
-        openai_provider._client.chat.completions, "create", new_callable=AsyncMock
-    ) as mock_create:
+    with (
+        patch.object(
+            openai_provider._client.chat.completions, "create", new_callable=AsyncMock
+        ) as mock_create,
+        patch(
+            "ai_news_digest.infrastructure.llm.openai_client.time.time",
+            side_effect=[1000.0, 1000.05],
+        ),
+    ):
         mock_create.return_value = mock_response
 
         result = await openai_provider.generate(request)
@@ -130,9 +136,15 @@ async def test_openai_provider_generate_with_none_usage(openai_provider: OpenAIP
     mock_response.choices[0].message.content = "Summary text"
     mock_response.usage = None
 
-    with patch.object(
-        openai_provider._client.chat.completions, "create", new_callable=AsyncMock
-    ) as mock_create:
+    with (
+        patch.object(
+            openai_provider._client.chat.completions, "create", new_callable=AsyncMock
+        ) as mock_create,
+        patch(
+            "ai_news_digest.infrastructure.llm.openai_client.time.time",
+            side_effect=[1000.0, 1000.05],
+        ),
+    ):
         mock_create.return_value = mock_response
 
         result = await openai_provider.generate(request)
