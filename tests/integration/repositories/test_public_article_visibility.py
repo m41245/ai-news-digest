@@ -247,22 +247,10 @@ async def test_public_detail_follows_list_rules(
         status=ArticleStatus.NEW,
     )
 
-    assert (
-        await container.article_repository.get_public_article(visible_article.id)
-        is not None
-    )
-    assert (
-        await container.article_repository.get_public_article(failed_article.id)
-        is None
-    )
-    assert (
-        await container.article_repository.get_public_article(pending_article.id)
-        is None
-    )
-    assert (
-        await container.article_repository.get_public_article(inactive_article.id)
-        is None
-    )
+    assert await container.article_repository.get_public_article(visible_article.id) is not None
+    assert await container.article_repository.get_public_article(failed_article.id) is None
+    assert await container.article_repository.get_public_article(pending_article.id) is None
+    assert await container.article_repository.get_public_article(inactive_article.id) is None
 
     listed = await container.article_repository.list_public_articles()
     listed_ids = {item.id for item in listed}
