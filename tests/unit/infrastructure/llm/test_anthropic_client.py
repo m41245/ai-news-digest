@@ -97,9 +97,15 @@ async def test_anthropic_provider_generate_success(anthropic_provider: Anthropic
     mock_response.usage.input_tokens = 10
     mock_response.usage.output_tokens = 5
 
-    with patch.object(
-        anthropic_provider._client.messages, "create", new_callable=AsyncMock
-    ) as mock_create:
+    with (
+        patch.object(
+            anthropic_provider._client.messages, "create", new_callable=AsyncMock
+        ) as mock_create,
+        patch(
+            "ai_news_digest.infrastructure.llm.anthropic_client.time.time",
+            side_effect=[1000.0, 1000.05],
+        ),
+    ):
         mock_create.return_value = mock_response
 
         result = await anthropic_provider.generate(request)

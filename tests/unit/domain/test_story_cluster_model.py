@@ -4,7 +4,8 @@ Tests for the StoryCluster domain model.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
 from uuid import uuid4
 
 from ai_news_digest.domain.enums.cluster_status import ClusterStatus
@@ -29,13 +30,15 @@ def test_story_cluster_creation():
 
 def test_story_cluster_touch():
     now = datetime.now(UTC)
-    cluster = StoryCluster.create(
-        title="Test",
-        slug="test",
-        first_published_at=now,
-    )
-    original_updated = cluster.updated_at
-    cluster.touch()
+    with patch("ai_news_digest.domain.models.story_cluster.datetime") as mock_datetime:
+        mock_datetime.now.side_effect = [now, now + timedelta(seconds=1)]
+        cluster = StoryCluster.create(
+            title="Test",
+            slug="test",
+            first_published_at=now,
+        )
+        original_updated = cluster.updated_at
+        cluster.touch()
     assert cluster.updated_at > original_updated
     assert cluster.last_updated_at == cluster.updated_at
 

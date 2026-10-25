@@ -119,7 +119,13 @@ async def test_gemini_provider_generate_success(gemini_provider: GeminiProvider)
         },
     }
 
-    with patch("httpx.AsyncClient") as mock_client_cls:
+    with (
+        patch("httpx.AsyncClient") as mock_client_cls,
+        patch(
+            "ai_news_digest.infrastructure.llm.gemini_client.time.time",
+            side_effect=[1000.0, 1000.05],
+        ),
+    ):
         mock_client = AsyncMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
