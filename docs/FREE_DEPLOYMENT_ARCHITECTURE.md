@@ -158,6 +158,18 @@ causing `tsc: not found` during the build.
 
 **Automated production scheduling is not active by default.** The GitHub Actions schedule is disabled unless `ENABLE_PRODUCTION_SCHEDULE=true`, and Celery Beat requires a paid Render worker if used.
 
+### Zero-Cost Manual Ingestion Procedure (Authorized Operator)
+
+Operational documentation for an authorized operator. It does not imply that ingestion has been run or that articles exist.
+
+1. Configure the required `FREE_*` secret names in the repository: `FREE_DATABASE_URL`, `FREE_REDIS_URL`, `FREE_CELERY_BROKER_URL`, `FREE_CELERY_RESULT_BACKEND`, and `FREE_JWT_SECRET_KEY`. Secret names only; never store or display values.
+2. Open GitHub Actions and manually dispatch `.github/workflows/scheduled-tasks.yml`.
+3. Select `task=ingest` for a bounded ingestion-only run.
+4. Manual dispatch does not require enabling the recurring schedule; `ENABLE_PRODUCTION_SCHEDULE` may remain unset or not `true`.
+5. The workflow runs with the intended safe configuration: `AI_ENABLED=false`, `OPENAI_ENABLED=false`, `ANTHROPIC_ENABLED=false`, `GEMINI_ENABLED=false`, `XAI_ENABLED=false`, and `EMAIL_ENABLED=false`.
+6. After the workflow concludes, verify its conclusion is successful, then check `GET /api/v1/public/articles` and confirm a nonzero `total`.
+7. A successful workflow run is not proof that public articles are visible; the API check is the required confirmation.
+
 ## Render Configuration
 
 The repository includes `render.yaml` which defines:
