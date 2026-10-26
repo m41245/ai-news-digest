@@ -274,7 +274,7 @@ ai-news-digest/
 │   ├── Dockerfile.worker                # Celery worker image
 │   └── docker-compose.yml               # Full stack: API, worker, beat, PG, Redis
 ├── scripts/
-│   ├── seed_sources.py                  # Populate default RSS sources
+│   ├── seed_sources.py                  # Seed candidate RSS sources (pending review)
 │   └── run_migrations.sh
 ├── docs/
 │   ├── ARCHITECTURE.md                  # This document

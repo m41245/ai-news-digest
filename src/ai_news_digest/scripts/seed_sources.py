@@ -4,7 +4,6 @@ import asyncio
 from typing import cast
 
 from ai_news_digest.bootstrap.container import Container
-from ai_news_digest.domain.enums.source_status import SourceStatus
 from ai_news_digest.domain.enums.source_type import SourceType
 from ai_news_digest.domain.models.source import Source
 from ai_news_digest.infrastructure.database.session import get_db_session
@@ -88,11 +87,6 @@ async def main() -> None:
                 description=item["description"],
                 publisher=item.get("publisher"),
                 source_type=cast(SourceType, item.get("source_type", SourceType.OTHER)),
-                status=SourceStatus.VERIFIED,
-                verification_notes=(
-                    "Curated M1 trusted source: reputable official/company "
-                    "publication or established technology/news publisher."
-                ),
             )
 
             await repository.create(source)

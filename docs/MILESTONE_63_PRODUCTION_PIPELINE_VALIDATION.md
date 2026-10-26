@@ -115,7 +115,7 @@ N/A — ingestion not triggered
 **VERIFIED IN CODE (production DB state unknown)**  
 - `SourceRepository.list_enabled()` requires `is_active=True AND status=VERIFIED`
 - New sources default to `PENDING_REVIEW` (not auto-trusted)
-- `seed_sources.py` creates sources with `status=SourceStatus.VERIFIED`
+- `seed_sources.py` creates sources with `status=SourceStatus.PENDING_REVIEW` (candidate seeding, not verification)
 - Production DB contains 0 articles, 0 digests, 0 categories (public API returns empty arrays)
 - Cannot verify which sources exist in production without DB access
 
@@ -233,11 +233,11 @@ No files modified during M63 verification. All changes are from M61/M61.1/M62 (c
      -H "Authorization: Bearer <ADMIN_JWT>"
    ```
 
-4. **Seed trusted sources (if none exist):**
+4. **Seed candidate sources (if none exist):**
    ```bash
    poetry run python scripts/seed_sources.py
    ```
-   Sources are created with `status=VERIFIED` and `is_active=true`.
+   Sources are created as `PENDING_REVIEW` candidates with `is_active=true`; they are not eligible for ingestion until separately verified and activated.
 
 5. **Enable AI provider (if desired):**
    Set `OPENAI_ENABLED=true` and `OPENAI_API_KEY` (or `ANTHROPIC_ENABLED=true` and `ANTHROPIC_API_KEY`) in Render environment variables.

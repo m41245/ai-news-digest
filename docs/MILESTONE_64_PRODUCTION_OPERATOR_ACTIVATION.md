@@ -119,7 +119,7 @@
 **VERIFIED IN CODE (production DB state unknown)**
 - `SourceRepository.list_enabled()` requires `is_active=True AND status=VERIFIED`
 - New sources default to `PENDING_REVIEW` (not auto-trusted)
-- `seed_sources.py` creates sources with `status=SourceStatus.PENDING_REVIEW` by default
+- `seed_sources.py` seeds candidate sources with `status=SourceStatus.PENDING_REVIEW` (not verification/activation)
 - Production DB contains 0 articles, 0 digests, 0 categories (public API returns empty arrays)
 - Cannot verify which sources exist in production without DB access
 
@@ -217,11 +217,11 @@ curl https://ai-news-digest-api.onrender.com/api/v1/admin/workers/health \
   -H "Authorization: Bearer <ADMIN_JWT>"
 ```
 
-**If no trusted sources exist in production DB, seed them:**
+**If no candidate sources exist in production DB, seed them:**
 
 ```bash
 poetry run python scripts/seed_sources.py
-# Then promote sources to VERIFIED status via admin API or direct DB update
+# Seeded sources remain PENDING_REVIEW candidates; verification/activation requires a separate supported, auditable process (not an existing admin API).
 ```
 
 ## 28. Recommended Next Engineering Milestone
