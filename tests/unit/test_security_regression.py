@@ -236,31 +236,150 @@ class TestBruteForceProtection:
     def test_login_timing_does_not_leak_user_existence(self) -> None:
         """Login endpoint should not leak user existence via timing differences."""
         import time
+        import uuid
+        from collections.abc import AsyncGenerator, Iterator
+        from contextlib import contextmanager
+        from datetime import UTC, datetime
+        from unittest.mock import AsyncMock, MagicMock
 
+        from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        client = TestClient(_get_app())
+        from ai_news_digest.api.middleware.exception_handler import (
+            setup_exception_handlers,
+        )
+        from ai_news_digest.api.middleware.rate_limit import RateLimitMiddleware
+        from ai_news_digest.api.v1.routes import auth as auth_module
+        from ai_news_digest.domain.models.user import User
+        from ai_news_digest.infrastructure.auth.password import hash_password
 
-        unknown_email_times = []
-        for _ in range(5):
-            start = time.perf_counter()
-            client.post(
-                "/api/v1/auth/login",
-                json={"email": "nonexistent-user-12345@example.com", "password": "wrong"},
+        known_email = "known-user@example.com"
+        real_user = User(
+            id=uuid.uuid4(),
+            email=known_email,
+            hashed_password=hash_password("WrongPassword1"),
+            is_active=True,
+            is_admin=False,
+            created_at=datetime.now(UTC),
+        )
+
+        user_repo = MagicMock()
+
+        async def _get_user(email: str) -> User | None:
+            return real_user if email == known_email else None
+
+        user_repo.get_by_email = AsyncMock(side_effect=_get_user)
+
+        class FakeCacheStore:
+            def __init__(self) -> None:
+                self._store: dict[str, str] = {}
+                self._expires: dict[str, float | None] = {}
+                self._clock_offset = 0.0
+
+            def _now(self) -> float:
+                return time.time() + self._clock_offset
+
+            async def get(self, key: str) -> str | None:
+                exp = self._expires.get(key)
+                if exp is not None and exp <= self._now():
+                    self._store.pop(key, None)
+                    self._expires.pop(key, None)
+                    return None
+                return self._store.get(key)
+
+            async def set(self, key: str, value: str | int, ttl: int | None = None) -> None:
+                self._store[key] = str(value)
+                self._expires[key] = (self._now() + ttl) if ttl else None
+
+            async def delete(self, key: str) -> None:
+                self._store.pop(key, None)
+                self._expires.pop(key, None)
+
+            async def exists(self, key: str) -> bool:
+                return key in self._store
+
+            async def clear(self) -> None:
+                self._store.clear()
+                self._expires.clear()
+
+            async def ttl(self, key: str) -> int | None:
+                exp = self._expires.get(key)
+                if exp is None:
+                    return None
+                remaining = exp - self._now()
+                return int(remaining) if remaining > 0 else None
+
+        @contextmanager
+        def _build_app() -> Iterator[TestClient]:
+            app = FastAPI()
+            app.include_router(auth_module.router)
+            setup_exception_handlers(app)
+
+            mock_session = MagicMock()
+
+            async def _mock_session() -> AsyncGenerator[MagicMock, None]:
+                yield mock_session
+
+            app.dependency_overrides[auth_module.get_db_session] = (  # type: ignore[attr-defined]
+                lambda: _mock_session()
             )
-            unknown_email_times.append(time.perf_counter() - start)
+            original_container = getattr(auth_module, "Container", None)
+            auth_module.Container = _make_container  # type: ignore[assignment, attr-defined]
 
-        known_email_times = []
-        for _ in range(5):
-            start = time.perf_counter()
-            client.post(
-                "/api/v1/auth/login",
-                json={"email": "test@example.com", "password": "wrong"},
+            cache = FakeCacheStore()
+            app.add_middleware(
+                RateLimitMiddleware,
+                cache_store=cache,  # type: ignore[arg-type]
+                auth_requests_per_window=1000,
+                auth_max_failed_attempts=1000,
             )
-            known_email_times.append(time.perf_counter() - start)
 
-        avg_unknown = sum(unknown_email_times) / len(unknown_email_times)
-        avg_known = sum(known_email_times) / len(known_email_times)
+            try:
+                with TestClient(app) as test_client:
+                    yield test_client
+            finally:
+                if original_container is not None:
+                    auth_module.Container = original_container  # type: ignore[attr-defined]
+                else:
+                    delattr(auth_module, "Container")
+
+        def _make_container(_session: object = None) -> MagicMock:
+            container = MagicMock()
+            container.user_repository = user_repo
+            return container
+
+        with _build_app() as client:
+            client.post(
+                "/auth/login",
+                json={"username": "warmup-unknown@example.com", "password": "wrong"},
+            )
+            client.post(
+                "/auth/login",
+                json={"username": known_email, "password": "wrong"},
+            )
+
+            unknown_times = []
+            known_times = []
+            for _ in range(10):
+                start = time.perf_counter()
+                client.post(
+                    "/auth/login",
+                    json={
+                        "username": "nonexistent-user-12345@example.com",
+                        "password": "wrong",
+                    },
+                )
+                unknown_times.append(time.perf_counter() - start)
+
+                start = time.perf_counter()
+                client.post(
+                    "/auth/login",
+                    json={"username": known_email, "password": "wrong"},
+                )
+                known_times.append(time.perf_counter() - start)
+
+        avg_unknown = sum(unknown_times) / len(unknown_times)
+        avg_known = sum(known_times) / len(known_times)
 
         max_time = max(avg_unknown, avg_known)
         min_time = min(avg_unknown, avg_known)
