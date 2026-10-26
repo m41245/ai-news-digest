@@ -63,7 +63,7 @@
 **VERIFIED IN CODE (production DB state unknown)**
 - `SourceRepository.list_enabled()` requires `is_active=True AND status=VERIFIED`
 - New sources default to `PENDING_REVIEW` (not auto-trusted)
-- `seed_sources.py` creates sources with `status=SourceStatus.PENDING_REVIEW` by default
+- `seed_sources.py` seeds candidate sources with `status=SourceStatus.PENDING_REVIEW` (not verification/activation)
 - `SourceModel.status` enum: `PENDING_REVIEW`, `VERIFIED`, `REJECTED`, `INACTIVE`
 - Cannot verify which sources exist in production without DB access
 
