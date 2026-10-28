@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -615,3 +615,61 @@ async def test_approve_invalid_feed_response_fails_closed() -> None:
 
     repository.update.assert_not_awaited()
     audit_repository.create.assert_not_awaited()
+
+
+class _NoCommitRepo:
+    def __init__(self, source: Source) -> None:
+        self._source = source
+
+    async def get_by_id(self, _: UUID) -> Source | None:
+        return self._source
+
+    async def update(self, s: Source) -> Source:
+        return s
+
+
+@pytest.mark.asyncio
+async def test_decide_approve_without_audit_and_without_commit() -> None:
+    source = _source()
+    repository = _NoCommitRepo(source)
+    fetcher = AsyncMock()
+    fetcher.fetch.return_value = [MagicMock()]
+
+    use_case = ApproveSourceUseCase(
+        source_repository=repository,
+        audit_repository=None,
+        rss_fetcher=fetcher,
+    )
+    request = SourceDecisionRequest(id=source.id, reason="approved")
+
+    response = await use_case.execute(request, actor_user_id=uuid4())
+
+    assert response.changed is True
+    assert response.status == SourceStatus.VERIFIED.value
+
+
+@pytest.mark.asyncio
+async def test_decide_commit_failure_rolls_back() -> None:
+    source = _source()
+    repository = AsyncMock()
+    repository.get_by_id.return_value = source
+    repository.update.return_value = source
+    repository.commit = AsyncMock(side_effect=RuntimeError("commit failed"))
+    repository.rollback = AsyncMock()
+    audit_repository = AsyncMock()
+    audit_repository.rollback = AsyncMock()
+    fetcher = AsyncMock()
+    fetcher.fetch.return_value = [MagicMock()]
+
+    use_case = ApproveSourceUseCase(
+        source_repository=repository,
+        audit_repository=audit_repository,
+        rss_fetcher=fetcher,
+    )
+    request = SourceDecisionRequest(id=source.id, reason="approved")
+
+    with pytest.raises(RuntimeError, match="commit failed"):
+        await use_case.execute(request, actor_user_id=uuid4())
+
+    repository.rollback.assert_awaited()
+    audit_repository.rollback.assert_awaited()

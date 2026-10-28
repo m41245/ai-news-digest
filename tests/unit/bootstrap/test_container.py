@@ -690,3 +690,9 @@ def test_container_reject_source(container: Container) -> None:
 def test_container_deactivate_source(container: Container) -> None:
     use_case = container.deactivate_source
     assert use_case is not None
+
+
+def test_container_all_public_properties_smoke(container: Container) -> None:
+    """Smoke-test every public container property to verify wiring."""
+    for name in (n for n in dir(container) if not n.startswith("_")):
+        _ = getattr(container, name)
