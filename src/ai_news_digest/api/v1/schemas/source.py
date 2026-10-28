@@ -27,7 +27,6 @@ class SourceUpdate(BaseModel):
     website_url: Annotated[str | None, Field(default=None, max_length=2048)] = None
     description: Annotated[str | None, Field(default=None, max_length=500)] = None
     is_active: bool | None = None
-    status: str | None = None
 
 
 class SourceResponse(BaseModel):
@@ -42,4 +41,34 @@ class SourceResponse(BaseModel):
     status: str
 
 
-__all__ = ["SourceCreate", "SourceResponse", "SourceUpdate"]
+class SourceDecisionRequest(BaseModel):
+    """Request model for an administrator source trust decision."""
+
+    reason: Annotated[str, Field(min_length=1, max_length=2000)]
+
+
+class SourceDecisionResponse(BaseModel):
+    """Response model for an administrator source trust decision."""
+
+    id: UUID
+    name: str
+    feed_url: str
+    website_url: str | None
+    description: str | None
+    is_active: bool
+    status: str
+    decision: str
+    previous_status: str
+    previous_is_active: bool
+    reason: str
+    validation_outcome: str | None = None
+    changed: bool
+
+
+__all__ = [
+    "SourceCreate",
+    "SourceDecisionRequest",
+    "SourceDecisionResponse",
+    "SourceResponse",
+    "SourceUpdate",
+]

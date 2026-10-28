@@ -18,6 +18,7 @@ from .notification_model import (
 from .relationship_model import RelationshipModel
 from .saved_story_model import SavedStoryModel
 from .source_model import SourceModel
+from .source_trust_decision_model import SourceTrustDecisionModel
 from .story_cluster_model import StoryClusterModel
 from .topic_model import TopicModel
 from .user_collection_model import UserCollectionModel
@@ -51,6 +52,7 @@ __all__ = [
     "RelationshipModel",
     "SavedStoryModel",
     "SourceModel",
+    "SourceTrustDecisionModel",
     "StoryClusterModel",
     "TopicModel",
     "UserCollectionModel",

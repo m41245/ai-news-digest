@@ -259,3 +259,59 @@ async def test_source_repository_delete_not_found(
     mock_session.execute.return_value = mock_result
 
     await repository.delete(source_id)  # Should not raise
+
+
+@pytest.mark.asyncio
+async def test_source_repository_count(
+    repository: SourceRepository, mock_session: AsyncMock
+) -> None:
+    """Test count method."""
+    mock_result = MagicMock()
+    mock_result.scalar_one.return_value = 5
+    mock_session.execute.return_value = mock_result
+
+    result = await repository.count()
+
+    assert result == 5
+
+
+@pytest.mark.asyncio
+async def test_source_repository_list_all_with_limit(
+    repository: SourceRepository, mock_session: AsyncMock
+) -> None:
+    """Test list_all method with pagination."""
+    mock_result = MagicMock()
+    mock_scalars = MagicMock()
+    mock_models = [MagicMock()]
+    mock_scalars.all.return_value = mock_models
+    mock_result.scalars.return_value = mock_scalars
+    mock_session.execute.return_value = mock_result
+
+    with patch(
+        "ai_news_digest.infrastructure.database.repositories.source_repository.SourceMapper.to_domain"
+    ) as mock_to_domain:
+        mock_to_domain.side_effect = lambda m: m
+
+        result = await repository.list_all(limit=2, offset=1)
+
+        assert len(result) == 1
+
+
+@pytest.mark.asyncio
+async def test_source_repository_commit(
+    repository: SourceRepository, mock_session: AsyncMock
+) -> None:
+    """Test commit method."""
+    await repository.commit()
+
+    mock_session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_source_repository_rollback(
+    repository: SourceRepository, mock_session: AsyncMock
+) -> None:
+    """Test rollback method."""
+    await repository.rollback()
+
+    mock_session.rollback.assert_awaited_once()

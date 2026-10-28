@@ -9,7 +9,6 @@ from ai_news_digest.application.dto.source import (
 from ai_news_digest.application.exceptions.source import (
     SourceNotFoundError,
 )
-from ai_news_digest.domain.enums.source_status import SourceStatus
 
 if TYPE_CHECKING:
     from ai_news_digest.domain.ports.source_repository import SourceRepository
@@ -39,18 +38,16 @@ class UpdateSourceUseCase:
         if source is None:
             raise SourceNotFoundError(str(request.id))
 
-        status = SourceStatus(request.status) if request.status is not None else None
-
         source.update(
             name=request.name,
             feed_url=request.feed_url,
             website_url=request.website_url,
             description=request.description,
             is_active=request.is_active,
-            status=status,
         )
 
         updated = await self._repository.update(source)
+        await self._repository.commit()
 
         return SourceResponse(
             id=str(updated.id),

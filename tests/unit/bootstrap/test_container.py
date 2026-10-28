@@ -656,3 +656,37 @@ def test_container_unwraps_secretstr_api_keys_new_providers() -> None:
     assert container.provider_registry.exists("anthropic")
     assert container.provider_registry.exists("gemini")
     assert container.provider_registry.exists("grok")
+
+
+def test_container_source_trust_decision_repository(container: Container) -> None:
+    repo = container.source_trust_decision_repository
+    assert repo is not None
+    assert repo._session == container._session
+
+
+def test_container_audit_repository(container: Container) -> None:
+    assert (
+        container.audit_repository._session == container.source_trust_decision_repository._session
+    )
+
+
+def test_container_source_audit_repository(container: Container) -> None:
+    assert (
+        container.source_audit_repository._session
+        == container.source_trust_decision_repository._session
+    )
+
+
+def test_container_approve_source(container: Container) -> None:
+    use_case = container.approve_source
+    assert use_case is not None
+
+
+def test_container_reject_source(container: Container) -> None:
+    use_case = container.reject_source
+    assert use_case is not None
+
+
+def test_container_deactivate_source(container: Container) -> None:
+    use_case = container.deactivate_source
+    assert use_case is not None
