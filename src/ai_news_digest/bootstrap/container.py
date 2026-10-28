@@ -116,6 +116,11 @@ from ai_news_digest.application.use_cases.saved_story.save_story import (
     SaveStoryUseCase,
     UnsaveStoryUseCase,
 )
+from ai_news_digest.application.use_cases.source.decide import (
+    ApproveSourceUseCase,
+    DeactivateSourceUseCase,
+    RejectSourceUseCase,
+)
 from ai_news_digest.application.use_cases.source.update import (
     UpdateSourceUseCase,
 )
@@ -231,6 +236,9 @@ from ai_news_digest.domain.ports.notification_repository import (
 from ai_news_digest.domain.ports.relationship_repository import RelationshipRepository
 from ai_news_digest.domain.ports.saved_story_repository import SavedStoryRepository
 from ai_news_digest.domain.ports.source_repository import SourceRepository
+from ai_news_digest.domain.ports.source_trust_decision_repository import (
+    SourceTrustDecisionRepository as SourceTrustDecisionRepositoryPort,
+)
 from ai_news_digest.domain.ports.story_activity_repository import (
     StoryActivityRepository,
 )
@@ -274,6 +282,9 @@ from ai_news_digest.infrastructure.database.repositories.saved_story_repository 
 )
 from ai_news_digest.infrastructure.database.repositories.source_repository import (
     SourceRepository as SqlAlchemySourceRepository,
+)
+from ai_news_digest.infrastructure.database.repositories.source_trust_decision_repository import (
+    SourceTrustDecisionRepository as SqlAlchemySourceTrustDecisionRepository,
 )
 from ai_news_digest.infrastructure.database.repositories.story_cluster_repository import (
     StoryClusterRepository as SqlAlchemyStoryClusterRepository,
@@ -518,6 +529,22 @@ class Container:
     @property
     def source_repository(self) -> SourceRepository:
         return SqlAlchemySourceRepository(self._session)
+
+    @property
+    def source_trust_decision_repository(self) -> SourceTrustDecisionRepositoryPort:
+        return SqlAlchemySourceTrustDecisionRepository(self._session)
+
+    @property
+    def audit_repository(self) -> SourceTrustDecisionRepositoryPort:
+        return self.source_trust_decision_repository
+
+    @property
+    def source_audit_repository(self) -> SourceTrustDecisionRepositoryPort:
+        return self.source_trust_decision_repository
+
+    @property
+    def source_decision_repository(self) -> SourceTrustDecisionRepositoryPort:
+        return self.source_trust_decision_repository
 
     @property
     def digest_repository(self) -> DigestRepositoryPort:
@@ -927,6 +954,28 @@ class Container:
     def update_source(self) -> UpdateSourceUseCase:
         return UpdateSourceUseCase(
             repository=self.source_repository,
+        )
+
+    @property
+    def approve_source(self) -> ApproveSourceUseCase:
+        return ApproveSourceUseCase(
+            source_repository=self.source_repository,
+            audit_repository=self.source_trust_decision_repository,
+            rss_fetcher=self.rss_fetcher,
+        )
+
+    @property
+    def reject_source(self) -> RejectSourceUseCase:
+        return RejectSourceUseCase(
+            source_repository=self.source_repository,
+            audit_repository=self.source_trust_decision_repository,
+        )
+
+    @property
+    def deactivate_source(self) -> DeactivateSourceUseCase:
+        return DeactivateSourceUseCase(
+            source_repository=self.source_repository,
+            audit_repository=self.source_trust_decision_repository,
         )
 
     @property

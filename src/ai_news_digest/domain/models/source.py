@@ -139,6 +139,10 @@ class Source:
     def deactivate(self) -> None:
         """
         Mark the source as inactive.
+
+        Deactivation disables ingestion eligibility by setting ``is_active`` to
+        False while preserving the existing verification status. No new
+        SourceStatus value is introduced.
         """
         self.is_active = False
 

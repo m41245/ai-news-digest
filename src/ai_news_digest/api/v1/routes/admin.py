@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
@@ -14,9 +14,16 @@ from ai_news_digest.api.v1.schemas.common import (
     MAX_PAGE_LIMIT,
     PaginatedResponse,
 )
+from ai_news_digest.api.v1.schemas.source import (
+    SourceDecisionRequest,
+    SourceDecisionResponse,
+)
 from ai_news_digest.api.v1.schemas.user import (
     AdminUserResponse,
     AdminUserUpdateRequest,
+)
+from ai_news_digest.application.dto.source.decision_request import (
+    SourceDecisionRequest as AppSourceDecisionRequest,
 )
 from ai_news_digest.bootstrap.container import Container
 from ai_news_digest.core.config import settings
@@ -457,6 +464,111 @@ async def get_task_status(
         response["progress"] = result.info
 
     return response
+
+
+async def _run_source_decision(
+    source_id: UUID,
+    container: Container,
+    current_user: User,
+    decision: str,
+    request: SourceDecisionRequest,
+) -> SourceDecisionResponse:
+    app_request = AppSourceDecisionRequest(
+        id=source_id,
+        reason=request.reason,
+        decision=decision,
+        actor_user_id=current_user.id,
+    )
+
+    use_case: Any
+    if decision == "APPROVE":
+        use_case = container.approve_source
+    elif decision == "REJECT":
+        use_case = container.reject_source
+    else:
+        use_case = container.deactivate_source
+
+    result = await use_case.execute(app_request, actor_user_id=current_user.id)
+
+    result_id = UUID(str(result.id))
+
+    return SourceDecisionResponse(
+        id=result_id,
+        name=result.name,
+        feed_url=result.feed_url,
+        website_url=result.website_url,
+        description=result.description,
+        is_active=result.is_active,
+        status=result.status,
+        decision=result.decision or decision,
+        previous_status=result.previous_status or "",
+        previous_is_active=(
+            result.previous_is_active if result.previous_is_active is not None else False
+        ),
+        reason=result.reason or request.reason,
+        validation_outcome=result.validation_outcome,
+        changed=result.changed,
+    )
+
+
+@router.post(
+    "/sources/{source_id}/approve",
+    response_model=SourceDecisionResponse,
+    summary="Approve a news source",
+)
+async def approve_source(
+    source_id: UUID,
+    request: SourceDecisionRequest,
+    container: Annotated[Container, Depends(get_container)],
+    current_user: Annotated[User, Depends(get_current_admin_user)],
+) -> SourceDecisionResponse:
+    return await _run_source_decision(
+        source_id=source_id,
+        container=container,
+        current_user=current_user,
+        decision="APPROVE",
+        request=request,
+    )
+
+
+@router.post(
+    "/sources/{source_id}/reject",
+    response_model=SourceDecisionResponse,
+    summary="Reject a news source",
+)
+async def reject_source(
+    source_id: UUID,
+    request: SourceDecisionRequest,
+    container: Annotated[Container, Depends(get_container)],
+    current_user: Annotated[User, Depends(get_current_admin_user)],
+) -> SourceDecisionResponse:
+    return await _run_source_decision(
+        source_id=source_id,
+        container=container,
+        current_user=current_user,
+        decision="REJECT",
+        request=request,
+    )
+
+
+@router.post(
+    "/sources/{source_id}/deactivate",
+    response_model=SourceDecisionResponse,
+    summary="Deactivate a news source",
+)
+async def deactivate_source(
+    source_id: UUID,
+    request: SourceDecisionRequest,
+    container: Annotated[Container, Depends(get_container)],
+    current_user: Annotated[User, Depends(get_current_admin_user)],
+) -> SourceDecisionResponse:
+    return await _run_source_decision(
+        source_id=source_id,
+        container=container,
+        current_user=current_user,
+        decision="DEACTIVATE",
+        request=request,
+    )
 
 
 _DASHBOARD_TEMPLATE = Template(

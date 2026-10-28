@@ -154,11 +154,19 @@ class SourceRepository(
             source,
         )
 
-        await self._commit()
+        await self._flush()
 
         model = await self._refresh(model)
 
         return SourceMapper.to_domain(model)
+
+    async def commit(self) -> None:
+        """Commit the current transaction."""
+        await self._session.commit()
+
+    async def rollback(self) -> None:
+        """Roll back the current transaction."""
+        await self._session.rollback()
 
     async def delete(
         self,

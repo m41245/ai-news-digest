@@ -12,6 +12,7 @@ import pytest
 from ai_news_digest.application.dto.source import UpdateSourceRequest
 from ai_news_digest.application.exceptions.source import SourceNotFoundError
 from ai_news_digest.application.use_cases.source.update import UpdateSourceUseCase
+from ai_news_digest.domain.enums.source_status import SourceStatus
 from ai_news_digest.domain.models.source import Source
 
 
@@ -103,3 +104,29 @@ async def test_update_source_partial(mock_source_repository: AsyncMock) -> None:
     assert response.website_url == "https://original.com"
     assert response.description == "Original description"
     assert response.is_active is True
+
+
+async def test_update_source_preserves_trust_status(mock_source_repository: AsyncMock) -> None:
+    """Generic source updates must not alter verification trust status."""
+    source_id = uuid4()
+    request = UpdateSourceRequest(
+        id=source_id,
+        name="Updated Name",
+    )
+
+    existing_source = Source.create(
+        name="Original Name",
+        feed_url="https://original.com/feed.xml",
+        status=SourceStatus.VERIFIED,
+        is_active=True,
+    )
+    mock_source_repository.get_by_id.return_value = existing_source
+    mock_source_repository.update.return_value = existing_source
+
+    use_case = UpdateSourceUseCase(repository=mock_source_repository)
+
+    response = await use_case.execute(request)
+
+    assert response.status == "verified"
+    # Ensure the generic update path never passes a status change to the domain
+    assert existing_source.status == SourceStatus.VERIFIED

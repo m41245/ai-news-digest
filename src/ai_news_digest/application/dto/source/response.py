@@ -18,3 +18,9 @@ class SourceResponse:
     description: str | None
     is_active: bool
     status: str
+    decision: str | None = None
+    previous_status: str | None = None
+    previous_is_active: bool | None = None
+    reason: str | None = None
+    validation_outcome: str | None = None
+    changed: bool = False

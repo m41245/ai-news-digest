@@ -160,3 +160,29 @@ def test_source_create_valid() -> None:
     assert source.name == "Test Source"
     assert source.feed_url == "https://example.com/feed.xml"
     assert source.description == "tech"
+
+
+def test_delete_source_success(client: TestClient, mock_container: MagicMock) -> None:
+    mock_container.source_repository.get_by_id.return_value = MagicMock()
+    source_id = uuid4()
+    response = client.delete(f"/sources/{source_id}")
+    assert response.status_code == 204
+
+
+def test_update_source_success(client: TestClient, mock_container: MagicMock) -> None:
+    updated = Source(
+        id=uuid4(),
+        name="Updated",
+        feed_url="https://example.com/feed.xml",
+        website_url=None,
+        description=None,
+        is_active=True,
+        source_type=SourceType.OTHER,
+        status=SourceStatus.VERIFIED,
+        created_at=datetime.now(UTC),
+    )
+    mock_container.update_source.execute = AsyncMock(return_value=updated)
+    source_id = uuid4()
+    response = client.patch(f"/sources/{source_id}", json={"name": "Updated"})
+    assert response.status_code == 200
+    assert response.json()["name"] == "Updated"

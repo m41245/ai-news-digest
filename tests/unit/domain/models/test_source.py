@@ -268,3 +268,13 @@ def test_source_validate_feed_url_static_method() -> None:
 
     with pytest.raises(ValueError):
         Source.validate_feed_url("not-a-url")
+
+
+def test_source_update_source_type_and_publisher() -> None:
+    source = Source.create(
+        name="Test Source",
+        feed_url="https://example.com/feed.xml",
+    )
+    source.update(source_type=SourceType.OFFICIAL_COMPANY, publisher="Pub")
+    assert source.source_type == SourceType.OFFICIAL_COMPANY
+    assert source.publisher == "Pub"
