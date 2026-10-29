@@ -9,7 +9,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
-from ai_news_digest.api.v1.dependencies.auth import get_current_active_user
+from ai_news_digest.api.v1.dependencies.auth import (
+    get_current_active_user,
+    get_current_admin_user,
+)
 from ai_news_digest.api.v1.dependencies.dependencies import get_container
 from ai_news_digest.api.v1.schemas.common import (
     DEFAULT_PAGE_LIMIT,
@@ -79,7 +82,7 @@ async def list_sources(
 async def create_source(
     source: SourceCreate,
     container: Annotated[Container, Depends(get_container)],
-    current_user: Annotated[User, Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(get_current_admin_user)],
 ) -> SourceResponse:
     """Create a new RSS source."""
     from ai_news_digest.domain.models.source import Source
@@ -113,7 +116,7 @@ async def create_source(
 async def delete_source(
     source_id: UUID,
     container: Annotated[Container, Depends(get_container)],
-    current_user: Annotated[User, Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(get_current_admin_user)],
 ) -> None:
     """Delete a configured news source."""
     existing = await container.source_repository.get_by_id(source_id)
@@ -133,7 +136,7 @@ async def update_source(
     source_id: UUID,
     source_update: SourceUpdate,
     container: Annotated[Container, Depends(get_container)],
-    current_user: Annotated[User, Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(get_current_admin_user)],
 ) -> SourceResponse:
     """Update an existing news source."""
     request = UpdateSourceRequest(

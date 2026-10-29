@@ -81,6 +81,17 @@ class SemanticSearchService:
         for article in candidates:
             candidate_embedding = embeddings.get(article.id)
             if candidate_embedding is None:
+                results.append(
+                    ScoredArticle(
+                        article=article,
+                        similarity=0.0,
+                        lexical_score=0.5,
+                        combined_score=(
+                            self._lexical_weight * 0.5
+                            + self._importance_weight * (article.importance_score or 0.0)
+                        ),
+                    )
+                )
                 continue
             sim = self._similarity.normalized_similarity(query_embedding, candidate_embedding)
             importance = article.importance_score or 0.0

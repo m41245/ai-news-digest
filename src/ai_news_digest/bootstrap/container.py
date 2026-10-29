@@ -945,8 +945,10 @@ class Container:
             digest_repository=self.digest_repository,
             source_repository=self.source_repository,
             article_repository=self.article_repository,
-            editorial_generator=DigestEditorialGenerator(
-                provider_manager=self.provider_manager,
+            editorial_generator=(
+                DigestEditorialGenerator(provider_manager=self.provider_manager)
+                if self._settings.ai_enabled
+                else None
             ),
         )
 

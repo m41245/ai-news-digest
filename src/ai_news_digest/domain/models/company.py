@@ -13,20 +13,21 @@ class Company:
 
     id: UUID
     name: str
-    description: str | None
     created_at: datetime
+    slug: str | None = None
+    article_count: int = 0
 
     @classmethod
     def create(
         cls,
         name: str,
-        description: str | None = None,
+        slug: str | None = None,
     ) -> Company:
         return cls(
             id=uuid4(),
             name=name,
-            description=description,
             created_at=datetime.now(UTC),
+            slug=slug,
         )
 
 

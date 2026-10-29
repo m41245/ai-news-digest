@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 from ai_news_digest.api.middleware.exception_handler import setup_exception_handlers
 from ai_news_digest.api.v1.dependencies.dependencies import get_container
 from ai_news_digest.api.v1.routes.public import router
+from ai_news_digest.application.ai.semantic_search_service import ScoredArticle
 from ai_news_digest.domain.enums.article_status import ArticleStatus
 from ai_news_digest.domain.enums.cluster_status import ClusterStatus
 from ai_news_digest.domain.enums.digest_format import DigestFormat
@@ -408,6 +409,7 @@ def test_list_public_companies_returns_list(
     data = response.json()
     assert len(data) == 1
     assert data[0]["name"] == "Acme Corp"
+    assert data[0]["description"] is None
     assert data[0]["article_count"] == 5
 
 
@@ -427,6 +429,7 @@ def test_list_public_topics_returns_list(
     data = response.json()
     assert len(data) == 1
     assert data[0]["name"] == "AI"
+    assert data[0]["description"] is None
     assert data[0]["article_count"] == 10
 
 
@@ -477,3 +480,142 @@ def test_combined_filters_company_and_topic(
     _, kwargs = mock_container.article_repository.list_public_articles.await_args
     assert kwargs["company_id"] is not None
     assert kwargs["topic_id"] is not None
+
+
+def _make_articles(sample_source, sample_category, count):
+    articles = []
+    for i in range(count):
+        articles.append(
+            Article(
+                id=uuid4(),
+                title=f"Article {i}",
+                url=f"https://example.com/article-{i}",
+                summary=f"Summary {i}",
+                content=None,
+                source_id=sample_source.id,
+                category_id=sample_category.id,
+                published_at=datetime(2026, 8, 23, 12, i, tzinfo=UTC),
+                fetched_at=datetime.now(UTC),
+                status=ArticleStatus.READY,
+            )
+        )
+    return articles
+
+
+def test_public_semantic_search_multiple_pages(
+    client: TestClient,
+    mock_container: MagicMock,
+    sample_source: Source,
+    sample_category: Category,
+) -> None:
+    articles = _make_articles(sample_source, sample_category, 5)
+    mock_container.article_repository.list_public_articles = AsyncMock(return_value=articles)
+    mock_container.article_repository.count_public_articles = AsyncMock(return_value=5)
+    mock_container.embedding_service.is_available = True
+    mock_container.embedding_service.generate = AsyncMock(
+        return_value=MagicMock(embedding=(0.1, 0.2))
+    )
+
+    def _scored(query, candidates, query_embedding):
+        return [
+            ScoredArticle(article=a, similarity=0.5, combined_score=float(i))
+            for i, a in enumerate(candidates)
+        ]
+
+    mock_container.semantic_search_service.search_articles = AsyncMock(side_effect=_scored)
+
+    settings = MagicMock()
+    settings.semantic_search_enabled = True
+    settings.semantic_candidate_limit = 5
+    settings.semantic_search_query_max_length = 500
+
+    with unittest.mock.patch(
+        "ai_news_digest.api.v1.routes.public.get_settings", return_value=settings
+    ):
+        first = client.get("/public/articles?mode=semantic&search=ai&limit=2&offset=0")
+        second = client.get("/public/articles?mode=semantic&search=ai&limit=2&offset=2")
+        third = client.get("/public/articles?mode=semantic&search=ai&limit=2&offset=4")
+
+    assert first.status_code == 200
+    assert first.json()["total"] == 5
+    assert len(first.json()["items"]) == 2
+
+    assert second.status_code == 200
+    assert len(second.json()["items"]) == 2
+    assert second.json()["items"][0]["title"] != first.json()["items"][0]["title"]
+
+    assert third.status_code == 200
+    assert len(third.json()["items"]) == 1
+
+
+def test_public_semantic_search_out_of_range_page(
+    client: TestClient,
+    mock_container: MagicMock,
+    sample_source: Source,
+    sample_category: Category,
+) -> None:
+    articles = _make_articles(sample_source, sample_category, 5)
+    mock_container.article_repository.list_public_articles = AsyncMock(return_value=articles)
+    mock_container.article_repository.count_public_articles = AsyncMock(return_value=5)
+    mock_container.embedding_service.is_available = True
+    mock_container.embedding_service.generate = AsyncMock(
+        return_value=MagicMock(embedding=(0.1, 0.2))
+    )
+    mock_container.semantic_search_service.search_articles = AsyncMock(
+        side_effect=lambda query, candidates, query_embedding: [
+            ScoredArticle(article=a, similarity=0.5, combined_score=float(i))
+            for i, a in enumerate(candidates)
+        ]
+    )
+
+    settings = MagicMock()
+    settings.semantic_search_enabled = True
+    settings.semantic_candidate_limit = 5
+    settings.semantic_search_query_max_length = 500
+
+    with unittest.mock.patch(
+        "ai_news_digest.api.v1.routes.public.get_settings", return_value=settings
+    ):
+        response = client.get("/public/articles?mode=semantic&search=ai&limit=2&offset=10")
+
+    assert response.status_code == 200
+    assert response.json()["total"] == 5
+    assert response.json()["items"] == []
+
+
+def test_public_semantic_search_candidate_limit_boundary(
+    client: TestClient,
+    mock_container: MagicMock,
+    sample_source: Source,
+    sample_category: Category,
+) -> None:
+    candidate_limit = 3
+    articles = _make_articles(sample_source, sample_category, candidate_limit + 2)
+    mock_container.article_repository.list_public_articles = AsyncMock(
+        return_value=articles[:candidate_limit]
+    )
+    mock_container.article_repository.count_public_articles = AsyncMock(return_value=len(articles))
+    mock_container.embedding_service.is_available = True
+    mock_container.embedding_service.generate = AsyncMock(
+        return_value=MagicMock(embedding=(0.1, 0.2))
+    )
+    mock_container.semantic_search_service.search_articles = AsyncMock(
+        side_effect=lambda query, candidates, query_embedding: [
+            ScoredArticle(article=a, similarity=0.5, combined_score=float(i))
+            for i, a in enumerate(candidates)
+        ]
+    )
+
+    settings = MagicMock()
+    settings.semantic_search_enabled = True
+    settings.semantic_candidate_limit = candidate_limit
+    settings.semantic_search_query_max_length = 500
+
+    with unittest.mock.patch(
+        "ai_news_digest.api.v1.routes.public.get_settings", return_value=settings
+    ):
+        response = client.get("/public/articles?mode=semantic&search=ai&limit=10&offset=0")
+
+    assert response.status_code == 200
+    assert response.json()["total"] == candidate_limit
+    assert len(response.json()["items"]) == candidate_limit

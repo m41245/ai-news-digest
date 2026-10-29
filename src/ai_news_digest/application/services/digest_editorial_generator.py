@@ -408,6 +408,23 @@ def build_fallback_digest(
         lines.append("*No stories available for today.*")
         return "\n".join(lines), stories_list, top_story_cluster_id
 
+    def _cluster_summary(cluster: StoryCluster, articles: list[Article]) -> str | None:
+        if cluster.summary and cluster.summary.strip():
+            return cluster.summary
+        representative: Article | None = None
+        if cluster.representative_article_id is not None:
+            representative = next(
+                (
+                    article
+                    for article in articles
+                    if article.id == cluster.representative_article_id
+                ),
+                None,
+            )
+        if representative is not None and representative.summary and representative.summary.strip():
+            return representative.summary
+        return None
+
     top_story_cluster = None
     if top_story_cluster_id is not None:
         for cluster, _ in candidate_stories:
@@ -434,8 +451,9 @@ def build_fallback_digest(
         lines.append("")
         lines.append(f"**Source:** {source_name}")
         lines.append("")
-        if top_story_cluster.summary:
-            lines.append(top_story_cluster.summary)
+        summary = _cluster_summary(top_story_cluster, articles)
+        if summary:
+            lines.append(summary)
         else:
             lines.append("*No summary available.*")
         lines.append("")
@@ -446,8 +464,9 @@ def build_fallback_digest(
         stories_list.append(
             {
                 "cluster_id": str(top_story_cluster.id),
+                "slug": top_story_cluster.slug,
                 "headline": top_story_cluster.title,
-                "summary": top_story_cluster.summary or "",
+                "summary": _cluster_summary(top_story_cluster, articles) or "",
                 "key_takeaways": [],
                 "why_it_matters": None,
             }
@@ -461,8 +480,9 @@ def build_fallback_digest(
             continue
         lines.append(f"### {cluster.title}")
         lines.append("")
-        if cluster.summary:
-            lines.append(cluster.summary)
+        summary = _cluster_summary(cluster, articles)
+        if summary:
+            lines.append(summary)
         else:
             lines.append("*No summary available.*")
         lines.append("")
@@ -475,8 +495,9 @@ def build_fallback_digest(
         stories_list.append(
             {
                 "cluster_id": str(cluster.id),
+                "slug": cluster.slug,
                 "headline": cluster.title,
-                "summary": cluster.summary or "",
+                "summary": _cluster_summary(cluster, articles) or "",
                 "key_takeaways": [],
                 "why_it_matters": None,
             }

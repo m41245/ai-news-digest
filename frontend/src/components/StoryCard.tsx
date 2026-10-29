@@ -5,6 +5,7 @@ import { Badge } from "./ui/Badge";
 interface StoryCardProps {
   story: {
     cluster_id?: string | null;
+    slug?: string | null;
     headline?: string | null;
     summary?: string | null;
     key_takeaways: string[];
@@ -29,9 +30,9 @@ export function StoryCard({ story, index, digestId }: StoryCardProps) {
               {story.activity_status}
             </Badge>
           )}
-          {story.cluster_id && (
+          {story.slug && (
             <Link
-              to={`/stories/${story.cluster_id}`}
+              to={`/stories/${story.slug}`}
               className="text-xs font-medium text-brand-600 hover:underline"
             >
               View full story

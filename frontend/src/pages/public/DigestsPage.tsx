@@ -45,7 +45,7 @@ export function DigestsPage() {
 
         {isLoading ? (
           <ListSkeleton rows={3} />
-        ) : data && data.items.length > 0 ? (
+        ) : isError ? null : data && data.items.length > 0 ? (
           <>
             <p className="mb-4 text-sm text-slate-500">
               {data.total} digest{data.total === 1 ? "" : "s"}

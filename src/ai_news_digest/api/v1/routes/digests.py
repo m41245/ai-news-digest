@@ -9,7 +9,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
-from ai_news_digest.api.v1.dependencies.auth import get_current_active_user
+from ai_news_digest.api.v1.dependencies.auth import (
+    get_current_active_user,
+    get_current_admin_user,
+)
 from ai_news_digest.api.v1.dependencies.dependencies import get_container
 from ai_news_digest.api.v1.schemas.common import (
     DEFAULT_PAGE_LIMIT,
@@ -65,6 +68,7 @@ async def list_digests(
                 stories=[
                     DigestStoryResponse(
                         cluster_id=s.get("cluster_id"),
+                        slug=s.get("slug"),
                         headline=s.get("headline"),
                         summary=s.get("summary"),
                         key_takeaways=s.get("key_takeaways", []),
@@ -164,7 +168,7 @@ async def update_digest(
     digest_id: UUID,
     digest_update: DigestUpdate,
     container: Annotated[Container, Depends(get_container)],
-    current_user: Annotated[User, Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(get_current_admin_user)],
 ) -> DigestResponse:
     """Update an existing digest."""
     request = UpdateDigestRequest(
@@ -195,7 +199,7 @@ async def replace_digest(
     digest_id: UUID,
     digest_replace: DigestReplace,
     container: Annotated[Container, Depends(get_container)],
-    current_user: Annotated[User, Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(get_current_admin_user)],
 ) -> DigestResponse:
     """Replace an existing digest."""
     request = UpdateDigestRequest(
@@ -226,7 +230,7 @@ async def replace_digest(
 async def generate_digest(
     request: DigestCreate,
     container: Annotated[Container, Depends(get_container)],
-    current_user: Annotated[User, Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(get_current_admin_user)],
 ) -> DigestResponse:
     """Trigger digest generation."""
     try:

@@ -124,7 +124,7 @@ export function NewsPage() {
     const next = new URLSearchParams(searchParams);
     if (value) next.set(key, value);
     else next.delete(key);
-    next.delete("page");
+    if (key !== "page") next.delete("page");
     setSearchParams(next, { replace: true });
   }
 
@@ -298,7 +298,7 @@ export function NewsPage() {
               <ArticleCardSkeleton key={i} />
             ))}
           </div>
-        ) : data && data.items.length > 0 ? (
+        ) : isError ? null : data && data.items.length > 0 ? (
           <>
             <p className="mb-4 text-sm text-slate-500">
               {data.total} article{data.total === 1 ? "" : "s"}

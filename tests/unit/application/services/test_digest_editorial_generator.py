@@ -189,6 +189,22 @@ class TestBuildFallbackDigest:
         assert len(stories) == 1
         assert stories[0]["cluster_id"] == str(cluster.id)
 
+    def test_fallback_uses_placeholder_for_whitespace_only_summary(self) -> None:
+        cluster = _make_cluster("c1", "Top Story")
+        article = _make_article("Article 1", cluster.id)
+        article.summary = " \t\n"
+        cluster.representative_article_id = article.id
+
+        content, stories, _top_id = build_fallback_digest(
+            digest_date="2024-01-01",
+            candidate_stories=[(cluster, [article])],
+            top_story_cluster_id=cluster.id,
+            source_map={},
+        )
+
+        assert "*No summary available.*" in content
+        assert stories[0]["summary"] == ""
+
     def test_fallback_no_invented_facts(self) -> None:
         cluster = _make_cluster("c1", "Real Story", "Real summary", score=0.5)
         article = _make_article("Real Article", cluster.id)

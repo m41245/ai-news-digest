@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 from uuid import UUID
 
@@ -15,6 +16,15 @@ from ai_news_digest.domain.ports.category_repository import CategoryRepository
 from ai_news_digest.domain.ports.claim_repository import ClaimRepository
 from ai_news_digest.domain.ports.company_repository import CompanyRepository
 from ai_news_digest.domain.ports.topic_repository import TopicRepository
+from ai_news_digest.infrastructure.database.mappers.company_mapper import (
+    _slugify as _slugify_company,
+)
+from ai_news_digest.infrastructure.database.mappers.topic_mapper import _slugify as _slugify_topic
+
+
+def _disambiguate_slug(base_slug: str, name: str) -> str:
+    suffix = hashlib.sha256(name.casefold().encode("utf-8")).hexdigest()[:12]
+    return f"{base_slug[:51].rstrip('-')}-{suffix}"
 
 
 class AnalyzeAndMaterializeUseCase:
@@ -89,11 +99,17 @@ class AnalyzeAndMaterializeUseCase:
             canonical = normalize_company(name)
             if canonical is None:
                 continue
-            existing = await self._company_repository.get_by_slug(canonical)
+            slug = _slugify_company(canonical)
+            existing = await self._company_repository.get_by_slug(slug)
+            if existing is not None and existing.name.casefold() != canonical.casefold():
+                slug = _disambiguate_slug(slug, canonical)
+                existing = await self._company_repository.get_by_slug(slug)
+                if existing is not None and existing.name.casefold() != canonical.casefold():
+                    raise RuntimeError("Unable to resolve company slug collision")
             if existing is not None:
                 company_ids.append(UUID(str(existing.id)))
             else:
-                company = Company.create(name=canonical)
+                company = Company.create(name=canonical, slug=slug)
                 created = await self._company_repository.create(company)
                 company_ids.append(UUID(str(created.id)))
 
@@ -109,11 +125,17 @@ class AnalyzeAndMaterializeUseCase:
         normalized_topics = dedupe_topics(article.topics)
         topic_ids: list[UUID] = []
         for name in normalized_topics:
-            existing = await self._topic_repository.get_by_slug(name)
+            slug = _slugify_topic(name)
+            existing = await self._topic_repository.get_by_slug(slug)
+            if existing is not None and existing.name.casefold() != name.casefold():
+                slug = _disambiguate_slug(slug, name)
+                existing = await self._topic_repository.get_by_slug(slug)
+                if existing is not None and existing.name.casefold() != name.casefold():
+                    raise RuntimeError("Unable to resolve topic slug collision")
             if existing is not None:
                 topic_ids.append(UUID(str(existing.id)))
             else:
-                topic = Topic.create(name=name)
+                topic = Topic.create(name=name, slug=slug)
                 created = await self._topic_repository.create(topic)
                 topic_ids.append(UUID(str(created.id)))
 

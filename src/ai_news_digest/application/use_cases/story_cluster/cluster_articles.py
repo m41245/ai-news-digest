@@ -8,8 +8,12 @@ selection policy while delegating similarity classification to
 
 from __future__ import annotations
 
+import inspect
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+from uuid import uuid4
+
+from sqlalchemy.exc import IntegrityError
 
 from ai_news_digest.application.services.semantic_candidate_finder import (
     SemanticCandidateFinder,
@@ -17,6 +21,7 @@ from ai_news_digest.application.services.semantic_candidate_finder import (
 from ai_news_digest.application.services.semantic_duplicate_detector import (
     SemanticDuplicateDetector,
 )
+from ai_news_digest.core.exceptions import DatabaseError
 from ai_news_digest.core.logging import get_logger
 from ai_news_digest.core.metrics import record_cluster_assigned, record_cluster_created
 from ai_news_digest.domain.models.article import Article
@@ -116,17 +121,52 @@ class ClusterArticlesUseCase:
             return updated_cluster
 
         title = article.title[:500]
-        slug = _generate_slug(title)
-        new_cluster = StoryCluster.create(
-            title=title,
-            slug=slug,
-            representative_article_id=article.id,
-            importance_score=article.importance_score,
-            confidence=article.confidence,
-            first_published_at=article.published_at,
-            last_updated_at=datetime.now(UTC),
-        )
-        created_cluster = await self._cluster_repository.create(new_cluster)
+
+        base_slug = _generate_slug(title)
+        slug = base_slug
+        get_by_slug = getattr(self._cluster_repository, "get_by_slug", None)
+        if callable(get_by_slug):
+            existing = await _lookup_slug(get_by_slug, slug)
+            if existing is not None:
+                counter = 2
+                while counter <= 10000:
+                    suffix = f"-{counter}"
+                    candidate_base = base_slug[: max(1, 128 - len(suffix))].rstrip("-")
+                    candidate = f"{candidate_base}{suffix}"
+                    existing = await _lookup_slug(get_by_slug, candidate)
+                    if existing is None:
+                        slug = candidate
+                        break
+                    counter += 1
+                else:
+                    slug = f"{base_slug[:120]}-{uuid4().hex[:8]}"[:128]
+
+        created_cluster = None
+        last_error = None
+        for _attempt in range(5):
+            candidate_slug = slug if _attempt == 0 else f"{base_slug[:120]}-{uuid4().hex[:8]}"[:128]
+            new_cluster = StoryCluster.create(
+                title=title,
+                slug=candidate_slug,
+                representative_article_id=article.id,
+                importance_score=article.importance_score,
+                confidence=article.confidence,
+                first_published_at=article.published_at,
+                last_updated_at=datetime.now(UTC),
+            )
+            try:
+                created_cluster = await self._cluster_repository.create(new_cluster)
+                slug = candidate_slug
+                break
+            except Exception as exc:
+                last_error = exc
+                if not _is_unique_violation(exc):
+                    raise
+                continue
+        if created_cluster is None:
+            if last_error is not None:
+                raise last_error
+            raise RuntimeError("Failed to create story cluster")
         await self._article_repository.set_cluster(article.id, created_cluster.id)
         await self._cluster_repository.attach_article(created_cluster.id, article.id)
         record_cluster_created()
@@ -188,12 +228,32 @@ class ClusterArticlesUseCase:
         return await self._cluster_repository.update(cluster)
 
 
+async def _lookup_slug(get_by_slug: Any, slug: str) -> Any:
+    result = get_by_slug(slug)
+    if inspect.isawaitable(result):
+        result = await result
+    return result
+
+
+def _is_unique_violation(exc: Exception) -> bool:
+    if isinstance(exc, IntegrityError):
+        return True
+    if isinstance(exc, DatabaseError):
+        text = str(exc).lower()
+        return "unique" in text or "integrity" in text or "constraint" in text
+    return False
+
+
 def _generate_slug(title: str) -> str:
     import re
+    import unicodedata
 
-    slug = title.lower()
-    slug = re.sub(r"[^a-z0-9]+", "-", slug)
+    normalized = unicodedata.normalize("NFKD", title or "")
+    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_text.lower())
     slug = slug.strip("-")
+    if not slug:
+        slug = "story"
     return slug[:128]
 
 

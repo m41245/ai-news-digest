@@ -1,5 +1,5 @@
 import { useParams, Link } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Seo } from "../../components/Seo";
 import { publicApi } from "../../api";
@@ -73,11 +73,13 @@ export function StoryClusterPage() {
     enabled: isAuthenticated,
   });
 
-  if (brief && savedList && followedList && !isLoading) {
-  const clusterId = brief.id;
-    setIsSaved(savedList.some((s) => s.story_cluster_id === clusterId));
-    setIsFollowed(followedList.some((f) => f.story_cluster_id === clusterId));
-  }
+  useEffect(() => {
+    if (brief && savedList && followedList && !isLoading) {
+      const clusterId = brief.id;
+      setIsSaved(savedList.some((s) => s.story_cluster_id === clusterId));
+      setIsFollowed(followedList.some((f) => f.story_cluster_id === clusterId));
+    }
+  }, [brief, savedList, followedList, isLoading]);
 
   if (isLoading) {
     return <BriefSkeleton />;
@@ -697,9 +699,10 @@ export function StoryClusterPage() {
             </p>
             <div className="mt-3 flex flex-col gap-3">
               {relatedStories.map((story: BriefRelatedStoryItem) => (
+                story.slug ? (
                 <Link
                   key={story.cluster_id}
-                  to={`/stories/${story.cluster_id}`}
+                  to={`/stories/${story.slug}`}
                   className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-brand-300 focus-visible:border-brand-300"
                 >
                   <div className="flex flex-wrap items-center gap-2">
@@ -716,6 +719,26 @@ export function StoryClusterPage() {
                   )}
                   <p className="mt-1 text-xs text-slate-500">{story.reason}</p>
                 </Link>
+                ) : (
+                <div
+                  key={story.cluster_id}
+                  className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-slate-900">{story.title}</span>
+                    <Badge tone="neutral" className="text-xs">
+                      {story.article_count} articles
+                    </Badge>
+                    <Badge tone="neutral" className="text-xs">
+                      {story.source_count} sources
+                    </Badge>
+                  </div>
+                  {story.summary && (
+                    <p className="mt-1 text-sm text-slate-600">{story.summary}</p>
+                  )}
+                  <p className="mt-1 text-xs text-slate-500">{story.reason}</p>
+                </div>
+                )
               ))}
             </div>
           </section>
