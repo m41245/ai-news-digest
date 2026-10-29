@@ -12,6 +12,7 @@ import pytest
 
 from ai_news_digest.application.use_cases.story_cluster.cluster_articles import (
     ClusterArticlesUseCase,
+    _lookup_slug,
 )
 from ai_news_digest.domain.enums.article_status import ArticleStatus
 from ai_news_digest.domain.models.article import Article
@@ -92,6 +93,7 @@ def mock_cluster_repository() -> MagicMock:
     repo = MagicMock(spec=StoryClusterRepository)
     repo.find_recent_active_clusters = AsyncMock(return_value=[])
     repo.get_by_id = AsyncMock(return_value=None)
+    repo.get_by_slug = AsyncMock(return_value=None)
     repo.create = AsyncMock(side_effect=lambda c: c)
     repo.attach_article = AsyncMock()
     repo.update = AsyncMock(side_effect=lambda c: c)
@@ -347,3 +349,31 @@ async def test_representative_article_selection(
 
     assert result is not None
     assert result.representative_article_id == high_importance.id
+
+
+@pytest.mark.asyncio
+async def test_lookup_slug_not_found_returns_none() -> None:
+    get_by_slug = AsyncMock(return_value=None)
+
+    result = await _lookup_slug(get_by_slug, "missing-slug")
+
+    assert result is None
+    get_by_slug.assert_awaited_once_with("missing-slug")
+
+
+@pytest.mark.asyncio
+async def test_lookup_slug_found_returns_cluster() -> None:
+    cluster = _make_cluster(slug="found-slug")
+    get_by_slug = AsyncMock(return_value=cluster)
+
+    result = await _lookup_slug(get_by_slug, "found-slug")
+
+    assert result is cluster
+
+
+@pytest.mark.asyncio
+async def test_lookup_slug_propagates_unexpected_error() -> None:
+    get_by_slug = AsyncMock(side_effect=RuntimeError("database exploded"))
+
+    with pytest.raises(RuntimeError, match="database exploded"):
+        await _lookup_slug(get_by_slug, "some-slug")

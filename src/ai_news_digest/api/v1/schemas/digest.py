@@ -14,6 +14,7 @@ class DigestStoryResponse(BaseModel):
     """Response model for a single editorial story within a digest."""
 
     cluster_id: str | None = None
+    slug: str | None = None
     headline: str | None = None
     summary: str | None = None
     key_takeaways: list[str] = Field(default_factory=list)

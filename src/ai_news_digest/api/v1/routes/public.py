@@ -214,29 +214,113 @@ async def list_public_articles(
 
     source_map, category_map = await _build_source_and_category_maps(container)
 
-    articles = await container.article_repository.list_public_articles(
-        limit=limit,
-        offset=offset,
-        category_id=cat_id,
-        source_id=src_id,
-        company_id=comp_id,
-        topic_id=topic_uuid,
-        min_importance=min_importance,
-        published_from=published_from_dt,
-        published_to=published_to_dt,
-        search=search if search_mode != "semantic" else None,
+    lexical_search = search if search_mode == "hybrid" else None
+    semantic_applies = (
+        search_mode in ("semantic", "hybrid")
+        and bool(search)
+        and settings.semantic_search_enabled
+        and container.embedding_service.is_available
     )
 
-    total = await container.article_repository.count_public_articles(
-        category_id=cat_id,
-        source_id=src_id,
-        company_id=comp_id,
-        topic_id=topic_uuid,
-        min_importance=min_importance,
-        published_from=published_from_dt,
-        published_to=published_to_dt,
-        search=search if search_mode != "semantic" else None,
-    )
+    if semantic_applies:
+        # Fallback for the case where semantic enhancement cannot run.
+        fallback_articles = await container.article_repository.list_public_articles(
+            limit=limit,
+            offset=offset,
+            category_id=cat_id,
+            source_id=src_id,
+            company_id=comp_id,
+            topic_id=topic_uuid,
+            min_importance=min_importance,
+            published_from=published_from_dt,
+            published_to=published_to_dt,
+            search=lexical_search,
+        )
+        fallback_total = await container.article_repository.count_public_articles(
+            category_id=cat_id,
+            source_id=src_id,
+            company_id=comp_id,
+            topic_id=topic_uuid,
+            min_importance=min_importance,
+            published_from=published_from_dt,
+            published_to=published_to_dt,
+            search=lexical_search,
+        )
+
+        try:
+            assert search is not None  # noqa: S101 - genuine invariant: semantic_applies implies search is truthy/non-None
+            if len(search) > settings.semantic_search_query_max_length:
+                search = search[: settings.semantic_search_query_max_length]
+
+            from ai_news_digest.domain.models.semantic_document import (
+                SemanticDocument,
+            )
+
+            query_doc = SemanticDocument(
+                id=UUID("00000000-0000-0000-0000-000000000000"),
+                title=search,
+            )
+            query_emb = await container.embedding_service.generate(query_doc)
+
+            candidates = await container.article_repository.list_public_articles(
+                limit=settings.semantic_candidate_limit,
+                offset=0,
+                category_id=cat_id,
+                source_id=src_id,
+                company_id=comp_id,
+                topic_id=topic_uuid,
+                min_importance=min_importance,
+                published_from=published_from_dt,
+                published_to=published_to_dt,
+                search=lexical_search,
+            )
+
+            semantic_service = container.semantic_search_service
+            scored = await semantic_service.search_articles(
+                query=search,
+                candidates=candidates,
+                query_embedding=query_emb.embedding,
+            )
+
+            ranked_articles = [item.article for item in scored]
+            # ``total`` is the number of ranked candidates available to this
+            # semantic search, bounded by ``semantic_candidate_limit``. It is
+            # intentionally not the total number of matching articles, because
+            # only the ranked candidate set is paginated here; requesting an
+            # offset beyond that set returns an empty page.
+            total = len(ranked_articles)
+            articles = ranked_articles[offset : offset + limit]
+        except Exception:
+            logger.warning(
+                "semantic_search.failed",
+                error="Semantic search enhancement failed",
+            )
+            articles = fallback_articles
+            total = fallback_total
+    else:
+        articles = await container.article_repository.list_public_articles(
+            limit=limit,
+            offset=offset,
+            category_id=cat_id,
+            source_id=src_id,
+            company_id=comp_id,
+            topic_id=topic_uuid,
+            min_importance=min_importance,
+            published_from=published_from_dt,
+            published_to=published_to_dt,
+            search=search if search_mode != "semantic" else None,
+        )
+
+        total = await container.article_repository.count_public_articles(
+            category_id=cat_id,
+            source_id=src_id,
+            company_id=comp_id,
+            topic_id=topic_uuid,
+            min_importance=min_importance,
+            published_from=published_from_dt,
+            published_to=published_to_dt,
+            search=search if search_mode != "semantic" else None,
+        )
 
     claim_map: dict[str, list[Any]] = {}
     article_ids = [a.id for a in articles]
@@ -247,51 +331,6 @@ async def list_public_articles(
                 claim_map[str(aid)] = await claim_repo.list_by_article_id(aid)
             except Exception:
                 claim_map[str(aid)] = []
-
-    if (
-        search_mode in ("semantic", "hybrid")
-        and search
-        and settings.semantic_search_enabled
-        and container.embedding_service.is_available
-    ):
-        if len(search) > settings.semantic_search_query_max_length:
-            search = search[: settings.semantic_search_query_max_length]
-
-        try:
-            from ai_news_digest.domain.models.semantic_document import (
-                SemanticDocument,
-            )
-
-            query_doc = SemanticDocument(
-                id=UUID("00000000-0000-0000-0000-000000000000"),
-                title=search,
-            )
-            query_emb = await container.embedding_service.generate(query_doc)
-            semantic_service = container.semantic_search_service
-            candidates = articles[: settings.semantic_candidate_limit]
-            scored = await semantic_service.search_articles(
-                query=search,
-                candidates=candidates,
-                query_embedding=query_emb.embedding,
-            )
-            scored_map = {s.article.id: s for s in scored}
-
-            def _combined_score(article: Article) -> float:
-                scored_item = scored_map.get(article.id)
-                if scored_item is None:
-                    return 0.0
-                return float(scored_item.combined_score)
-
-            articles = sorted(
-                articles,
-                key=_combined_score,
-                reverse=True,
-            )
-        except Exception:
-            logger.warning(
-                "semantic_search.failed",
-                error="Semantic search enhancement failed",
-            )
 
     return PaginatedResponse(
         items=[

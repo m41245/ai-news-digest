@@ -146,6 +146,48 @@ async def test_analyze_and_materialize_existing_entities(
     category_repository.create.assert_not_called()
 
 
+async def test_materialize_long_company_and_topic_slug_collisions(
+    mock_analyze_use_case: MagicMock,
+    sample_article: Article,
+) -> None:
+    existing_name = "X" * 70 + " alpha"
+    incoming_name = "X" * 70 + " beta"
+    existing_company = Company.create(name=existing_name)
+    existing_topic = Topic.create(name=existing_name)
+
+    company_repository = MagicMock()
+    company_repository.get_by_slug = AsyncMock(side_effect=[existing_company, None])
+    company_repository.create = AsyncMock(side_effect=lambda company: company)
+    topic_repository = MagicMock()
+    topic_repository.get_by_slug = AsyncMock(side_effect=[existing_topic, None])
+    topic_repository.create = AsyncMock(side_effect=lambda topic: topic)
+    article_repository = MagicMock()
+    article_repository.replace_companies = AsyncMock()
+    article_repository.replace_topics = AsyncMock()
+
+    sample_article.companies = (incoming_name,)
+    sample_article.topics = (incoming_name,)
+    use_case = AnalyzeAndMaterializeUseCase(
+        analyze_use_case=mock_analyze_use_case,
+        article_repository=article_repository,
+        company_repository=company_repository,
+        topic_repository=topic_repository,
+        category_repository=MagicMock(),
+    )
+
+    await use_case._materialize_companies(sample_article)
+    await use_case._materialize_topics(sample_article)
+
+    created_company = company_repository.create.await_args.args[0]
+    created_topic = topic_repository.create.await_args.args[0]
+    assert created_company.name == incoming_name
+    assert created_topic.name == incoming_name
+    assert created_company.slug is not None and len(created_company.slug) <= 64
+    assert created_topic.slug is not None and len(created_topic.slug) <= 64
+    assert created_company.slug != company_repository.get_by_slug.await_args_list[0].args[0]
+    assert created_topic.slug != topic_repository.get_by_slug.await_args_list[0].args[0]
+
+
 async def test_analyze_and_materialize_no_entities(
     mock_analyze_use_case: MagicMock,
     sample_article: Article,

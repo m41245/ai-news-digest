@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, TypeVar
 
@@ -43,6 +44,8 @@ class BaseRepository[ModelT]:
         try:
             await self._session.flush()
         except Exception as exc:
+            with contextlib.suppress(Exception):
+                await self._session.rollback()
             raise DatabaseError(f"Database flush failed: {exc}") from exc
 
     async def _commit(self) -> None:
@@ -50,6 +53,8 @@ class BaseRepository[ModelT]:
         try:
             await self._session.commit()
         except Exception as exc:
+            with contextlib.suppress(Exception):
+                await self._session.rollback()
             raise DatabaseError(f"Database commit failed: {exc}") from exc
 
     async def _rollback(self) -> None:

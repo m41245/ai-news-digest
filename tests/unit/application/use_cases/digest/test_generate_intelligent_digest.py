@@ -14,6 +14,7 @@ from ai_news_digest.application.ai.editorial_schemas import (
 )
 from ai_news_digest.application.services.digest_editorial_generator import (
     DigestEditorialResult,
+    build_fallback_digest,
 )
 from ai_news_digest.application.use_cases.digest.generate_intelligent_digest import (
     GenerateIntelligentDigestUseCase,
@@ -213,8 +214,7 @@ class TestGenerateIntelligentDigestUseCase:
 
         disabled_settings = Settings(digest_editorial_enabled=False)
         patch_path = (
-            "ai_news_digest.application.use_cases.digest"
-            ".generate_intelligent_digest.get_settings"
+            "ai_news_digest.application.use_cases.digest.generate_intelligent_digest.get_settings"
         )
         with patch(patch_path, return_value=disabled_settings):
             result = await use_case.execute(force=True)
@@ -347,3 +347,116 @@ class TestRankClusters:
         ranked = await use_case._rank_clusters([c1, c2])
         top_id = await use_case._get_top_story_cluster_id(ranked)
         assert top_id == c1.id
+
+
+class TestEditorialGeneratorNone:
+    async def test_none_editorial_generator_returns_fallback(self):
+        cluster = _make_cluster("c1", "Cluster 1", "Summary", score=0.9)
+        article = _make_article("Article 1", cluster.id)
+
+        container = _make_mock_container(
+            clusters=[cluster],
+            cluster_articles={str(cluster.id): [article]},
+            existing_digest=None,
+        )
+
+        use_case = GenerateIntelligentDigestUseCase(
+            story_cluster_repository=container.story_cluster_repository,
+            digest_repository=container.digest_repository,
+            source_repository=container.source_repository,
+            article_repository=container.article_repository,
+            editorial_generator=None,
+        )
+
+        result = await use_case.execute(force=True)
+        assert result.generation_method == "fallback"
+        assert result.fallback_used is True
+
+
+class TestRankClustersMissingScores:
+    async def test_clusters_without_ranking_score_are_excluded(self):
+        c1 = _make_cluster("c1", "Cluster 1", score=0.9)
+        c2 = StoryCluster(
+            id=__import__("uuid").uuid4(),
+            title="Cluster 2",
+            slug="test-c2",
+            summary="Summary",
+            first_published_at=__import__("datetime").datetime.now(__import__("datetime").UTC),
+            last_updated_at=__import__("datetime").datetime.now(__import__("datetime").UTC),
+            ranking_score=None,
+            representative_article_id=__import__("uuid").uuid4(),
+        )
+
+        use_case = GenerateIntelligentDigestUseCase(
+            story_cluster_repository=MagicMock(),
+            digest_repository=MagicMock(),
+            source_repository=MagicMock(),
+            article_repository=MagicMock(),
+            editorial_generator=MagicMock(),
+        )
+
+        ranked = await use_case._rank_clusters([c1, c2])
+        assert len(ranked) == 1
+        assert ranked[0][0].id == c1.id
+
+
+class TestFallbackDigestSummaries:
+    def test_uses_representative_article_summary_when_cluster_summary_missing(self):
+        from uuid import uuid4
+
+        cluster_id = uuid4()
+        article_id = uuid4()
+        source_id = uuid4()
+        cluster = StoryCluster(
+            id=cluster_id,
+            title="Cluster",
+            slug="cluster",
+            summary=None,
+            first_published_at=__import__("datetime").datetime.now(__import__("datetime").UTC),
+            last_updated_at=__import__("datetime").datetime.now(__import__("datetime").UTC),
+            ranking_score=0.5,
+            representative_article_id=article_id,
+        )
+        article = Article.create(
+            title="Article",
+            url="https://example.com/a",
+            summary="Representative summary",
+            content=None,
+            source_id=source_id,
+            published_at=__import__("datetime").datetime.now(__import__("datetime").UTC),
+        )
+        article.id = article_id
+
+        content, stories, _ = build_fallback_digest(
+            digest_date="2024-01-01",
+            candidate_stories=[(cluster, [article])],
+            top_story_cluster_id=cluster.id,
+            source_map={},
+        )
+
+        assert "Representative summary" in content
+        assert stories[0]["summary"] == "Representative summary"
+
+    def test_missing_summaries_do_not_invent_claims(self):
+        from uuid import uuid4
+
+        cluster = StoryCluster(
+            id=uuid4(),
+            title="Cluster",
+            slug="cluster",
+            summary=None,
+            first_published_at=__import__("datetime").datetime.now(__import__("datetime").UTC),
+            last_updated_at=__import__("datetime").datetime.now(__import__("datetime").UTC),
+            ranking_score=0.5,
+            representative_article_id=None,
+        )
+
+        content, stories, _ = build_fallback_digest(
+            digest_date="2024-01-01",
+            candidate_stories=[(cluster, [])],
+            top_story_cluster_id=cluster.id,
+            source_map={},
+        )
+
+        assert "*No summary available.*" in content
+        assert stories[0]["summary"] == ""

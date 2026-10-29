@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from ai_news_digest.api.middleware.exception_handler import setup_exception_handlers
-from ai_news_digest.api.v1.dependencies.auth import get_current_active_user
+from ai_news_digest.api.v1.dependencies.auth import get_current_active_user, get_current_admin_user
 from ai_news_digest.api.v1.dependencies.dependencies import get_container
 from ai_news_digest.api.v1.routes.sources import router
 from ai_news_digest.api.v1.schemas.source import SourceCreate
@@ -30,7 +30,7 @@ def mock_user() -> User:
         email="test@example.com",
         hashed_password="hashed",
         is_active=True,
-        is_admin=False,
+        is_admin=True,
         created_at=datetime.now(UTC),
     )
 
@@ -54,6 +54,7 @@ def client(mock_container: MagicMock, mock_user: User) -> TestClient:
     app.include_router(router)
     app.dependency_overrides[get_container] = lambda: mock_container
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
+    app.dependency_overrides[get_current_admin_user] = lambda: mock_user
     setup_exception_handlers(app)
     with TestClient(app) as test_client:
         yield test_client
@@ -186,3 +187,100 @@ def test_update_source_success(client: TestClient, mock_container: MagicMock) ->
     response = client.patch(f"/sources/{source_id}", json={"name": "Updated"})
     assert response.status_code == 200
     assert response.json()["name"] == "Updated"
+
+
+def test_create_source_non_admin_returns_403() -> None:
+    from fastapi import FastAPI
+
+    from ai_news_digest.api.v1.dependencies.auth import get_current_active_user
+    from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
+    app = FastAPI()
+    app.include_router(
+        __import__("ai_news_digest.api.v1.routes.sources", fromlist=["router"]).router
+    )
+    setup_exception_handlers(app)
+
+    non_admin = User.create(
+        email="user@example.com",
+        hashed_password="hashed",
+        is_active=True,
+        is_admin=False,
+    )
+
+    mock_container = MagicMock()
+    app.dependency_overrides[get_container] = lambda: mock_container
+    app.dependency_overrides[get_current_active_user] = lambda: non_admin
+
+    with TestClient(app) as test_client:
+        response = test_client.post(
+            "/sources/",
+            json={
+                "name": "Test Source",
+                "feed_url": "https://example.com/feed.xml",
+            },
+        )
+
+    assert response.status_code == 403
+
+
+def test_delete_source_non_admin_returns_403() -> None:
+    from uuid import uuid4
+
+    from fastapi import FastAPI
+
+    from ai_news_digest.api.v1.dependencies.auth import get_current_active_user
+    from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
+    app = FastAPI()
+    app.include_router(
+        __import__("ai_news_digest.api.v1.routes.sources", fromlist=["router"]).router
+    )
+    setup_exception_handlers(app)
+
+    non_admin = User.create(
+        email="user@example.com",
+        hashed_password="hashed",
+        is_active=True,
+        is_admin=False,
+    )
+
+    mock_container = MagicMock()
+    app.dependency_overrides[get_container] = lambda: mock_container
+    app.dependency_overrides[get_current_active_user] = lambda: non_admin
+
+    with TestClient(app) as test_client:
+        response = test_client.delete(f"/sources/{uuid4()}")
+
+    assert response.status_code == 403
+
+
+def test_update_source_non_admin_returns_403() -> None:
+    from uuid import uuid4
+
+    from fastapi import FastAPI
+
+    from ai_news_digest.api.v1.dependencies.auth import get_current_active_user
+    from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
+    app = FastAPI()
+    app.include_router(
+        __import__("ai_news_digest.api.v1.routes.sources", fromlist=["router"]).router
+    )
+    setup_exception_handlers(app)
+
+    non_admin = User.create(
+        email="user@example.com",
+        hashed_password="hashed",
+        is_active=True,
+        is_admin=False,
+    )
+
+    mock_container = MagicMock()
+    app.dependency_overrides[get_container] = lambda: mock_container
+    app.dependency_overrides[get_current_active_user] = lambda: non_admin
+
+    with TestClient(app) as test_client:
+        response = test_client.patch(f"/sources/{uuid4()}", json={})
+
+    assert response.status_code == 403

@@ -12,7 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from ai_news_digest.api.middleware.exception_handler import setup_exception_handlers
-from ai_news_digest.api.v1.dependencies.auth import get_current_active_user
+from ai_news_digest.api.v1.dependencies.auth import get_current_active_user, get_current_admin_user
 from ai_news_digest.api.v1.dependencies.dependencies import get_container
 from ai_news_digest.api.v1.routes.digests import router
 from ai_news_digest.domain.enums.digest_format import DigestFormat
@@ -27,7 +27,7 @@ def mock_user() -> User:
         email="test@example.com",
         hashed_password="hashed",
         is_active=True,
-        is_admin=False,
+        is_admin=True,
         created_at=datetime.now(UTC),
     )
 
@@ -53,6 +53,7 @@ def client(mock_container: MagicMock, mock_user: User) -> TestClient:
     app.include_router(router)
     app.dependency_overrides[get_container] = lambda: mock_container
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
+    app.dependency_overrides[get_current_admin_user] = lambda: mock_user
     setup_exception_handlers(app)
     with TestClient(app) as test_client:
         yield test_client
@@ -132,3 +133,94 @@ def test_replace_digest(client: TestClient, mock_container: MagicMock) -> None:
     data = response.json()
     assert data["title"] == "Replaced Digest"
     assert data["content"] == "Replaced content"
+
+
+def test_update_digest_non_admin_returns_403() -> None:
+    from uuid import uuid4
+
+    from fastapi import FastAPI
+
+    from ai_news_digest.api.v1.dependencies.auth import get_current_active_user
+    from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
+    app = FastAPI()
+    app.include_router(
+        __import__("ai_news_digest.api.v1.routes.digests", fromlist=["router"]).router
+    )
+    setup_exception_handlers(app)
+
+    non_admin = User.create(
+        email="user@example.com",
+        hashed_password="hashed",
+        is_active=True,
+        is_admin=False,
+    )
+
+    mock_container = MagicMock()
+    app.dependency_overrides[get_container] = lambda: mock_container
+    app.dependency_overrides[get_current_active_user] = lambda: non_admin
+
+    with TestClient(app) as test_client:
+        response = test_client.patch(f"/digests/{uuid4()}", json={})
+
+    assert response.status_code == 403
+
+
+def test_replace_digest_non_admin_returns_403() -> None:
+    from uuid import uuid4
+
+    from fastapi import FastAPI
+
+    from ai_news_digest.api.v1.dependencies.auth import get_current_active_user
+    from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
+    app = FastAPI()
+    app.include_router(
+        __import__("ai_news_digest.api.v1.routes.digests", fromlist=["router"]).router
+    )
+    setup_exception_handlers(app)
+
+    non_admin = User.create(
+        email="user@example.com",
+        hashed_password="hashed",
+        is_active=True,
+        is_admin=False,
+    )
+
+    mock_container = MagicMock()
+    app.dependency_overrides[get_container] = lambda: mock_container
+    app.dependency_overrides[get_current_active_user] = lambda: non_admin
+
+    with TestClient(app) as test_client:
+        response = test_client.put(f"/digests/{uuid4()}", json={})
+
+    assert response.status_code == 403
+
+
+def test_generate_digest_non_admin_returns_403() -> None:
+    from fastapi import FastAPI
+
+    from ai_news_digest.api.v1.dependencies.auth import get_current_active_user
+    from ai_news_digest.api.v1.dependencies.dependencies import get_container
+
+    app = FastAPI()
+    app.include_router(
+        __import__("ai_news_digest.api.v1.routes.digests", fromlist=["router"]).router
+    )
+    setup_exception_handlers(app)
+
+    non_admin = User.create(
+        email="user@example.com",
+        hashed_password="hashed",
+        is_active=True,
+        is_admin=False,
+    )
+
+    mock_container = MagicMock()
+    app.dependency_overrides[get_container] = lambda: mock_container
+    app.dependency_overrides[get_current_active_user] = lambda: non_admin
+
+    with TestClient(app) as test_client:
+        response = test_client.post("/digests/generate", json={})
+
+    assert response.status_code == 403

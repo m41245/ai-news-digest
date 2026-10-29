@@ -696,3 +696,10 @@ def test_container_all_public_properties_smoke(container: Container) -> None:
     """Smoke-test every public container property to verify wiring."""
     for name in (n for n in dir(container) if not n.startswith("_")):
         _ = getattr(container, name)
+
+
+def test_container_generate_intelligent_digest_ai_disabled_editorial_generator_none(
+    container: Container,
+) -> None:
+    use_case = container.generate_intelligent_digest
+    assert use_case._editorial_generator is None

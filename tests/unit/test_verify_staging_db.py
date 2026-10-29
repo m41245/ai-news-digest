@@ -168,9 +168,9 @@ class TestValidateConnectionTarget:
 
 
 class TestDiscoverMigrationHeads:
-    def test_returns_single_head_034(self) -> None:
+    def test_returns_single_head_035(self) -> None:
         heads = discover_migration_heads(_MIGRATIONS_DIR)
-        assert heads == ["034"]
+        assert heads == ["035"]
 
     def test_no_empty_or_none_heads(self) -> None:
         heads = discover_migration_heads(_MIGRATIONS_DIR)

@@ -184,6 +184,7 @@ export interface Digest {
   top_story_cluster_id: string | null;
   stories: Array<{
     cluster_id: string | null;
+    slug?: string | null;
     headline: string | null;
     summary: string | null;
     key_takeaways: string[];
@@ -205,6 +206,7 @@ export interface PublicDigest {
   generation_method: string | null;
   stories: Array<{
     cluster_id?: string | null;
+    slug?: string | null;
     headline?: string | null;
     summary?: string | null;
     key_takeaways: string[];
@@ -926,6 +928,7 @@ export interface BriefGraphConnection {
 
 export interface BriefRelatedStoryItem {
   cluster_id: string;
+  slug?: string | null;
   title: string;
   summary?: string | null;
   similarity: number;

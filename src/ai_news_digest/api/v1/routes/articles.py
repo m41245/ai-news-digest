@@ -9,7 +9,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
-from ai_news_digest.api.v1.dependencies.auth import get_current_active_user
+from ai_news_digest.api.v1.dependencies.auth import (
+    get_current_active_user,
+    get_current_admin_user,
+)
 from ai_news_digest.api.v1.dependencies.dependencies import get_container
 from ai_news_digest.api.v1.schemas.article import (
     ArticleCreate,
@@ -46,7 +49,7 @@ router = APIRouter(
 async def create_article(
     article_create: ArticleCreate,
     container: Annotated[Container, Depends(get_container)],
-    current_user: Annotated[User, Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(get_current_admin_user)],
 ) -> ArticleResponse:
     """Create a new article."""
     request = CreateArticleRequest(
@@ -94,7 +97,7 @@ async def create_article(
 async def delete_article(
     article_id: UUID,
     container: Annotated[Container, Depends(get_container)],
-    current_user: Annotated[User, Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(get_current_admin_user)],
 ) -> None:
     """Delete an existing article."""
     try:
@@ -194,7 +197,7 @@ async def update_article(
     article_id: UUID,
     article_update: ArticleUpdate,
     container: Annotated[Container, Depends(get_container)],
-    current_user: Annotated[User, Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(get_current_admin_user)],
 ) -> ArticleResponse:
     """Update an existing article."""
     request = UpdateArticleRequest(

@@ -82,7 +82,7 @@ class GenerateIntelligentDigestUseCase:
         digest_repository: DigestRepository,
         source_repository: SourceRepository,
         article_repository: ArticleRepository,
-        editorial_generator: DigestEditorialGenerator,
+        editorial_generator: DigestEditorialGenerator | None,
     ) -> None:
         self._story_cluster_repository = story_cluster_repository
         self._digest_repository = digest_repository
@@ -212,7 +212,7 @@ class GenerateIntelligentDigestUseCase:
         source_map = await self._build_source_map()
         candidate_stories = await self._load_candidate_articles(bounded)
 
-        if not settings.digest_editorial_enabled:
+        if not settings.digest_editorial_enabled or self._editorial_generator is None:
             content, stories_list, top_cluster_id = build_fallback_digest(
                 digest_date=digest_date,
                 candidate_stories=candidate_stories,
@@ -271,7 +271,9 @@ class GenerateIntelligentDigestUseCase:
             content = self._render_editorial_output(
                 editorial_result.editorial_output, candidate_stories, source_map
             )
-            stories_list = self._serialize_stories(editorial_result.editorial_output)
+            stories_list = self._serialize_stories(
+                editorial_result.editorial_output, candidate_stories
+            )
             top_cluster_id = (
                 UUID(editorial_result.editorial_output.top_story.cluster_id)
                 if editorial_result.editorial_output.top_story
@@ -462,14 +464,22 @@ class GenerateIntelligentDigestUseCase:
 
         return "\n".join(lines)
 
-    def _serialize_stories(self, output: EditorialDigestOutput) -> list[dict[str, Any]]:
+    def _serialize_stories(
+        self,
+        output: EditorialDigestOutput,
+        candidate_stories: list[tuple[StoryCluster, list[Article]]] | None = None,
+    ) -> list[dict[str, Any]]:
         """Serialize editorial stories to JSON-serializable dicts."""
+        slug_by_cluster: dict[str, str | None] = {}
+        if candidate_stories:
+            slug_by_cluster = {str(c.id): c.slug for c, _ in candidate_stories}
         stories: list[dict[str, Any]] = []
         if output.top_story is not None:
             ts = output.top_story
             stories.append(
                 {
                     "cluster_id": ts.cluster_id,
+                    "slug": slug_by_cluster.get(ts.cluster_id),
                     "headline": ts.headline,
                     "summary": ts.summary,
                     "key_takeaways": list(ts.key_takeaways),
@@ -480,6 +490,7 @@ class GenerateIntelligentDigestUseCase:
             stories.append(
                 {
                     "cluster_id": story.cluster_id,
+                    "slug": slug_by_cluster.get(story.cluster_id),
                     "headline": story.headline,
                     "summary": story.summary,
                     "key_takeaways": list(story.key_takeaways),
