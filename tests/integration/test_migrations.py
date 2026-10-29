@@ -95,9 +95,9 @@ def _assert_topics_name_schema(sync_conn) -> None:
         index.get("unique") and tuple(index.get("column_names") or ()) == ("name",)
         for index in inspector.get_indexes("topics")
     )
-    assert (
-        has_unique_constraint or has_unique_index
-    ), "topics.name must have a unique constraint or unique index"
+    assert has_unique_constraint or has_unique_index, (
+        "topics.name must have a unique constraint or unique index"
+    )
 
 
 @pytest.mark.integration
@@ -127,9 +127,9 @@ async def test_migration_upgrade_to_head(
             await conn.run_sync(_assert_topics_name_schema)
         await engine.dispose()
 
-        assert EXPECTED_TABLES.issubset(
-            tables
-        ), f"Missing tables after upgrade: {EXPECTED_TABLES - tables}"
+        assert EXPECTED_TABLES.issubset(tables), (
+            f"Missing tables after upgrade: {EXPECTED_TABLES - tables}"
+        )
     finally:
         object.__setattr__(settings, "database_url", original_url)
 
@@ -152,12 +152,14 @@ async def test_migration_035_downgrade_rejects_long_topic_name(
     config = Config(str(ALEMBIC_INI))
     topic_id = str(uuid4())
     topic_name = "topic name longer than the old limit " + ("x" * 40)
-    topic_slug = f"migration-035-downgrade-guard-{uuid4()}"
+    topic_slug = f"migration-035-downgrade-guard-{uuid4().hex[:8]}"
     try:
         await asyncio.to_thread(command.upgrade, config, "035")
 
         engine = create_async_engine(container_url)
         try:
+            async with engine.connect() as conn:
+                await conn.run_sync(_assert_topics_name_schema)
             async with engine.begin() as conn:
                 await conn.execute(
                     text("INSERT INTO topics (id, slug, name) VALUES (:id, :slug, :name)"),
@@ -252,8 +254,8 @@ async def test_migration_downgrade_reupgrade_cycle(
             await conn.run_sync(_assert_topics_name_schema)
         await engine.dispose()
 
-        assert EXPECTED_TABLES.issubset(
-            tables
-        ), f"Missing tables after re-upgrade: {EXPECTED_TABLES - tables}"
+        assert EXPECTED_TABLES.issubset(tables), (
+            f"Missing tables after re-upgrade: {EXPECTED_TABLES - tables}"
+        )
     finally:
         object.__setattr__(settings, "database_url", original_url)

@@ -168,9 +168,9 @@ class TestValidateConnectionTarget:
 
 
 class TestDiscoverMigrationHeads:
-    def test_returns_single_head_034(self) -> None:
+    def test_returns_single_head_035(self) -> None:
         heads = discover_migration_heads(_MIGRATIONS_DIR)
-        assert heads == ["034"]
+        assert heads == ["035"]
 
     def test_no_empty_or_none_heads(self) -> None:
         heads = discover_migration_heads(_MIGRATIONS_DIR)
@@ -193,9 +193,9 @@ class TestVerificationQueries:
 
     def test_all_queries_start_with_select(self) -> None:
         for name, sql in VERIFICATION_QUERIES:
-            assert (
-                sql.strip().lower().startswith("select")
-            ), f"Query '{name}' must start with SELECT"
+            assert sql.strip().lower().startswith("select"), (
+                f"Query '{name}' must start with SELECT"
+            )
 
     def test_queries_contain_no_write_keywords(self) -> None:
         write_keywords = re.compile(
