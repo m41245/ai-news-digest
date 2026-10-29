@@ -19,7 +19,7 @@ interface StoryCardProps {
 export function StoryCard({ story, index, digestId }: StoryCardProps) {
   const headline = story.headline || `Story ${index + 1}`;
   const isTopStory = index === 0 && story.cluster_id;
-  const storyLink = story.slug || story.cluster_id;
+  const storyLink = story.slug;
 
   return (
     <Card as="article" className={isTopStory ? "border-brand-200 bg-brand-50/30" : ""}>
