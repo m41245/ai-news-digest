@@ -123,6 +123,46 @@ def test_provider_registry_len(mock_provider: MagicMock) -> None:
     assert len(registry) == 1
 
 
+@pytest.mark.parametrize(
+    ("provider_id", "model_name"),
+    [
+        ("gemini", "gemini-2.0-flash"),
+        ("groq", "llama-3.3-70b-versatile"),
+    ],
+)
+def test_provider_registry_rejects_non_allowlisted_free_models(
+    mock_provider: MagicMock,
+    provider_id: str,
+    model_name: str,
+) -> None:
+    mock_provider.id = provider_id
+    mock_provider.model_name = model_name
+    registry = ProviderRegistry(free_only=False)
+
+    with pytest.raises(InvalidPluginError, match="allowlisted free-tier model"):
+        registry.register(mock_provider)
+
+
+@pytest.mark.parametrize(
+    ("provider_id", "model_name"),
+    [
+        ("gemini", "gemini-3.8-flash"),
+        ("groq", "openai/gpt-oss-20b"),
+    ],
+)
+def test_provider_registry_accepts_allowlisted_free_models(
+    mock_provider: MagicMock,
+    provider_id: str,
+    model_name: str,
+) -> None:
+    mock_provider.id = provider_id
+    mock_provider.model_name = model_name
+    registry = ProviderRegistry(free_only=False)
+
+    assert registry.register(mock_provider) is mock_provider
+    assert registry.get(provider_id) is mock_provider
+
+
 def test_provider_registry_iter(mock_provider: MagicMock) -> None:
     """Test iteration over providers."""
     # Arrange

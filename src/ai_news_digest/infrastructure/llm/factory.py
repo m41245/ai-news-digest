@@ -4,6 +4,7 @@ from ai_news_digest.application.ai.config import ProviderConfig
 from ai_news_digest.infrastructure.llm.anthropic_client import AnthropicProvider
 from ai_news_digest.infrastructure.llm.gemini_client import GeminiProvider
 from ai_news_digest.infrastructure.llm.grok_client import GrokProvider
+from ai_news_digest.infrastructure.llm.groq_client import GroqProvider
 from ai_news_digest.infrastructure.llm.openai_client import OpenAIProvider
 
 
@@ -24,6 +25,11 @@ class LLMProviderFactory:
     def create_gemini_provider(config: ProviderConfig) -> GeminiProvider:
         """Create a Gemini provider instance."""
         return GeminiProvider(config)
+
+    @staticmethod
+    def create_groq_provider(config: ProviderConfig) -> GroqProvider:
+        """Create a Groq provider instance."""
+        return GroqProvider(config)
 
     @staticmethod
     def create_grok_provider(config: ProviderConfig) -> GrokProvider:

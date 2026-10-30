@@ -254,7 +254,7 @@ class Settings(BaseSettings):
     )
 
     gemini_model: str = Field(
-        default="gemini-2.0-flash",
+        default="gemini-3.8-flash",
         validation_alias="GEMINI_MODEL",
     )
 
@@ -307,6 +307,39 @@ class Settings(BaseSettings):
         default=3,
         ge=0,
         validation_alias="XAI_MAX_RETRIES",
+    )
+
+    groq_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias="GROQ_API_KEY",
+    )
+
+    groq_enabled: bool = Field(
+        default=False,
+        validation_alias="GROQ_ENABLED",
+    )
+
+    groq_model: str = Field(
+        default="openai/gpt-oss-20b",
+        validation_alias="GROQ_MODEL",
+    )
+
+    groq_priority: int = Field(
+        default=2,
+        ge=1,
+        validation_alias="GROQ_PRIORITY",
+    )
+
+    groq_timeout: int = Field(
+        default=30,
+        ge=1,
+        validation_alias="GROQ_TIMEOUT",
+    )
+
+    groq_max_retries: int = Field(
+        default=3,
+        ge=0,
+        validation_alias="GROQ_MAX_RETRIES",
     )
 
     # ======================================================================
@@ -453,12 +486,48 @@ class Settings(BaseSettings):
         description="Output cost per 1k tokens for xAI Grok in USD. 0 means unknown.",
     )
 
+    groq_request_limit: int = Field(
+        default=0,
+        ge=0,
+        validation_alias="GROQ_REQUEST_LIMIT",
+        description="Maximum requests per window for Groq. 0 means unlimited.",
+    )
+
+    groq_token_limit: int = Field(
+        default=0,
+        ge=0,
+        validation_alias="GROQ_TOKEN_LIMIT",
+        description="Maximum tokens per window for Groq. 0 means unlimited.",
+    )
+
+    groq_cost_limit: float = Field(
+        default=0.0,
+        ge=0.0,
+        validation_alias="GROQ_COST_LIMIT",
+        description="Maximum cost per window for Groq in USD. 0 means unlimited.",
+    )
+
+    groq_input_cost_per_1k_tokens: float = Field(
+        default=0.0,
+        ge=0.0,
+        validation_alias="GROQ_INPUT_COST_PER_1K_TOKENS",
+        description="Input cost per 1k tokens for Groq in USD. 0 means unknown.",
+    )
+
+    groq_output_cost_per_1k_tokens: float = Field(
+        default=0.0,
+        ge=0.0,
+        validation_alias="GROQ_OUTPUT_COST_PER_1K_TOKENS",
+        description="Output cost per 1k tokens for Groq in USD. 0 means unknown.",
+    )
+
     default_llm_provider: Literal[
         "openai",
         "anthropic",
         "gemini",
         "grok",
-    ] = "openai"
+        "groq",
+    ] = "gemini"
 
     # ==================================================================
     # AI Processing
@@ -470,6 +539,15 @@ class Settings(BaseSettings):
             "Master switch for all AI processing. When false, no AI providers "
             "are registered and no AI processing occurs regardless of individual "
             "provider enable flags. Requires intentional configuration to activate."
+        ),
+    )
+
+    ai_free_only: bool = Field(
+        default=False,
+        validation_alias="AI_FREE_ONLY",
+        description=(
+            "Restrict AI provider registration and routing to explicitly "
+            "allowlisted free-tier models."
         ),
     )
 
@@ -1997,6 +2075,8 @@ class Settings(BaseSettings):
                 )
             if self.xai_enabled and not self.xai_api_key:
                 raise ValueError("XAI_API_KEY must be set when XAI_ENABLED=true in production.")
+            if self.groq_enabled and not self.groq_api_key:
+                raise ValueError("GROQ_API_KEY must be set when GROQ_ENABLED=true in production.")
         return self
 
     @field_validator("smtp_host")

@@ -78,7 +78,12 @@ def _make_provider(
     provider.priority = MagicMock(return_value=priority)
     provider.capabilities = capabilities
     provider.provider_name = name.lower().replace(" ", "_")
-    provider.model_name = f"{provider_id}-model"
+    if provider_id == "gemini":
+        provider.model_name = "gemini-2.5-flash"
+    elif provider_id == "groq":
+        provider.model_name = "openai/gpt-oss-20b"
+    else:
+        provider.model_name = f"{provider_id}-model"
     provider.available = AsyncMock(return_value=available)
     provider.generate = AsyncMock()
     return provider
@@ -320,6 +325,29 @@ class TestProviderManagerRouting:
 
         assert decision.selected_provider_id is None
         assert "openai" in [pid for pid, _ in decision.rejected_provider_ids]
+
+    async def test_free_only_mode_rejects_registered_paid_provider(
+        self,
+        capability_registry: CapabilityRegistry,
+    ) -> None:
+        capability_registry.register_capability(
+            Capability(id="summarization", name="Summarization")
+        )
+        provider_registry = ProviderRegistry(free_only=False)
+        provider = _make_provider("openai", "OpenAI", {"summarization"}, priority=100)
+        _register_providers(provider_registry, capability_registry, provider)
+        provider_manager = ProviderManager(
+            provider_registry,
+            capability_registry,
+            DecisionEngine(provider_registry, capability_registry),
+            free_only=True,
+        )
+
+        request = AIRequest(system_prompt="s", user_prompt="u")
+        decision = await provider_manager.route(request, capability="summarization")
+
+        assert decision.selected_provider_id is None
+        assert decision.rejected_provider_ids == [("openai", "non_allowlisted_model")]
 
     async def test_route_no_capability_candidates(
         self,

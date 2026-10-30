@@ -63,6 +63,10 @@ class AIProvider(RealAIProvider):
 
     @property
     def model_name(self) -> str:
+        if self._provider_id == "gemini":
+            return "gemini-2.5-flash"
+        if self._provider_id == "groq":
+            return "openai/gpt-oss-20b"
         return "gpt-4o-mini"
 
     @property
@@ -238,6 +242,8 @@ def test_container_summarize_article_ai_enabled(monkeypatch: pytest.MonkeyPatch)
     fake_settings.gemini_api_key = None
     fake_settings.xai_enabled = False
     fake_settings.xai_api_key = None
+    fake_settings.groq_enabled = False
+    fake_settings.groq_api_key = None
 
     with (
         patch(
@@ -279,6 +285,8 @@ def test_container_categorize_article_ai_enabled(monkeypatch: pytest.MonkeyPatch
     fake_settings.gemini_api_key = None
     fake_settings.xai_enabled = False
     fake_settings.xai_api_key = None
+    fake_settings.groq_enabled = False
+    fake_settings.groq_api_key = None
 
     with (
         patch(
@@ -328,6 +336,8 @@ def test_container_provider_registration_openai(monkeypatch) -> None:
     fake_settings.gemini_api_key = None
     fake_settings.xai_enabled = False
     fake_settings.xai_api_key = None
+    fake_settings.groq_enabled = False
+    fake_settings.groq_api_key = None
 
     with (
         patch(
@@ -371,6 +381,8 @@ def test_container_provider_registration_anthropic(monkeypatch) -> None:
     fake_settings.gemini_api_key = None
     fake_settings.xai_enabled = False
     fake_settings.xai_api_key = None
+    fake_settings.groq_enabled = False
+    fake_settings.groq_api_key = None
 
     fake_settings.anthropic_enabled = True
     fake_settings.anthropic_api_key = SecretStr("sk-ant-secret")
@@ -383,6 +395,8 @@ def test_container_provider_registration_anthropic(monkeypatch) -> None:
     fake_settings.gemini_api_key = None
     fake_settings.xai_enabled = False
     fake_settings.xai_api_key = None
+    fake_settings.groq_enabled = False
+    fake_settings.groq_api_key = None
 
     with (
         patch(
@@ -434,6 +448,8 @@ def test_container_unwraps_secretstr_api_keys() -> None:
     fake_settings.gemini_api_key = None
     fake_settings.xai_enabled = False
     fake_settings.xai_api_key = None
+    fake_settings.groq_enabled = False
+    fake_settings.groq_api_key = None
 
     captured_configs: list[ProviderConfig] = []
 
@@ -490,11 +506,13 @@ def test_container_provider_registration_gemini(monkeypatch) -> None:
     fake_settings.anthropic_api_key = None
     fake_settings.xai_enabled = False
     fake_settings.xai_api_key = None
+    fake_settings.groq_enabled = False
+    fake_settings.groq_api_key = None
 
     fake_settings.gemini_enabled = True
     fake_settings.gemini_api_key = SecretStr("test-gemini-key")
     fake_settings.gemini_priority = 3
-    fake_settings.gemini_model = "gemini-2.0-flash"
+    fake_settings.gemini_model = "gemini-2.5-flash"
     fake_settings.gemini_timeout = 30
     fake_settings.gemini_max_retries = 3
 
@@ -540,6 +558,8 @@ def test_container_provider_registration_grok(monkeypatch) -> None:
     fake_settings.xai_model = "grok-2-latest"
     fake_settings.xai_timeout = 30
     fake_settings.xai_max_retries = 3
+    fake_settings.groq_enabled = False
+    fake_settings.groq_api_key = None
 
     with (
         patch(
@@ -587,7 +607,7 @@ def test_container_unwraps_secretstr_api_keys_new_providers() -> None:
     fake_settings.gemini_enabled = True
     fake_settings.gemini_api_key = SecretStr("sk-gemini-secret")
     fake_settings.gemini_priority = 3
-    fake_settings.gemini_model = "gemini-2.0-flash"
+    fake_settings.gemini_model = "gemini-2.5-flash"
     fake_settings.gemini_timeout = 30
     fake_settings.gemini_max_retries = 3
 
@@ -597,6 +617,8 @@ def test_container_unwraps_secretstr_api_keys_new_providers() -> None:
     fake_settings.xai_model = "grok-2-latest"
     fake_settings.xai_timeout = 30
     fake_settings.xai_max_retries = 3
+    fake_settings.groq_enabled = False
+    fake_settings.groq_api_key = None
 
     captured_configs: list[ProviderConfig] = []
 
@@ -703,3 +725,188 @@ def test_container_generate_intelligent_digest_ai_disabled_editorial_generator_n
 ) -> None:
     use_case = container.generate_intelligent_digest
     assert use_case._editorial_generator is None
+
+
+def test_container_embedding_provider_disabled_in_free_only_mode(monkeypatch) -> None:
+    """Free-only mode must not construct OpenAI embeddings even when flags enabled."""
+    from unittest.mock import MagicMock, patch
+
+    import pytest
+    from pydantic import SecretStr
+
+    from ai_news_digest.bootstrap.container import Container
+
+    fake_settings = MagicMock()
+    fake_settings.ai_free_only = True
+    fake_settings.openai_enabled = True
+    fake_settings.openai_api_key = SecretStr("test-openai-key")
+    fake_settings.semantic_search_enabled = True
+    fake_settings.anthropic_enabled = False
+    fake_settings.anthropic_api_key = None
+    fake_settings.gemini_enabled = False
+    fake_settings.gemini_api_key = None
+    fake_settings.xai_enabled = False
+    fake_settings.xai_api_key = None
+    fake_settings.groq_enabled = False
+    fake_settings.groq_api_key = None
+
+    with (
+        patch(
+            "ai_news_digest.bootstrap.container.get_settings",
+            return_value=fake_settings,
+        ),
+        patch(
+            "ai_news_digest.infrastructure.embedding.OpenAIEmbeddingProvider",
+        ) as ctor,
+    ):
+        container = Container(MagicMock(spec=AsyncSession))
+
+    assert container._embedding_providers == []
+    assert container.embedding_service.is_available is False
+    ctor.assert_not_called()
+
+    from uuid import uuid4
+
+    from ai_news_digest.application.ai.embedding_service import NoEmbeddingProviderError
+    from ai_news_digest.domain.models.semantic_document import SemanticDocument
+
+    with pytest.raises(NoEmbeddingProviderError):
+        import asyncio
+
+        asyncio.run(container.embedding_service.generate(SemanticDocument(id=uuid4(), title="q")))
+
+
+def test_container_provider_registration_groq(monkeypatch) -> None:
+    """Test that Groq provider registration works when an API key is configured."""
+    from unittest.mock import MagicMock, patch
+
+    from ai_news_digest.application.ai.config import ProviderConfig
+
+    fake_settings = MagicMock()
+    fake_settings.ai_free_only = False
+    fake_settings.environment = "testing"
+    fake_settings.openai_enabled = False
+    fake_settings.openai_api_key = None
+    fake_settings.anthropic_enabled = False
+    fake_settings.anthropic_api_key = None
+    fake_settings.gemini_enabled = False
+    fake_settings.gemini_api_key = None
+    fake_settings.xai_enabled = False
+    fake_settings.xai_api_key = None
+    fake_settings.groq_enabled = False
+    fake_settings.groq_api_key = None
+
+    fake_settings.groq_enabled = True
+    fake_settings.groq_api_key = SecretStr("test-groq-key")
+    fake_settings.groq_priority = 2
+    fake_settings.groq_model = "openai/gpt-oss-20b"
+    fake_settings.groq_timeout = 30
+    fake_settings.groq_max_retries = 3
+
+    with (
+        patch(
+            "ai_news_digest.bootstrap.container.get_settings",
+            return_value=fake_settings,
+        ),
+        patch(
+            "ai_news_digest.bootstrap.container.LLMProviderFactory.create_groq_provider",
+            return_value=AIProvider(provider_id="groq", provider_name="groq"),
+        ) as create_groq,
+    ):
+        container = Container(MagicMock(spec=AsyncSession))
+
+    config: ProviderConfig = create_groq.call_args.args[0]
+    assert config.provider_name == "groq"
+    assert config.api_key == "test-groq-key"
+
+    assert container.provider_registry.exists("groq")
+    assert "groq" in container.capability_registry.providers_for("summarization")
+    assert "groq" in container.capability_registry.providers_for("categorization")
+    assert "groq" in container.capability_registry.providers_for("analysis")
+
+
+def test_container_groq_registers_in_free_only_mode(monkeypatch) -> None:
+    """Groq is a free provider and must remain registrable in free-only mode."""
+    from unittest.mock import MagicMock, patch
+
+    fake_settings = MagicMock()
+    fake_settings.ai_free_only = True
+    fake_settings.environment = "testing"
+    fake_settings.openai_enabled = False
+    fake_settings.openai_api_key = None
+    fake_settings.anthropic_enabled = False
+    fake_settings.anthropic_api_key = None
+    fake_settings.gemini_enabled = False
+    fake_settings.gemini_api_key = None
+    fake_settings.xai_enabled = False
+    fake_settings.xai_api_key = None
+    fake_settings.groq_enabled = False
+    fake_settings.groq_api_key = None
+
+    fake_settings.groq_enabled = True
+    fake_settings.groq_api_key = SecretStr("test-groq-key")
+    fake_settings.groq_priority = 2
+    fake_settings.groq_model = "openai/gpt-oss-20b"
+    fake_settings.groq_timeout = 30
+    fake_settings.groq_max_retries = 3
+
+    with (
+        patch(
+            "ai_news_digest.bootstrap.container.get_settings",
+            return_value=fake_settings,
+        ),
+        patch(
+            "ai_news_digest.bootstrap.container.LLMProviderFactory.create_groq_provider",
+            return_value=AIProvider(provider_id="groq", provider_name="groq"),
+        ),
+    ):
+        container = Container(MagicMock(spec=AsyncSession))
+
+    assert container._free_only is True
+    assert container.provider_registry.exists("groq")
+
+
+def test_container_paid_providers_blocked_in_free_only_mode(monkeypatch) -> None:
+    """Paid providers must not be registered when free-only mode is active."""
+    from unittest.mock import MagicMock, patch
+
+    fake_settings = MagicMock()
+    fake_settings.ai_free_only = True
+    fake_settings.environment = "testing"
+    fake_settings.openai_enabled = True
+    fake_settings.openai_api_key = SecretStr("test-openai-key")
+    fake_settings.openai_priority = 1
+    fake_settings.openai_model = "gpt-4o-mini"
+    fake_settings.openai_timeout = 30
+    fake_settings.openai_max_retries = 3
+
+    fake_settings.anthropic_enabled = True
+    fake_settings.anthropic_api_key = SecretStr("sk-ant-secret")
+    fake_settings.anthropic_priority = 2
+    fake_settings.anthropic_model = "claude-3-5-sonnet"
+    fake_settings.anthropic_timeout = 30
+    fake_settings.anthropic_max_retries = 3
+
+    fake_settings.xai_enabled = True
+    fake_settings.xai_api_key = SecretStr("test-xai-key")
+    fake_settings.xai_priority = 4
+    fake_settings.xai_model = "grok-2-latest"
+    fake_settings.xai_timeout = 30
+    fake_settings.xai_max_retries = 3
+
+    fake_settings.gemini_enabled = False
+    fake_settings.gemini_api_key = None
+    fake_settings.groq_enabled = False
+    fake_settings.groq_api_key = None
+
+    with patch(
+        "ai_news_digest.bootstrap.container.get_settings",
+        return_value=fake_settings,
+    ):
+        container = Container(MagicMock(spec=AsyncSession))
+
+    assert container._free_only is True
+    assert not container.provider_registry.exists("openai")
+    assert not container.provider_registry.exists("anthropic")
+    assert not container.provider_registry.exists("grok")
+    assert container.provider_registry.names() == []
