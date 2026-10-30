@@ -28,30 +28,38 @@ from ai_news_digest.application.ai.retry import RetryPolicy
 _GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
 
-def _map_gemini_error(exc: Exception, status_code: int | None = None) -> Exception:
+def _map_gemini_error(
+    exc: Exception,
+    status_code: int | None = None,
+    api_key: str | None = None,
+) -> Exception:
     """Translate a Gemini API exception into the application error model.
 
     Only transient failures (5xx, connection errors) are classified as
     retryable. Authentication, bad-request, rate-limit, timeout, and
     validation errors are permanent and must not be retried.
     """
+    redacted = str(exc)
+    if api_key:
+        redacted = redacted.replace(api_key, "[REDACTED]")
+
     if status_code == 401:
-        return AIAuthenticationError(f"Gemini authentication failed: {exc}")
+        return AIAuthenticationError(f"Gemini authentication failed: {redacted}")
     if status_code == 429:
-        return AIRateLimitError(f"Gemini rate limit exceeded: {exc}")
+        return AIRateLimitError(f"Gemini rate limit exceeded: {redacted}")
     if status_code == 408 or status_code == 504:
-        return AITimeoutError(f"Gemini request timed out: {exc}")
+        return AITimeoutError(f"Gemini request timed out: {redacted}")
     if status_code is not None and 400 <= status_code < 500 and status_code != 429:
-        return AIPermanentProcessingError(f"Gemini client error (status={status_code}): {exc}")
+        return AIPermanentProcessingError(f"Gemini client error (status={status_code}): {redacted}")
     if status_code is not None and 500 <= status_code < 600:
-        return AITransientError(f"Gemini server error (status={status_code}): {exc}")
+        return AITransientError(f"Gemini server error (status={status_code}): {redacted}")
     if isinstance(exc, TimeoutError | httpx.TimeoutException):
-        return AITimeoutError(f"Gemini request timed out: {exc}")
+        return AITimeoutError(f"Gemini request timed out: {redacted}")
     if isinstance(exc, httpx.HTTPStatusError):
-        return AITransientError(f"Gemini HTTP error: {exc}")
+        return AITransientError(f"Gemini HTTP error: {redacted}")
     if isinstance(exc, ValueError | TypeError):
-        return AIInvalidResponseError(f"Invalid Gemini response: {exc}")
-    return AITransientError(f"Gemini request failed: {exc}")
+        return AIInvalidResponseError(f"Invalid Gemini response: {redacted}")
+    return AITransientError(f"Gemini request failed: {redacted}")
 
 
 class GeminiProvider(AIProvider):
@@ -60,7 +68,7 @@ class GeminiProvider(AIProvider):
     def __init__(self, config: ProviderConfig) -> None:
         self._config = config
         self._provider_name = "gemini"
-        self._model_name = config.model or "gemini-2.0-flash"
+        self._model_name = config.model or "gemini-3.8-flash"
         self._retry_policy = RetryPolicy(
             max_attempts=config.max_retries,
             max_delay=max(10.0, config.timeout),
@@ -157,7 +165,7 @@ class GeminiProvider(AIProvider):
             raise AIConfigurationError("Gemini API key not configured.")
 
         api_key = self._config.api_key
-        url = f"{_GEMINI_API_BASE}/models/{self._model_name}:generateContent" f"?key={api_key}"
+        url = f"{_GEMINI_API_BASE}/models/{self._model_name}:generateContent"
 
         start_time = time.time()
 
@@ -185,27 +193,40 @@ class GeminiProvider(AIProvider):
                 response = await client.post(
                     url,
                     json=payload,
-                    headers={"Content-Type": "application/json"},
+                    headers={
+                        "Content-Type": "application/json",
+                        "x-goog-api-key": api_key or "",
+                    },
                 )
         except httpx.HTTPStatusError as exc:
-            raise _map_gemini_error(exc, status_code=exc.response.status_code) from exc
+            raise _map_gemini_error(
+                exc,
+                status_code=exc.response.status_code,
+                api_key=api_key,
+            ) from None
         except AIError:
             raise
         except Exception as exc:
-            raise _map_gemini_error(exc) from exc
+            raise _map_gemini_error(exc, api_key=api_key) from None
 
         latency_ms = (time.time() - start_time) * 1000
 
         if response.status_code >= 400:
             raise _map_gemini_error(
-                RuntimeError(f"Gemini HTTP error: {response.text}"),
+                RuntimeError("Gemini HTTP error"),
                 status_code=response.status_code,
+                api_key=api_key,
             )
 
         try:
             data = response.json()
         except ValueError as exc:
-            raise AIInvalidResponseError(f"Invalid Gemini JSON response: {exc}") from exc
+            redacted_message = str(exc)
+            if api_key:
+                redacted_message = redacted_message.replace(api_key, "[REDACTED]")
+            raise AIInvalidResponseError(
+                f"Invalid Gemini JSON response: {redacted_message}"
+            ) from exc
 
         candidates = data.get("candidates", [])
         if not candidates:
@@ -251,10 +272,7 @@ class GeminiProvider(AIProvider):
         if not self._config.api_key:
             return False
 
-        url = (
-            f"{_GEMINI_API_BASE}/models/{self._model_name}:generateContent"
-            f"?key={self._config.api_key}"
-        )
+        url = f"{_GEMINI_API_BASE}/models/{self._model_name}:generateContent"
         payload: dict[str, Any] = {
             "contents": [{"parts": [{"text": "hi"}]}],
             "generationConfig": {"maxOutputTokens": 1},
@@ -267,7 +285,10 @@ class GeminiProvider(AIProvider):
                 response = await client.post(
                     url,
                     json=payload,
-                    headers={"Content-Type": "application/json"},
+                    headers={
+                        "Content-Type": "application/json",
+                        "x-goog-api-key": self._config.api_key or "",
+                    },
                 )
             return response.status_code < 400
         except Exception:

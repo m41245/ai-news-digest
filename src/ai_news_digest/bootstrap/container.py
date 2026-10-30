@@ -8,6 +8,7 @@ from ai_news_digest.application.ai.capability import Capability
 from ai_news_digest.application.ai.capability_registry import CapabilityRegistry
 from ai_news_digest.application.ai.config import ProviderConfig
 from ai_news_digest.application.ai.decision_engine import DecisionEngine
+from ai_news_digest.application.ai.free_models import is_free_only_mode
 from ai_news_digest.application.ai.provider_health_registry import ProviderHealthRegistry
 from ai_news_digest.application.ai.provider_manager import ProviderManager
 from ai_news_digest.application.ai.provider_quota_registry import ProviderQuotaRegistry
@@ -337,7 +338,8 @@ class Container:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
         self._settings = get_settings()
-        self._provider_registry = ProviderRegistry()
+        self._free_only = is_free_only_mode(self._settings)
+        self._provider_registry = ProviderRegistry(free_only=self._free_only)
         self._capability_registry = CapabilityRegistry()
         self._configure_capabilities()
         self._configure_providers()
@@ -393,7 +395,11 @@ class Container:
         if not self._settings.ai_enabled:
             return
 
-        if self._settings.openai_enabled and self._settings.openai_api_key:
+        if (
+            (not self._free_only)
+            and self._settings.openai_enabled
+            and self._settings.openai_api_key
+        ):
             openai_config = ProviderConfig(
                 provider_name="openai",
                 api_key=self._settings.openai_api_key.get_secret_value(),
@@ -414,7 +420,11 @@ class Container:
             self._capability_registry.register_provider("categorization", openai_provider.id)
             self._capability_registry.register_provider("analysis", openai_provider.id)
 
-        if self._settings.anthropic_enabled and self._settings.anthropic_api_key:
+        if (
+            (not self._free_only)
+            and self._settings.anthropic_enabled
+            and self._settings.anthropic_api_key
+        ):
             anthropic_config = ProviderConfig(
                 provider_name="anthropic",
                 api_key=self._settings.anthropic_api_key.get_secret_value(),
@@ -456,7 +466,28 @@ class Container:
             self._capability_registry.register_provider("categorization", gemini_provider.id)
             self._capability_registry.register_provider("analysis", gemini_provider.id)
 
-        if self._settings.xai_enabled and self._settings.xai_api_key:
+        if self._settings.groq_enabled and self._settings.groq_api_key:
+            groq_config = ProviderConfig(
+                provider_name="groq",
+                api_key=self._settings.groq_api_key.get_secret_value(),
+                enabled=self._settings.groq_enabled,
+                priority=self._settings.groq_priority,
+                model=self._settings.groq_model,
+                timeout=self._settings.groq_timeout,
+                max_retries=self._settings.groq_max_retries,
+                request_limit=self._settings.groq_request_limit,
+                token_limit=self._settings.groq_token_limit,
+                cost_limit=self._settings.groq_cost_limit,
+                input_cost_per_1k_tokens=self._settings.groq_input_cost_per_1k_tokens,
+                output_cost_per_1k_tokens=self._settings.groq_output_cost_per_1k_tokens,
+            )
+            groq_provider = LLMProviderFactory.create_groq_provider(groq_config)
+            self._provider_registry.register(groq_provider)
+            self._capability_registry.register_provider("summarization", groq_provider.id)
+            self._capability_registry.register_provider("categorization", groq_provider.id)
+            self._capability_registry.register_provider("analysis", groq_provider.id)
+
+        if (not self._free_only) and self._settings.xai_enabled and self._settings.xai_api_key:
             xai_config = ProviderConfig(
                 provider_name="grok",
                 api_key=self._settings.xai_api_key.get_secret_value(),
@@ -796,6 +827,7 @@ class Container:
             decision_engine=self._decision_engine,
             health_registry=self._health_registry,
             quota_registry=self._quota_registry,
+            free_only=self._free_only,
         )
 
     @property
@@ -1046,6 +1078,8 @@ class Container:
     def _embedding_providers(self) -> list[EmbeddingProvider]:
         providers: list[EmbeddingProvider] = []
         if not self._settings.semantic_search_enabled:
+            return providers
+        if self._free_only:
             return providers
         if self._settings.openai_enabled and self._settings.openai_api_key:
             try:

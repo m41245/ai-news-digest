@@ -142,7 +142,12 @@ def _make_provider(
     provider.priority = MagicMock(return_value=priority)
     provider.capabilities = capabilities
     provider.provider_name = name.lower().replace(" ", "_")
-    provider.model_name = f"{provider_id}-model"
+    if provider_id == "gemini":
+        provider.model_name = "gemini-2.5-flash"
+    elif provider_id == "groq":
+        provider.model_name = "openai/gpt-oss-20b"
+    else:
+        provider.model_name = f"{provider_id}-model"
     provider.available = AsyncMock(return_value=available)
     provider.generate = AsyncMock()
     provider.provider_config = provider_config
