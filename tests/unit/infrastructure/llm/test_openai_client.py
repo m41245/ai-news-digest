@@ -381,6 +381,8 @@ async def test_openai_provider_does_not_chain_original_exception() -> None:
             await provider.generate(request)
 
     assert exc_info.value.__cause__ is None
+    assert exc_info.value.__context__ is None
+    assert "authentication failed" in str(exc_info.value).lower()
 
 
 def test_openai_provider_max_context_tokens(openai_provider: OpenAIProvider) -> None:

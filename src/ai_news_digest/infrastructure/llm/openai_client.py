@@ -233,6 +233,7 @@ class OpenAIProvider(AIProvider):
 
         start_time = time.time()
 
+        mapped_error: Exception | None = None
         try:
             messages: list[ChatCompletionMessageParam] = [
                 ChatCompletionSystemMessageParam(
@@ -263,11 +264,17 @@ class OpenAIProvider(AIProvider):
         except AIError:
             raise
         except Exception as exc:
-            raise _map_openai_error(
+            mapped_error = _map_openai_error(
                 exc,
                 provider_label=self._provider_label,
                 api_key=self._config.api_key,
-            ) from None
+            )
+            mapped_error.__cause__ = None
+            mapped_error.__context__ = None
+            mapped_error.__suppress_context__ = True
+
+        if mapped_error is not None:
+            raise mapped_error
 
         latency_ms = (time.time() - start_time) * 1000
 
