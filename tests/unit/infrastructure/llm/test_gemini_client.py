@@ -439,6 +439,92 @@ def test_gemini_provider_max_context_tokens_custom() -> None:
     assert provider.max_context_tokens == 64000
 
 
+@pytest.mark.asyncio
+async def test_gemini_provider_does_not_expose_api_key_on_http_error(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    sentinel = "sentinel-gemini-secret-key"
+    config = ProviderConfig(
+        provider_name="gemini",
+        api_key=sentinel,
+        enabled=True,
+        priority=3,
+        model="gemini-3.8-flash",
+        timeout=30,
+        max_retries=1,
+    )
+    provider = GeminiProvider(config)
+    request = AIRequest(
+        system_prompt="You are a helpful assistant.",
+        user_prompt="Summarize this text.",
+        temperature=0.7,
+        max_tokens=100,
+    )
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post.side_effect = httpx.HTTPStatusError(
+            f"Unauthorized {sentinel}",
+            request=MagicMock(url=f"https://example.com?token={sentinel}"),
+            response=MagicMock(status_code=401, text=f"invalid {sentinel}"),
+        )
+        mock_client_cls.return_value = mock_client
+
+        with pytest.raises(AIAuthenticationError) as exc_info:
+            await provider.generate(request)
+
+    assert sentinel not in str(exc_info.value)
+    assert sentinel not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_gemini_provider_request_url_does_not_contain_api_key() -> None:
+    sentinel = "sentinel-gemini-secret-key"
+    config = ProviderConfig(
+        provider_name="gemini",
+        api_key=sentinel,
+        enabled=True,
+        priority=3,
+        model="gemini-3.8-flash",
+        timeout=30,
+        max_retries=1,
+    )
+    provider = GeminiProvider(config)
+    request = AIRequest(
+        system_prompt="You are a helpful assistant.",
+        user_prompt="Summarize this text.",
+        temperature=0.7,
+        max_tokens=100,
+    )
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "candidates": [{"content": {"parts": [{"text": "ok"}]}}],
+        "usageMetadata": {},
+    }
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post.return_value = mock_response
+        mock_client_cls.return_value = mock_client
+
+        await provider.generate(request)
+
+        called_url = (
+            mock_client.post.call_args.args[0]
+            if mock_client.post.call_args.args
+            else mock_client.post.call_args.kwargs.get("url")
+        )
+        assert sentinel not in str(called_url)
+        headers = mock_client.post.call_args.kwargs.get("headers", {})
+        assert headers.get("x-goog-api-key") == sentinel
+
+
 __all__ = [
     "test_gemini_provider_available",
     "test_gemini_provider_generate_api_error",

@@ -11,6 +11,11 @@ from ai_news_digest.application.ai.capability_registry import CapabilityRegistry
 from ai_news_digest.application.ai.config import ProviderConfig
 from ai_news_digest.application.ai.cost import estimate_request_cost
 from ai_news_digest.application.ai.decision_engine import DecisionEngine
+from ai_news_digest.application.ai.free_models import (
+    FREE_PROVIDER_MODEL_ALLOWLIST,
+    is_allowlisted_free_model,
+    is_free_only_mode,
+)
 from ai_news_digest.application.ai.models import (
     AIRequest,
     AIResponse,
@@ -88,12 +93,14 @@ class ProviderManager:
         decision_engine: DecisionEngine,
         health_registry: ProviderHealthRegistry | None = None,
         quota_registry: ProviderQuotaRegistry | None = None,
+        free_only: bool | None = None,
     ) -> None:
         self._registry = registry
         self._capability_registry = capability_registry
         self._decision_engine = decision_engine
         self._health_registry = health_registry
         self._quota_registry = quota_registry
+        self._free_only = free_only if free_only is not None else is_free_only_mode()
 
     async def generate(
         self,
@@ -316,6 +323,11 @@ class ProviderManager:
 
         if capability and capability not in provider.capabilities:
             return False, "incapable"
+
+        if (
+            self._free_only or provider.id in FREE_PROVIDER_MODEL_ALLOWLIST
+        ) and not is_allowlisted_free_model(provider.id, getattr(provider, "model_name", None)):
+            return False, "non_allowlisted_model"
 
         if self._health_registry is not None and not await self._health_registry.is_eligible(
             provider.id

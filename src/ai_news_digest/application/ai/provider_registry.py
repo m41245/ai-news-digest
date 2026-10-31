@@ -3,6 +3,11 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import cast
 
+from ai_news_digest.application.ai.free_models import (
+    FREE_PROVIDER_MODEL_ALLOWLIST,
+    is_allowlisted_free_model,
+    is_free_only_mode,
+)
 from ai_news_digest.application.ai.providers.base import AIProvider
 from ai_news_digest.exceptions import InvalidPluginError
 from ai_news_digest.plugin_registry import PluginRegistry
@@ -17,13 +22,25 @@ class ProviderRegistry:
     selection behavior.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, free_only: bool | None = None) -> None:
         self._registry = PluginRegistry()
+        self._free_only = free_only if free_only is not None else is_free_only_mode()
 
     def register(self, provider: AIProvider) -> AIProvider:
         """Register a provider plugin using its immutable id."""
         if not isinstance(provider, AIProvider):
             raise InvalidPluginError("Provider registration requires an instance of AIProvider.")
+
+        provider_id = provider.id
+        model_name = getattr(provider, "model_name", None)
+
+        if (
+            self._free_only or provider_id in FREE_PROVIDER_MODEL_ALLOWLIST
+        ) and not is_allowlisted_free_model(provider_id, model_name):
+            raise InvalidPluginError(
+                f"Provider '{provider_id}' model '{model_name}' is not an "
+                "allowlisted free-tier model."
+            )
 
         self._registry.register(provider)
         return provider

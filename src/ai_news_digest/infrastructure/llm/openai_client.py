@@ -42,7 +42,7 @@ from ai_news_digest.application.ai.providers.base import AIProvider
 from ai_news_digest.application.ai.retry import RetryPolicy
 
 
-def _map_openai_error(exc: Exception) -> Exception:
+def _map_openai_error(exc: Exception, provider_label: str = "OpenAI") -> Exception:
     """Translate an OpenAI SDK exception into the application error model.
 
     Only transient failures (5xx, connection errors) are classified as
@@ -50,21 +50,23 @@ def _map_openai_error(exc: Exception) -> Exception:
     validation errors are permanent and must not be retried.
     """
     if isinstance(exc, OpenAIAuthError):
-        return AIAuthenticationError(f"OpenAI authentication failed: {exc}")
+        return AIAuthenticationError(f"{provider_label} authentication failed: {exc}")
     if isinstance(exc, OpenAIRateLimitError):
-        return AIRateLimitError(f"OpenAI rate limit exceeded: {exc}")
+        return AIRateLimitError(f"{provider_label} rate limit exceeded: {exc}")
     if isinstance(exc, OpenAPITimeoutError):
-        return AITimeoutError(f"OpenAI request timed out: {exc}")
+        return AITimeoutError(f"{provider_label} request timed out: {exc}")
     if isinstance(exc, OpenAIStatusError):
         status_code = getattr(exc, "status_code", None) or 500
         if 500 <= status_code < 600:
-            return AITransientError(f"OpenAI server error (status={status_code}): {exc}")
-        return AIPermanentProcessingError(f"OpenAI client error (status={status_code}): {exc}")
+            return AITransientError(f"{provider_label} server error (status={status_code}): {exc}")
+        return AIPermanentProcessingError(
+            f"{provider_label} client error (status={status_code}): {exc}"
+        )
     if isinstance(exc, OpenAIConnectionError):
-        return AITransientError(f"OpenAI connection failed: {exc}")
+        return AITransientError(f"{provider_label} connection failed: {exc}")
     if isinstance(exc, ValueError):
-        return AIInvalidResponseError(f"Invalid OpenAI response: {exc}")
-    return AITransientError(f"OpenAI request failed: {exc}")
+        return AIInvalidResponseError(f"Invalid {provider_label} response: {exc}")
+    return AITransientError(f"{provider_label} request failed: {exc}")
 
 
 class OpenAIProvider(AIProvider):
@@ -75,6 +77,7 @@ class OpenAIProvider(AIProvider):
     def __init__(self, config: ProviderConfig) -> None:
         self._config = config
         self._provider_name = "openai"
+        self._provider_label = "OpenAI"
         self._model_name = config.model or "gpt-4o-mini"
         self._retry_policy = RetryPolicy(
             max_attempts=config.max_retries,
@@ -182,7 +185,7 @@ class OpenAIProvider(AIProvider):
     async def _call(self, request: AIRequest) -> AIResponse:
         """Execute a single provider call, mapping SDK errors to the error model."""
         if not self._client:
-            raise AIConfigurationError("OpenAI client not configured.")
+            raise AIConfigurationError(f"{self._provider_label} client not configured.")
 
         start_time = time.time()
 
@@ -216,12 +219,14 @@ class OpenAIProvider(AIProvider):
         except AIError:
             raise
         except Exception as exc:
-            raise _map_openai_error(exc) from exc
+            raise _map_openai_error(exc, provider_label=self._provider_label) from exc
 
         latency_ms = (time.time() - start_time) * 1000
 
         if not response.choices:
-            raise AIInvalidResponseError("OpenAI API returned an empty choices list.")
+            raise AIInvalidResponseError(
+                f"{self._provider_label} API returned an empty choices list."
+            )
 
         if response.usage is not None:
             usage = AIUsage(
