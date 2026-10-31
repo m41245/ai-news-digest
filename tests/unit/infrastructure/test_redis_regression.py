@@ -421,3 +421,90 @@ class TestCeleryRedisConfiguration:
                 "EMAIL_BASE_URL",
             ]:
                 os.environ.pop(key, None)
+
+
+# ======================================================================
+# 11. Redis authentication and credential validation
+# ======================================================================
+
+
+class TestRedisAuthentication:
+    """Verify Redis authentication handling and credential validation."""
+
+    def test_authenticated_url_preserves_credentials(self):
+        url = "rediss://default:secret-token@upstash-host.example:6379/0"
+        pool = aioredis.ConnectionPool.from_url(url)
+        assert pool.connection_kwargs["username"] == "default"
+        assert pool.connection_kwargs["password"] == "secret-token"  # noqa: S105
+
+    def test_authenticated_url_without_username_preserves_password(self):
+        url = "rediss://:secret-token@upstash-host.example:6379/0"
+        pool = aioredis.ConnectionPool.from_url(url)
+        assert pool.connection_kwargs.get("password") == "secret-token"
+
+    def test_tls_url_selects_ssl_connection(self):
+        url = "rediss://default:secret-token@upstash-host.example:6379/0"
+        pool = aioredis.ConnectionPool.from_url(url)
+        assert pool.connection_class is aioredis.SSLConnection
+
+    def test_missing_credentials_rejected_in_production(self):
+        mock_settings = MagicMock(spec=Settings)
+        mock_settings.redis_url = "rediss://upstash-host.example:6379/0"
+        mock_settings.environment = "production"
+        mock_settings.redis_max_connections = 50
+        mock_settings.redis_retry_on_timeout = False
+        mock_settings.redis_retry_on_connection_error = False
+        mock_settings.redis_socket_connect_timeout = 5
+        mock_settings.redis_socket_timeout = 5
+
+        with patch(
+            "ai_news_digest.infrastructure.cache.redis_store.settings",
+            mock_settings,
+        ):
+            store = RedisStore()
+            with pytest.raises(ValueError, match="credentials"):
+                store._build_client()
+
+    def test_missing_credentials_allowed_in_development(self):
+        mock_settings = MagicMock(spec=Settings)
+        mock_settings.redis_url = "redis://localhost:6379/0"
+        mock_settings.environment = "development"
+        mock_settings.redis_max_connections = 50
+        mock_settings.redis_retry_on_timeout = False
+        mock_settings.redis_retry_on_connection_error = False
+        mock_settings.redis_socket_connect_timeout = 5
+        mock_settings.redis_socket_timeout = 5
+
+        with (
+            patch(
+                "ai_news_digest.infrastructure.cache.redis_store.settings",
+                mock_settings,
+            ),
+            patch.object(aioredis.ConnectionPool, "from_url") as mock_from_url,
+        ):
+            mock_pool = MagicMock()
+            mock_pool.connection_class = aioredis.Connection
+            mock_from_url.return_value = mock_pool
+
+            store = RedisStore()
+            store._build_client()
+
+            mock_from_url.assert_called_once()
+
+    def test_unix_socket_supported_without_credentials(self):
+        url = "unix:///tmp/redis.sock"
+        pool = aioredis.ConnectionPool.from_url(url)
+        assert pool.connection_class is aioredis.UnixDomainSocketConnection
+
+    def test_supported_schemes_are_accepted(self):
+        for scheme in ("redis", "rediss"):
+            url = f"{scheme}://default:token@upstash-host.example:6379/0"
+            pool = aioredis.ConnectionPool.from_url(url)
+            assert pool.connection_kwargs["host"] == "upstash-host.example"
+
+    def test_diagnostics_never_print_credentials(self):
+        url = "rediss://default:secret-token@upstash-host.example:6379/0"
+        diagnostics = _safe_redis_url_diagnostics(url)
+        assert "secret-token" not in str(diagnostics)
+        assert url not in str(diagnostics)
+        assert diagnostics["password_present"] is True

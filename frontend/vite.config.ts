@@ -20,9 +20,18 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks: {
-          react: ["react", "react-dom", "react-router-dom"],
-          query: ["@tanstack/react-query"],
+        manualChunks(id: string) {
+          if (
+            id.includes("node_modules/react/") ||
+            id.includes("node_modules/react-dom/") ||
+            id.includes("node_modules/react-router-dom/")
+          ) {
+            return "react";
+          }
+          if (id.includes("node_modules/@tanstack/react-query/")) {
+            return "query";
+          }
+          return undefined;
         },
       },
     },

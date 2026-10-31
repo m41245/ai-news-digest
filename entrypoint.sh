@@ -30,9 +30,8 @@ if [ "${ENVIRONMENT:-development}" = "production" ]; then
     if [ -z "${CELERY_BROKER_URL:-}" ]; then
         fail "CELERY_BROKER_URL is not set. Cannot start application in production."
     fi
-    if [ -z "${REDIS_PASSWORD:-}" ]; then
-        fail "REDIS_PASSWORD is not set. Redis authentication is required in production."
-    fi
+    # Redis authentication is embedded in REDIS_URL (and Celery URLs); Upstash
+    # and other managed providers do not expose a separate REDIS_PASSWORD.
     if [ "${DEBUG:-false}" = "true" ]; then
         fail "DEBUG must be 'false' in production."
     fi

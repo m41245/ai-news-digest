@@ -78,11 +78,23 @@ class RedisStore(CacheStore):
     def _build_client(self) -> aioredis.Redis:
         """Build a Redis client with connection pooling and retry configuration."""
         parsed = urlparse(self._redis_url)
-        if parsed.scheme == "redis" and settings.environment == "production":
+        if parsed.scheme not in ("redis", "rediss", "unix"):
             raise ValueError(
-                "REDIS_URL uses plaintext scheme 'redis://' in production. "
-                "Upstash requires TLS. Use 'rediss://default:<token>@<host>:6379/0'."
+                "REDIS_URL must use one of the supported schemes: redis://, rediss://, or unix://."
             )
+        is_production = getattr(settings, "environment", "development") == "production"
+        if parsed.scheme in ("redis", "rediss") and is_production:
+            if parsed.scheme == "redis":
+                raise ValueError(
+                    "REDIS_URL uses plaintext scheme 'redis://' in production. "
+                    "Upstash requires TLS. Use 'rediss://default:<token>@<host>:6379/0'."
+                )
+            if not parsed.password:
+                raise ValueError(
+                    "REDIS_URL must include authentication credentials "
+                    "(username:password) in production for the configured Redis "
+                    "provider. Use 'rediss://default:<token>@<host>:6379/0'."
+                )
 
         supported_errors: list[type[Exception]] = []
         if settings.redis_retry_on_connection_error:
