@@ -42,31 +42,75 @@ from ai_news_digest.application.ai.providers.base import AIProvider
 from ai_news_digest.application.ai.retry import RetryPolicy
 
 
-def _map_openai_error(exc: Exception, provider_label: str = "OpenAI") -> Exception:
+def _redact_openai_secret(text: str, api_key: str | None) -> str:
+    """Redact a configured OpenAI/Groq secret and common partial forms.
+
+    OpenAI-style errors frequently include only a fragment of the key (for
+    example ``sk-...abcd``).  Redact the full key plus derived partial
+    representations so credentials cannot leak through exception text.
+    """
+    if not api_key:
+        return text
+
+    redacted = text.replace(api_key, "[REDACTED]")
+
+    # Common suffix-only representations reported by providers.
+    for suffix_length in (12, 8, 6, 4):
+        if suffix_length < len(api_key):
+            suffix = api_key[-suffix_length:]
+            if suffix:
+                redacted = redacted.replace(suffix, "[REDACTED]")
+
+    # Common ellipsis-style representations such as ``sk-...abcd``.
+    for prefix_length in (3, 4, 5, 6, 7, 8):
+        for suffix_length in (4, 6, 8):
+            if prefix_length + suffix_length < len(api_key):
+                prefix = api_key[:prefix_length]
+                suffix = api_key[-suffix_length:]
+                for separator in ("...", "…", "***", "****", ".."):
+                    candidate = f"{prefix}{separator}{suffix}"
+                    redacted = redacted.replace(candidate, "[REDACTED]")
+
+    return redacted
+
+
+def _map_openai_error(
+    exc: Exception,
+    provider_label: str = "OpenAI",
+    api_key: str | None = None,
+    status_code: int | None = None,
+) -> Exception:
     """Translate an OpenAI SDK exception into the application error model.
 
     Only transient failures (5xx, connection errors) are classified as
     retryable. Authentication, bad-request, rate-limit, timeout, and
     validation errors are permanent and must not be retried.
     """
+    if status_code is None:
+        status_code = getattr(exc, "status_code", None)
+
+    redacted = _redact_openai_secret(str(exc), api_key)
+
     if isinstance(exc, OpenAIAuthError):
-        return AIAuthenticationError(f"{provider_label} authentication failed: {exc}")
+        return AIAuthenticationError(f"{provider_label} authentication failed: {redacted}")
     if isinstance(exc, OpenAIRateLimitError):
-        return AIRateLimitError(f"{provider_label} rate limit exceeded: {exc}")
+        return AIRateLimitError(f"{provider_label} rate limit exceeded: {redacted}")
     if isinstance(exc, OpenAPITimeoutError):
-        return AITimeoutError(f"{provider_label} request timed out: {exc}")
+        return AITimeoutError(f"{provider_label} request timed out: {redacted}")
     if isinstance(exc, OpenAIStatusError):
-        status_code = getattr(exc, "status_code", None) or 500
-        if 500 <= status_code < 600:
-            return AITransientError(f"{provider_label} server error (status={status_code}): {exc}")
+        resolved_status = status_code or 500
+        if 500 <= resolved_status < 600:
+            return AITransientError(
+                f"{provider_label} server error (status={resolved_status}): {redacted}"
+            )
         return AIPermanentProcessingError(
-            f"{provider_label} client error (status={status_code}): {exc}"
+            f"{provider_label} client error (status={resolved_status}): {redacted}"
         )
     if isinstance(exc, OpenAIConnectionError):
-        return AITransientError(f"{provider_label} connection failed: {exc}")
+        return AITransientError(f"{provider_label} connection failed: {redacted}")
     if isinstance(exc, ValueError):
-        return AIInvalidResponseError(f"Invalid {provider_label} response: {exc}")
-    return AITransientError(f"{provider_label} request failed: {exc}")
+        return AIInvalidResponseError(f"Invalid {provider_label} response: {redacted}")
+    return AITransientError(f"{provider_label} request failed: {redacted}")
 
 
 class OpenAIProvider(AIProvider):
@@ -219,7 +263,11 @@ class OpenAIProvider(AIProvider):
         except AIError:
             raise
         except Exception as exc:
-            raise _map_openai_error(exc, provider_label=self._provider_label) from exc
+            raise _map_openai_error(
+                exc,
+                provider_label=self._provider_label,
+                api_key=self._config.api_key,
+            ) from None
 
         latency_ms = (time.time() - start_time) * 1000
 

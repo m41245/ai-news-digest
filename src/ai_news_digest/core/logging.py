@@ -57,7 +57,35 @@ def _redact_match(m: re.Match[str]) -> str:
     return "***REDACTED***"
 
 
+def _configured_secret_values() -> list[str]:
+    """Return configured provider secret values for defensive log redaction."""
+    values: list[str] = []
+    try:
+        current_settings = settings
+    except Exception:
+        return values
+    for attr in (
+        "openai_api_key",
+        "anthropic_api_key",
+        "gemini_api_key",
+        "xai_api_key",
+        "groq_api_key",
+    ):
+        value = getattr(current_settings, attr, None)
+        if value is None:
+            continue
+        try:
+            secret = value.get_secret_value()
+        except Exception:
+            secret = str(value)
+        if secret:
+            values.append(secret)
+    return values
+
+
 def _redact_string(value: str) -> str:
+    for secret in _configured_secret_values():
+        value = value.replace(secret, "[REDACTED]")
     for pattern in _SENSITIVE_REGEXES:
         value = pattern.sub(_redact_match, value)
     return value

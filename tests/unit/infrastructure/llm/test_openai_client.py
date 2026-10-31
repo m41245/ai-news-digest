@@ -297,6 +297,92 @@ async def test_openai_provider_health_check_without_client() -> None:
     assert result is False
 
 
+@pytest.mark.asyncio
+async def test_openai_provider_does_not_expose_api_key_on_auth_error(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Authentication errors must not leak the configured API key."""
+    from openai import AuthenticationError as OpenAIAuthError
+
+    from ai_news_digest.application.ai.errors import AIAuthenticationError
+
+    sentinel = "sentinel-openai-secret-key"
+    config = ProviderConfig(
+        provider_name="openai",
+        api_key=sentinel,
+        enabled=True,
+        priority=1,
+        model="gpt-4o-mini",
+        timeout=30,
+        max_retries=1,
+    )
+    provider = OpenAIProvider(config)
+    request = AIRequest(
+        system_prompt="You are a helpful assistant.",
+        user_prompt="Summarize this text.",
+        temperature=0.7,
+        max_tokens=100,
+    )
+
+    partial = f"{sentinel[:4]}...{sentinel[-4:]}"
+    with patch.object(
+        provider._client.chat.completions, "create", new_callable=AsyncMock
+    ) as mock_create:
+        mock_create.side_effect = OpenAIAuthError(
+            message=f"Invalid API key {sentinel} (formatted {partial})",
+            response=MagicMock(),
+            body=None,
+        )
+
+        with pytest.raises(AIAuthenticationError) as exc_info:
+            await provider.generate(request)
+
+    assert sentinel not in str(exc_info.value)
+    assert partial not in str(exc_info.value)
+    assert sentinel[-4:] not in str(exc_info.value)
+    assert sentinel not in caplog.text
+    assert partial not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_openai_provider_does_not_chain_original_exception() -> None:
+    """The original SDK exception must not be retained as __cause__."""
+    from openai import AuthenticationError as OpenAIAuthError
+
+    sentinel = "sentinel-openai-secret-key"
+    config = ProviderConfig(
+        provider_name="openai",
+        api_key=sentinel,
+        enabled=True,
+        priority=1,
+        model="gpt-4o-mini",
+        timeout=30,
+        max_retries=1,
+    )
+    provider = OpenAIProvider(config)
+    request = AIRequest(
+        system_prompt="You are a helpful assistant.",
+        user_prompt="Summarize this text.",
+        temperature=0.7,
+        max_tokens=100,
+    )
+
+    original = OpenAIAuthError(
+        message=f"Invalid API key {sentinel}",
+        response=MagicMock(),
+        body=None,
+    )
+    with patch.object(
+        provider._client.chat.completions, "create", new_callable=AsyncMock
+    ) as mock_create:
+        mock_create.side_effect = original
+
+        with pytest.raises(Exception) as exc_info:
+            await provider.generate(request)
+
+    assert exc_info.value.__cause__ is None
+
+
 def test_openai_provider_max_context_tokens(openai_provider: OpenAIProvider) -> None:
     """Test max_context_tokens property."""
     assert openai_provider.max_context_tokens == 128000
