@@ -138,3 +138,46 @@ async def test_groq_provider_generate_malformed_response() -> None:
 
         with pytest.raises(AIInvalidResponseError, match="Invalid Groq response"):
             await provider.generate(request)
+
+
+@pytest.mark.asyncio
+async def test_groq_provider_does_not_expose_original_exception() -> None:
+    """Mapped Groq errors must not retain the original SDK exception."""
+    sentinel = "sentinel-groq-secret-key"
+    config = ProviderConfig(
+        provider_name="groq",
+        api_key=sentinel,
+        enabled=True,
+        priority=2,
+        model="openai/gpt-oss-20b",
+        timeout=30,
+        max_retries=1,
+    )
+    provider = GroqProvider(config)
+    request = AIRequest(
+        system_prompt="You are a helpful assistant.",
+        user_prompt="Summarize this text.",
+        temperature=0.7,
+        max_tokens=100,
+    )
+
+    partial = f"{sentinel[:4]}...{sentinel[-4:]}"
+    original = OpenAIAuthError(
+        message=f"Invalid API key {sentinel} (formatted {partial})",
+        response=MagicMock(),
+        body=None,
+    )
+    with patch.object(
+        provider._client.chat.completions, "create", new_callable=AsyncMock
+    ) as mock_create:
+        mock_create.side_effect = original
+
+        with pytest.raises(AIAuthenticationError) as exc_info:
+            await provider.generate(request)
+
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__context__ is None
+    assert sentinel not in str(exc_info.value)
+    assert partial not in str(exc_info.value)
+    assert sentinel[-4:] not in str(exc_info.value)
+    assert "authentication failed" in str(exc_info.value).lower()
