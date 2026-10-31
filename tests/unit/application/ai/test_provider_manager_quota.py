@@ -418,7 +418,11 @@ def _patched_settings(**kwargs: object) -> Iterator[Settings]:
     ``validation_alias``.  We work around this by mapping each keyword to its
     alias (when one exists) so the value is accepted by the constructor.
     """
-    init_kwargs: dict[str, object] = {"ai_enabled": True, "ai_free_only": False, "environment": "testing"}
+    init_kwargs: dict[str, object] = {
+        "ai_enabled": True,
+        "ai_free_only": False,
+        "environment": "testing",
+    }
     for key, value in kwargs.items():
         field = Settings.model_fields.get(key)
         if field and field.validation_alias and isinstance(field.validation_alias, str):

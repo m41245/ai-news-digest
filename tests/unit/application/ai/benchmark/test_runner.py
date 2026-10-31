@@ -105,7 +105,9 @@ class TestBenchmarkRunnerExecution:
         from unittest.mock import patch
 
         with patch("ai_news_digest.application.ai.benchmark.runner.get_settings") as mock_settings:
-            mock_settings.return_value = Settings(ai_enabled=True, ai_free_only=False, environment="testing")
+            mock_settings.return_value = Settings(
+                ai_enabled=True, ai_free_only=False, environment="testing"
+            )
             pm = runner._provider_manager
             from ai_news_digest.application.ai.models import AIResponse, AIUsage
 
@@ -138,6 +140,8 @@ class TestBenchmarkRunnerExecution:
         )
         runner = BenchmarkRunner(provider_manager=pm, registry=mock_registry, config=config)
         with patch("ai_news_digest.application.ai.benchmark.runner.get_settings") as mock_settings:
-            mock_settings.return_value = Settings(ai_enabled=True, ai_free_only=False, environment="testing")
+            mock_settings.return_value = Settings(
+                ai_enabled=True, ai_free_only=False, environment="testing"
+            )
             run = await runner.run()
             assert run.total_requests <= 2
