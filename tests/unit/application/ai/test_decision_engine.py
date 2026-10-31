@@ -18,7 +18,7 @@ from ai_news_digest.application.ai.providers.base import AIProvider
 @pytest.fixture
 def provider_registry() -> ProviderRegistry:
     """Create a ProviderRegistry instance."""
-    return ProviderRegistry()
+    return ProviderRegistry(free_only=False)
 
 
 @pytest.fixture

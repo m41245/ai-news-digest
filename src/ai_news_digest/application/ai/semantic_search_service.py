@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from ai_news_digest.application.ai.similarity_engine import SimilarityEngine
 from ai_news_digest.core.logging import get_logger
@@ -64,7 +64,16 @@ class SemanticSearchService:
             return []
 
         if not self._embedding_service.is_available or not query_embedding:
-            return [ScoredArticle(article=a, similarity=0.0) for a in candidates]
+            seen_ids: set[Any] = set()
+            unique_candidates: list[Article] = []
+            for article in candidates:
+                if article.id in seen_ids:
+                    continue
+                seen_ids.add(article.id)
+                unique_candidates.append(article)
+            results = [ScoredArticle(article=a, similarity=0.0) for a in unique_candidates]
+            results.sort(key=lambda r: r.article.id)
+            return results
 
         try:
             docs = [self._article_to_document(a) for a in candidates]
@@ -72,16 +81,35 @@ class SemanticSearchService:
             embeddings = {d.id: r.embedding for d, r in zip(docs, batch.results, strict=True)}
         except Exception as exc:
             logger.warning("semantic_search.embedding_failed", error=str(exc))
-            return [ScoredArticle(article=a, similarity=0.0) for a in candidates]
+            seen_ids_failed: set[Any] = set()
+            unique_candidates_failed: list[Article] = []
+            for article in candidates:
+                if article.id in seen_ids_failed:
+                    continue
+                seen_ids_failed.add(article.id)
+                unique_candidates_failed.append(article)
+            results_failed = [
+                ScoredArticle(article=a, similarity=0.0) for a in unique_candidates_failed
+            ]
+            results_failed.sort(key=lambda r: r.article.id)
+            return results_failed
 
         from datetime import UTC, datetime
 
+        seen_candidate_ids: set[Any] = set()
+        ranked_candidates: list[Article] = []
+        for candidate in candidates:
+            if candidate.id in seen_candidate_ids:
+                continue
+            seen_candidate_ids.add(candidate.id)
+            ranked_candidates.append(candidate)
+
         now = datetime.now(UTC)
-        results: list[ScoredArticle] = []
-        for article in candidates:
+        ranked_results: list[ScoredArticle] = []
+        for article in ranked_candidates:
             candidate_embedding = embeddings.get(article.id)
             if candidate_embedding is None:
-                results.append(
+                ranked_results.append(
                     ScoredArticle(
                         article=article,
                         similarity=0.0,
@@ -108,7 +136,7 @@ class SemanticSearchService:
                 + self._importance_weight * importance
                 + self._recency_weight * recency
             )
-            results.append(
+            ranked_results.append(
                 ScoredArticle(
                     article=article,
                     similarity=sim,
@@ -117,8 +145,9 @@ class SemanticSearchService:
                 )
             )
 
-        results.sort(key=lambda r: r.combined_score, reverse=True)
-        return results
+        ranked_results.sort(key=lambda r: r.article.id)
+        ranked_results.sort(key=lambda r: r.combined_score, reverse=True)
+        return ranked_results
 
     async def search_clusters(
         self,
@@ -130,7 +159,16 @@ class SemanticSearchService:
             return []
 
         if not self._embedding_service.is_available or not query_embedding:
-            return [ScoredCluster(cluster=c, similarity=0.0) for c in clusters]
+            seen_ids: set[Any] = set()
+            unique_clusters: list[StoryCluster] = []
+            for cluster in clusters:
+                if cluster.id in seen_ids:
+                    continue
+                seen_ids.add(cluster.id)
+                unique_clusters.append(cluster)
+            results = [ScoredCluster(cluster=c, similarity=0.0) for c in unique_clusters]
+            results.sort(key=lambda r: r.cluster.id)
+            return results
 
         try:
             docs = [self._cluster_to_document(c) for c in clusters]
@@ -138,23 +176,43 @@ class SemanticSearchService:
             embeddings = {d.id: r.embedding for d, r in zip(docs, batch.results, strict=True)}
         except Exception as exc:
             logger.warning("semantic_search.cluster_embedding_failed", error=str(exc))
-            return [ScoredCluster(cluster=c, similarity=0.0) for c in clusters]
+            seen_ids_failed: set[Any] = set()
+            unique_clusters_failed: list[StoryCluster] = []
+            for cluster in clusters:
+                if cluster.id in seen_ids_failed:
+                    continue
+                seen_ids_failed.add(cluster.id)
+                unique_clusters_failed.append(cluster)
+            results_failed = [
+                ScoredCluster(cluster=c, similarity=0.0) for c in unique_clusters_failed
+            ]
+            results_failed.sort(key=lambda r: r.cluster.id)
+            return results_failed
 
-        results: list[ScoredCluster] = []
+        seen_candidate_ids: set[Any] = set()
+        ranked_clusters: list[StoryCluster] = []
         for cluster in clusters:
+            if cluster.id in seen_candidate_ids:
+                continue
+            seen_candidate_ids.add(cluster.id)
+            ranked_clusters.append(cluster)
+
+        ranked_results: list[ScoredCluster] = []
+        for cluster in ranked_clusters:
             cluster_embedding = embeddings.get(cluster.id)
             if cluster_embedding is None:
                 continue
             sim = self._similarity.normalized_similarity(query_embedding, cluster_embedding)
-            results.append(
+            ranked_results.append(
                 ScoredCluster(
                     cluster=cluster,
                     similarity=sim,
                 )
             )
 
-        results.sort(key=lambda r: r.similarity, reverse=True)
-        return results
+        ranked_results.sort(key=lambda r: r.cluster.id)
+        ranked_results.sort(key=lambda r: r.similarity, reverse=True)
+        return ranked_results
 
     @staticmethod
     def _article_to_document(article: Article) -> SemanticDocument:

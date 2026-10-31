@@ -340,8 +340,12 @@ async def e2e_container(
         async with async_session_factory() as session:
             container = Container(session)
 
+            # Free-only mode would reject the fake test provider; tests use an
+            # explicit non-free provider registry.
+            container._free_only = False
+
             # Replace the AI provider registry with one containing the fake provider
-            container._provider_registry = ProviderRegistry()
+            container._provider_registry = ProviderRegistry(free_only=False)
             container._provider_registry.register(fake_provider)
             container._capability_registry.register_provider("summarization", fake_provider.id)
             container._capability_registry.register_provider("categorization", fake_provider.id)

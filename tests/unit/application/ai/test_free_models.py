@@ -10,6 +10,7 @@ from ai_news_digest.application.ai.free_models import (
     FREE_PROVIDER_MODEL_ALLOWLIST,
     is_allowlisted_free_model,
     is_free_only_mode,
+    resolve_free_only,
 )
 from ai_news_digest.core.config import Settings
 
@@ -55,3 +56,22 @@ def test_free_only_mode_uses_settings_flag() -> None:
 def test_production_settings_always_enable_free_only_mode() -> None:
     settings = SimpleNamespace(ai_free_only=False, environment="production")
     assert is_free_only_mode(settings)
+
+
+def test_resolve_free_only_defaults_to_configured_mode() -> None:
+    assert resolve_free_only(None, settings=Settings(ai_free_only=True, environment="testing"))
+    assert not resolve_free_only(None, settings=Settings(ai_free_only=False, environment="testing"))
+
+
+def test_resolve_free_only_production_enforced() -> None:
+    assert resolve_free_only(
+        False, settings=SimpleNamespace(ai_free_only=False, environment="production")
+    )
+    assert resolve_free_only(
+        True, settings=SimpleNamespace(ai_free_only=False, environment="production")
+    )
+
+
+def test_resolve_free_only_explicit_override_allowed_in_nonproduction() -> None:
+    assert not resolve_free_only(False, settings=Settings(ai_free_only=True, environment="testing"))
+    assert resolve_free_only(True, settings=Settings(ai_free_only=False, environment="testing"))

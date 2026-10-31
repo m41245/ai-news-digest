@@ -543,7 +543,7 @@ class Settings(BaseSettings):
     )
 
     ai_free_only: bool = Field(
-        default=False,
+        default=True,
         validation_alias="AI_FREE_ONLY",
         description=(
             "Restrict AI provider registration and routing to explicitly "
@@ -805,7 +805,7 @@ class Settings(BaseSettings):
         ge=0.0,
         le=1.0,
         description=(
-            "Minimum structured output validity rate to pass the" " article analysis quality gate."
+            "Minimum structured output validity rate to pass the article analysis quality gate."
         ),
     )
 
@@ -1469,7 +1469,7 @@ class Settings(BaseSettings):
         ge=1,
         le=500,
         description=(
-            "Maximum candidates to evaluate per trend type " "(company, topic, category, story)."
+            "Maximum candidates to evaluate per trend type (company, topic, category, story)."
         ),
     )
 
@@ -2055,6 +2055,16 @@ class Settings(BaseSettings):
                 "ANTHROPIC_API_KEY must be set when ANTHROPIC_ENABLED=true in production."
             )
         return value
+
+    @model_validator(mode="before")
+    @classmethod
+    def force_free_only_in_production(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            environment = data.get("environment", "development")
+            if isinstance(environment, str) and environment.strip().lower() == "production":
+                data = dict(data)
+                data["ai_free_only"] = True
+        return data
 
     @model_validator(mode="after")
     def validate_ai_provider_keys(self) -> "Settings":
