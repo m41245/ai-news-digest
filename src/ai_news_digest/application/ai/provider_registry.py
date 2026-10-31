@@ -6,7 +6,7 @@ from typing import cast
 from ai_news_digest.application.ai.free_models import (
     FREE_PROVIDER_MODEL_ALLOWLIST,
     is_allowlisted_free_model,
-    is_free_only_mode,
+    resolve_free_only,
 )
 from ai_news_digest.application.ai.providers.base import AIProvider
 from ai_news_digest.exceptions import InvalidPluginError
@@ -24,7 +24,7 @@ class ProviderRegistry:
 
     def __init__(self, free_only: bool | None = None) -> None:
         self._registry = PluginRegistry()
-        self._free_only = free_only if free_only is not None else is_free_only_mode()
+        self._free_only = resolve_free_only(free_only)
 
     def register(self, provider: AIProvider) -> AIProvider:
         """Register a provider plugin using its immutable id."""

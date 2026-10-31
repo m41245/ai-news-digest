@@ -88,6 +88,33 @@ def is_free_only_mode(settings: object | None = None) -> bool:
     return False
 
 
+def resolve_free_only(free_only: bool | None = None, settings: object | None = None) -> bool:
+    """Resolve the effective free-only flag for direct construction.
+
+    Production always enforces free-only mode, even when an explicit override
+    is supplied. A missing argument resolves to the configured mode via
+    ``is_free_only_mode`` instead of silently allowing paid providers.
+    """
+    if settings is None:
+        try:
+            settings = get_settings()
+        except Exception:  # pragma: no cover - defensive fallback
+            settings = None
+
+    environment = None
+    if settings is not None:
+        environment = getattr(settings, "environment", None)
+    if not isinstance(environment, str):
+        environment = os.getenv("ENVIRONMENT") or os.getenv("APP_ENV") or "development"
+
+    if isinstance(environment, str) and environment.strip().lower() == "production":
+        return True
+
+    if free_only is None:
+        return is_free_only_mode(settings)
+    return bool(free_only)
+
+
 __all__ = [
     "ALLOWED_FREE_MODELS",
     "FREE_MODEL_ALLOWLIST",
@@ -99,4 +126,5 @@ __all__ = [
     "is_allowlisted_free_model",
     "is_free_only_mode",
     "is_free_provider",
+    "resolve_free_only",
 ]

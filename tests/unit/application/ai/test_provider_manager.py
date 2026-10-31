@@ -26,7 +26,7 @@ from ai_news_digest.core.exceptions import ExternalServiceError
 
 @pytest.fixture
 def provider_registry() -> ProviderRegistry:
-    return ProviderRegistry()
+    return ProviderRegistry(free_only=False)
 
 
 @pytest.fixture
@@ -85,7 +85,7 @@ def mock_provider_registry(
 def _ai_enabled() -> None:
     with patch(
         "ai_news_digest.application.ai.provider_manager.get_settings",
-        return_value=Settings(ai_enabled=True),
+        return_value=Settings(ai_enabled=True, ai_free_only=False, environment="testing"),
     ):
         yield
 

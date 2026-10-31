@@ -101,3 +101,67 @@ class TestSemanticSearchService:
         result = await svc.search_clusters("query", clusters, query_embedding=(1.0, 0.0, 0.0))
         assert len(result) == 2
         assert all(isinstance(r, ScoredCluster) for r in result)
+
+    @pytest.mark.asyncio
+    async def test_duplicate_article_ids_are_deduplicated(self) -> None:
+        from uuid import uuid4
+
+        # Use real service with unavailable embedding to exercise fallback ordering.
+        embedding = MagicMock(spec=EmbeddingService)
+        embedding.is_available = False
+        svc = SemanticSearchService(embedding_service=embedding)
+
+        shared_id = uuid4()
+        a1 = _make_article("A")
+        a2 = _make_article("B")
+        a1.id = shared_id
+        a2.id = shared_id
+        result = await svc.search_articles("query", [a2, a1])
+        assert len(result) == 1
+        assert result[0].article.id == shared_id
+
+    @pytest.mark.asyncio
+    async def test_equal_scores_use_article_id_tiebreaker(self) -> None:
+        from uuid import UUID
+
+        embedding = MagicMock(spec=EmbeddingService)
+        embedding.is_available = True
+        # Return identical embeddings so scores tie.
+        embedding.generate_batch = AsyncMock(
+            return_value=MagicMock(
+                results=[
+                    MagicMock(embedding=(1.0, 0.0, 0.0)),
+                    MagicMock(embedding=(1.0, 0.0, 0.0)),
+                ]
+            )
+        )
+        svc = SemanticSearchService(embedding_service=embedding)
+        a1 = _make_article("A")
+        a2 = _make_article("B")
+        # Force deterministic ids for tie-break assertion.
+        a1.id = UUID("00000000-0000-0000-0000-000000000002")
+        a2.id = UUID("00000000-0000-0000-0000-000000000001")
+        result = await svc.search_articles("query", [a1, a2], query_embedding=(1.0, 0.0, 0.0))
+        assert len(result) == 2
+        # Equal combined scores: lower article id first.
+        assert result[0].article.id == a2.id
+        assert result[1].article.id == a1.id
+
+    @pytest.mark.asyncio
+    async def test_fallback_path_is_sorted_by_article_id(self) -> None:
+        embedding = MagicMock(spec=EmbeddingService)
+        embedding.is_available = False
+        svc = SemanticSearchService(embedding_service=embedding)
+        a1 = _make_article("A")
+        a2 = _make_article("B")
+        result = await svc.search_articles("query", [a1, a2])
+        ids = [r.article.id for r in result]
+        assert ids == sorted(ids)
+
+    @pytest.mark.asyncio
+    async def test_empty_candidates_returns_empty_fallback(self) -> None:
+        embedding = MagicMock(spec=EmbeddingService)
+        embedding.is_available = True
+        svc = SemanticSearchService(embedding_service=embedding)
+        result = await svc.search_articles("query", [])
+        assert result == []

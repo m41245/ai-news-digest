@@ -12,6 +12,7 @@ import pytest
 from ai_news_digest.application.dto.source import UpdateSourceRequest
 from ai_news_digest.application.exceptions.source import SourceNotFoundError
 from ai_news_digest.application.use_cases.source.update import UpdateSourceUseCase
+from ai_news_digest.core.exceptions import ValidationError
 from ai_news_digest.domain.enums.source_status import SourceStatus
 from ai_news_digest.domain.models.source import Source
 
@@ -23,10 +24,8 @@ async def test_update_source_success(mock_source_repository: AsyncMock) -> None:
     request = UpdateSourceRequest(
         id=source_id,
         name="Updated Name",
-        feed_url="https://updated.com/feed.xml",
         website_url="https://updated.com",
         description="Updated description",
-        is_active=False,
     )
 
     existing_source = Source.create(
@@ -44,10 +43,10 @@ async def test_update_source_success(mock_source_repository: AsyncMock) -> None:
 
     # Assert
     assert response.name == "Updated Name"
-    assert response.feed_url == "https://updated.com/feed.xml"
+    assert response.feed_url == "https://original.com/feed.xml"
     assert response.website_url == "https://updated.com"
     assert response.description == "Updated description"
-    assert response.is_active is False
+    assert response.is_active is True
     mock_source_repository.get_by_id.assert_called_once_with(source_id)
     mock_source_repository.update.assert_called_once()
 
@@ -130,3 +129,45 @@ async def test_update_source_preserves_trust_status(mock_source_repository: Asyn
     assert response.status == "verified"
     # Ensure the generic update path never passes a status change to the domain
     assert existing_source.status == SourceStatus.VERIFIED
+
+
+async def test_update_source_rejects_feed_url_change(mock_source_repository: AsyncMock) -> None:
+    source_id = uuid4()
+    request = UpdateSourceRequest(
+        id=source_id,
+        feed_url="https://changed.com/feed.xml",
+    )
+    existing_source = Source.create(
+        name="Original Name",
+        feed_url="https://original.com/feed.xml",
+        is_active=True,
+    )
+    mock_source_repository.get_by_id.return_value = existing_source
+
+    use_case = UpdateSourceUseCase(repository=mock_source_repository)
+
+    with pytest.raises(ValidationError, match="feed_url"):
+        await use_case.execute(request)
+
+    mock_source_repository.update.assert_not_called()
+
+
+async def test_update_source_rejects_is_active_change(mock_source_repository: AsyncMock) -> None:
+    source_id = uuid4()
+    request = UpdateSourceRequest(
+        id=source_id,
+        is_active=False,
+    )
+    existing_source = Source.create(
+        name="Original Name",
+        feed_url="https://original.com/feed.xml",
+        is_active=True,
+    )
+    mock_source_repository.get_by_id.return_value = existing_source
+
+    use_case = UpdateSourceUseCase(repository=mock_source_repository)
+
+    with pytest.raises(ValidationError, match="is_active"):
+        await use_case.execute(request)
+
+    mock_source_repository.update.assert_not_called()

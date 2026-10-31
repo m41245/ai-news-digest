@@ -58,7 +58,7 @@ from ai_news_digest.core.exceptions import ExternalServiceError
 
 @pytest.fixture
 def provider_registry() -> ProviderRegistry:
-    return ProviderRegistry()
+    return ProviderRegistry(free_only=False)
 
 
 @pytest.fixture
@@ -179,7 +179,11 @@ def _pricing_config(**overrides: object) -> ProviderConfig:
 
 @contextmanager
 def _patched_settings(**kwargs: object) -> Iterator[Settings]:
-    init_kwargs: dict[str, object] = {"ai_enabled": True}
+    init_kwargs: dict[str, object] = {
+        "ai_enabled": True,
+        "ai_free_only": False,
+        "environment": "testing",
+    }
     for key, value in kwargs.items():
         field = Settings.model_fields.get(key)
         if field and field.validation_alias and isinstance(field.validation_alias, str):
@@ -198,7 +202,7 @@ def _patched_settings(**kwargs: object) -> Iterator[Settings]:
 def _ai_enabled() -> None:
     with patch(
         "ai_news_digest.application.ai.provider_manager.get_settings",
-        return_value=Settings(ai_enabled=True),
+        return_value=Settings(ai_enabled=True, ai_free_only=False, environment="testing"),
     ):
         yield
 

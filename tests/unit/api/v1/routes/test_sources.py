@@ -284,3 +284,65 @@ def test_update_source_non_admin_returns_403() -> None:
         response = test_client.patch(f"/sources/{uuid4()}", json={})
 
     assert response.status_code == 403
+
+
+def test_update_source_rejects_feed_url_change(
+    client: TestClient, mock_container: MagicMock
+) -> None:
+    from ai_news_digest.core.exceptions import ValidationError
+
+    mock_container.update_source.execute = AsyncMock(
+        side_effect=ValidationError(
+            "feed_url changes require the audited source trust-decision flow."
+        )
+    )
+    source_id = uuid4()
+    response = client.patch(
+        f"/sources/{source_id}", json={"feed_url": "https://changed.com/feed.xml"}
+    )
+    assert response.status_code == 422
+    assert "feed_url" in response.json()["message"]
+
+
+def test_update_source_rejects_is_active_change(
+    client: TestClient, mock_container: MagicMock
+) -> None:
+    from ai_news_digest.core.exceptions import ValidationError
+
+    mock_container.update_source.execute = AsyncMock(
+        side_effect=ValidationError(
+            "is_active changes require the audited source trust-decision flow."
+        )
+    )
+    source_id = uuid4()
+    response = client.patch(f"/sources/{source_id}", json={"is_active": False})
+    assert response.status_code == 422
+    assert "is_active" in response.json()["message"]
+
+
+def test_update_source_allows_unrelated_metadata(
+    client: TestClient, mock_container: MagicMock
+) -> None:
+    updated = Source(
+        id=uuid4(),
+        name="Updated",
+        feed_url="https://example.com/feed.xml",
+        website_url="https://updated.com",
+        description="Updated description",
+        is_active=True,
+        source_type=SourceType.OTHER,
+        status=SourceStatus.VERIFIED,
+        created_at=datetime.now(UTC),
+    )
+    mock_container.update_source.execute = AsyncMock(return_value=updated)
+    source_id = uuid4()
+    response = client.patch(
+        f"/sources/{source_id}",
+        json={
+            "name": "Updated",
+            "website_url": "https://updated.com",
+            "description": "Updated description",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["name"] == "Updated"

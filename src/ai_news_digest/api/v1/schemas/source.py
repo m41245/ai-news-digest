@@ -20,7 +20,12 @@ class SourceCreate(BaseModel):
 
 
 class SourceUpdate(BaseModel):
-    """Request model for updating a news source."""
+    """Request model for updating a news source.
+
+    ``feed_url`` and ``is_active`` are accepted for compatibility but are not
+    applied through this generic update flow. Changes to those fields require
+    the audited source trust-decision flow.
+    """
 
     name: Annotated[str | None, Field(default=None, min_length=1, max_length=200)] = None
     feed_url: Annotated[str | None, Field(default=None, max_length=2048)] = None

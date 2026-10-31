@@ -14,7 +14,7 @@ from ai_news_digest.application.ai.decision_engine import DecisionEngine
 from ai_news_digest.application.ai.free_models import (
     FREE_PROVIDER_MODEL_ALLOWLIST,
     is_allowlisted_free_model,
-    is_free_only_mode,
+    resolve_free_only,
 )
 from ai_news_digest.application.ai.models import (
     AIRequest,
@@ -100,7 +100,8 @@ class ProviderManager:
         self._decision_engine = decision_engine
         self._health_registry = health_registry
         self._quota_registry = quota_registry
-        self._free_only = free_only if free_only is not None else is_free_only_mode()
+        settings = get_settings()
+        self._free_only = resolve_free_only(free_only, settings=settings)
 
     async def generate(
         self,

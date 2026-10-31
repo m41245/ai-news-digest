@@ -9,6 +9,7 @@ from ai_news_digest.application.dto.source import (
 from ai_news_digest.application.exceptions.source import (
     SourceNotFoundError,
 )
+from ai_news_digest.core.exceptions import ValidationError
 
 if TYPE_CHECKING:
     from ai_news_digest.domain.ports.source_repository import SourceRepository
@@ -38,12 +39,20 @@ class UpdateSourceUseCase:
         if source is None:
             raise SourceNotFoundError(str(request.id))
 
+        if request.feed_url is not None:
+            raise ValidationError(
+                "feed_url changes require the audited source trust-decision flow."
+            )
+
+        if request.is_active is not None:
+            raise ValidationError(
+                "is_active changes require the audited source trust-decision flow."
+            )
+
         source.update(
             name=request.name,
-            feed_url=request.feed_url,
             website_url=request.website_url,
             description=request.description,
-            is_active=request.is_active,
         )
 
         updated = await self._repository.update(source)

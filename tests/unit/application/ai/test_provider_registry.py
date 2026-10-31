@@ -25,7 +25,7 @@ def mock_provider() -> MagicMock:
 def test_provider_registry_register(mock_provider: MagicMock) -> None:
     """Test registering a provider."""
     # Arrange
-    registry = ProviderRegistry()
+    registry = ProviderRegistry(free_only=False)
 
     # Act
     result = registry.register(mock_provider)
@@ -39,7 +39,7 @@ def test_provider_registry_register(mock_provider: MagicMock) -> None:
 def test_provider_registry_register_invalid() -> None:
     """Test registering a non-provider raises error."""
     # Arrange
-    registry = ProviderRegistry()
+    registry = ProviderRegistry(free_only=False)
     invalid_provider = "not a provider"
 
     # Act & Assert
@@ -50,7 +50,7 @@ def test_provider_registry_register_invalid() -> None:
 def test_provider_registry_unregister(mock_provider: MagicMock) -> None:
     """Test unregistering a provider."""
     # Arrange
-    registry = ProviderRegistry()
+    registry = ProviderRegistry(free_only=False)
     registry.register(mock_provider)
 
     # Act
@@ -65,7 +65,7 @@ def test_provider_registry_unregister(mock_provider: MagicMock) -> None:
 def test_provider_registry_get(mock_provider: MagicMock) -> None:
     """Test getting a provider by ID."""
     # Arrange
-    registry = ProviderRegistry()
+    registry = ProviderRegistry(free_only=False)
     registry.register(mock_provider)
 
     # Act
@@ -78,7 +78,7 @@ def test_provider_registry_get(mock_provider: MagicMock) -> None:
 def test_provider_registry_list_all(mock_provider: MagicMock) -> None:
     """Test listing all providers."""
     # Arrange
-    registry = ProviderRegistry()
+    registry = ProviderRegistry(free_only=False)
     registry.register(mock_provider)
 
     # Act
@@ -92,7 +92,7 @@ def test_provider_registry_list_all(mock_provider: MagicMock) -> None:
 def test_provider_registry_exists(mock_provider: MagicMock) -> None:
     """Test checking if provider exists."""
     # Arrange
-    registry = ProviderRegistry()
+    registry = ProviderRegistry(free_only=False)
     registry.register(mock_provider)
 
     # Act & Assert
@@ -103,7 +103,7 @@ def test_provider_registry_exists(mock_provider: MagicMock) -> None:
 def test_provider_registry_contains(mock_provider: MagicMock) -> None:
     """Test 'in' operator support."""
     # Arrange
-    registry = ProviderRegistry()
+    registry = ProviderRegistry(free_only=False)
     registry.register(mock_provider)
 
     # Act & Assert
@@ -114,7 +114,7 @@ def test_provider_registry_contains(mock_provider: MagicMock) -> None:
 def test_provider_registry_len(mock_provider: MagicMock) -> None:
     """Test len() operator support."""
     # Arrange
-    registry = ProviderRegistry()
+    registry = ProviderRegistry(free_only=False)
 
     # Act & Assert
     assert len(registry) == 0
@@ -166,7 +166,7 @@ def test_provider_registry_accepts_allowlisted_free_models(
 def test_provider_registry_iter(mock_provider: MagicMock) -> None:
     """Test iteration over providers."""
     # Arrange
-    registry = ProviderRegistry()
+    registry = ProviderRegistry(free_only=False)
     registry.register(mock_provider)
 
     # Act
@@ -180,7 +180,7 @@ def test_provider_registry_iter(mock_provider: MagicMock) -> None:
 def test_provider_registry_names(mock_provider: MagicMock) -> None:
     """Test getting provider names."""
     # Arrange
-    registry = ProviderRegistry()
+    registry = ProviderRegistry(free_only=False)
     registry.register(mock_provider)
 
     # Act
@@ -193,7 +193,7 @@ def test_provider_registry_names(mock_provider: MagicMock) -> None:
 def test_provider_registry_all(mock_provider: MagicMock) -> None:
     """Test all() method returns all providers."""
     # Arrange
-    registry = ProviderRegistry()
+    registry = ProviderRegistry(free_only=False)
     registry.register(mock_provider)
 
     # Act
@@ -202,3 +202,26 @@ def test_provider_registry_all(mock_provider: MagicMock) -> None:
     # Assert
     assert len(result) == 1
     assert result[0] is mock_provider
+
+
+def test_provider_registry_default_construction_rejects_paid_provider(
+    monkeypatch: pytest.MonkeyPatch, mock_provider: MagicMock
+) -> None:
+    from ai_news_digest.core.config import Settings
+
+    monkeypatch.setattr(
+        "ai_news_digest.application.ai.free_models.get_settings",
+        lambda: Settings(ai_free_only=True, environment="testing"),
+    )
+    mock_provider.id = "openai"
+    mock_provider.model_name = "gpt-4o"
+    registry = ProviderRegistry()
+    with pytest.raises(InvalidPluginError, match="allowlisted free-tier model"):
+        registry.register(mock_provider)
+
+
+def test_provider_registry_default_construction_allows_test_injection_override(
+    mock_provider: MagicMock,
+) -> None:
+    registry = ProviderRegistry(free_only=False)
+    assert registry.register(mock_provider) is mock_provider

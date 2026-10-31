@@ -283,11 +283,21 @@ async def list_public_articles(
             )
 
             ranked_articles = [item.article for item in scored]
-            # ``total`` is the number of ranked candidates available to this
-            # semantic search, bounded by ``semantic_candidate_limit``. It is
-            # intentionally not the total number of matching articles, because
-            # only the ranked candidate set is paginated here; requesting an
-            # offset beyond that set returns an empty page.
+            # Deduplicate by article identity while preserving ranked order so
+            # repeated candidates cannot inflate totals or pagination.
+            seen_article_ids: set[UUID] = set()
+            deduplicated_articles: list[Any] = []
+            for article in ranked_articles:
+                if article.id in seen_article_ids:
+                    continue
+                seen_article_ids.add(article.id)
+                deduplicated_articles.append(article)
+            ranked_articles = deduplicated_articles
+            # ``total`` is the number of unique ranked candidates available to
+            # this semantic search, bounded by ``semantic_candidate_limit``. It is
+            # intentionally not the total number of matching articles in the
+            # database, because only the ranked candidate set is paginated here;
+            # requesting an offset beyond that set returns an empty page.
             total = len(ranked_articles)
             articles = ranked_articles[offset : offset + limit]
         except Exception:
