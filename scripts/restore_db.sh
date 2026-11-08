@@ -16,6 +16,17 @@ CONTAINER_NAME="${CONTAINER_NAME:-ai_news_digest_db}"
 DB_USER="${POSTGRES_USER:-postgres}"
 DB_NAME="${POSTGRES_DB:-ai_news_digest}"
 
+# Safety guard: never target production databases unless explicitly allowed.
+case "${DB_NAME}" in
+    *production*|*prod*|*prod_*)
+        if [ "${ALLOW_PRODUCTION_TARGET:-0}" != "1" ]; then
+            echo "Error: Refusing to target a production-looking database (${DB_NAME})." >&2
+            echo "Set ALLOW_PRODUCTION_TARGET=1 to override (not recommended)." >&2
+            exit 1
+        fi
+        ;;
+esac
+
 if [ -z "${BACKUP_FILE}" ]; then
     echo "Error: Backup file not specified."
     echo "Usage: $0 [--yes] <backup_file>"

@@ -1,13 +1,15 @@
 name: Deploy Staging
 
 on:
-  push:
-    branches: [main, master, develop]
   workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
+
+concurrency:
+  group: staging-deployment
+  cancel-in-progress: false
 
 env:
   PYTHON_VERSION: "3.12"
@@ -218,7 +220,7 @@ jobs:
 
       - name: Deploy to staging host
         if: ${{ steps.verify.outputs.deploy-executed == 'true' }}
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
         with:
           host: ${{ secrets.STAGING_DEPLOY_HOST }}
           username: ${{ secrets.STAGING_DEPLOY_USERNAME }}

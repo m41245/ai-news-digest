@@ -27,7 +27,7 @@ RUN poetry install --only-root --no-interaction --no-ansi
 
 FROM base AS runtime
 
-RUN apk add --no-cache libpq
+RUN apk add --no-cache libpq bash
 
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
@@ -44,20 +44,8 @@ RUN rm -rf /usr/local/lib/python3.12/site-packages/pip \
 COPY --from=builder /app/src ./src/
 COPY README.md alembic.ini ./
 COPY migrations/ ./migrations/
-
-RUN printf '%s\n' \
-  '#!/bin/sh' \
-  'set -e' \
-  '' \
-  'if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then' \
-  '  echo "Running database migrations..."' \
-  '  python -m alembic upgrade head' \
-  'fi' \
-  '' \
-  'echo "Starting application..."' \
-  'exec "$@"' \
-  > /app/entrypoint.sh \
-  && chmod +x /app/entrypoint.sh
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 RUN adduser -D -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser

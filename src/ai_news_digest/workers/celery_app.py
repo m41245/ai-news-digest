@@ -156,6 +156,10 @@ celery_app.conf.update(
     beat_max_loop_interval=60,
     worker_send_task_events=True,
     task_send_sent_event=True,
+    # Upstash exposes only logical DB 0. Namespace broker/result keys so the
+    # shared DB 0 cannot collide with application cache/rate-limit keys.
+    broker_transport_options={"global_keyprefix": "celery:broker:"},
+    result_backend_transport_options={"global_keyprefix": "celery:result:"},
     beat_schedule={
         "daily-rss-ingestion": {
             "task": "workers.tasks.ingest.fetch_all_sources",

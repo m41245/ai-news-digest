@@ -32,6 +32,15 @@ on:
           - notifications-cleanup
           - cleanup-articles
           - cleanup-digests
+      confirm_production:
+        description: "Type APPROVE to confirm this runs against production data"
+        required: true
+        type: string
+      allow_destructive:
+        description: "Explicitly allow destructive cleanup tasks"
+        required: false
+        type: boolean
+        default: false
   schedule:
     # Production schedule in UTC.
     # Intended local time depends on DIGEST_TIMEZONE (default: UTC).
@@ -61,6 +70,7 @@ jobs:
   scheduled-task:
     name: Run Scheduled Task
     runs-on: ubuntu-latest
+    environment: production
     timeout-minutes: 60
     concurrency:
       group: production-scheduler
@@ -81,6 +91,22 @@ jobs:
 
       - name: Install dependencies
         run: poetry install --no-interaction --no-ansi
+
+      - name: Validate production approval
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event.inputs.confirm_production }}" != "APPROVE" ]; then
+            echo "Production approval not confirmed. Set confirm_production=APPROVE."
+            exit 1
+          fi
+          TASK="${{ github.event.inputs.task }}"
+          if echo "$TASK" | grep -Eq '^(cleanup-|notifications-cleanup)'; then
+            if [ "${{ github.event.inputs.allow_destructive }}" != "true" ]; then
+              echo "Destructive cleanup tasks require allow_destructive=true."
+              exit 1
+            fi
+          fi
 
       - name: Validate required production configuration
         env:

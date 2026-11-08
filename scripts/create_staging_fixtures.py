@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import asyncpg
 
-STAGING_DB_URL = (
-    "postgresql://postgres:St4g1ng_P0stgr3s_S3cur3_Pw_2026!@localhost:5432/ai_news_digest_staging"
+STAGING_DB_URL = os.environ.get(
+    "STAGING_DB_URL",
+    os.environ.get(
+        "DATABASE_URL",
+        "postgresql://postgres:postgres@localhost:5432/ai_news_digest_staging",
+    ),
 )
 
 
@@ -110,8 +115,7 @@ async def main() -> None:
             print(f"Created article: {article_id}")
 
         print(
-            f"\nFixture creation complete. Created 1 source, "
-            f"1 category, {len(articles)} articles."
+            f"\nFixture creation complete. Created 1 source, 1 category, {len(articles)} articles."
         )
         print("All data is safe staging-only test data.")
 

@@ -107,7 +107,7 @@ def validate_production_config() -> list[str]:
     else:
         if os.environ.get("EMAIL_PROVIDER", "console") == "smtp":
             warnings.append(
-                "EMAIL_PROVIDER=smtp but EMAIL_ENABLED=false - " "SMTP settings will be ignored"
+                "EMAIL_PROVIDER=smtp but EMAIL_ENABLED=false - SMTP settings will be ignored"
             )
 
     smtp_host = os.environ.get("SMTP_HOST", "")

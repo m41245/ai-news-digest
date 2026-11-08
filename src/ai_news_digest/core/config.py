@@ -2067,6 +2067,39 @@ class Settings(BaseSettings):
         return data
 
     @model_validator(mode="after")
+    def validate_redis_upstash_compatibility(self) -> "Settings":
+        """Ensure Redis/Celery URLs are Upstash-compatible in production."""
+        if self.environment != "production":
+            return self
+        from urllib.parse import urlparse
+
+        for field_name, value in (
+            ("REDIS_URL", self.redis_url),
+            ("CELERY_BROKER_URL", self.celery_broker_url),
+            ("CELERY_RESULT_BACKEND", self.celery_result_backend),
+        ):
+            parsed = urlparse(value)
+            # Local Redis instances may legitimately use multiple logical
+            # databases; only enforce the Upstash DB 0 constraint for remote
+            # (managed) providers where SELECT is unsupported.
+            hostname = (parsed.hostname or "").lower()
+            if hostname in {"localhost", "127.0.0.1", "::1"}:
+                continue
+            database = 0
+            path = (parsed.path or "").strip()
+            if path and path != "/":
+                try:
+                    database = int(path.lstrip("/"))
+                except ValueError:
+                    database = 0
+            if database != 0:
+                raise ValueError(
+                    f"{field_name} must use Redis database 0 for Upstash "
+                    "compatibility in production."
+                )
+        return self
+
+    @model_validator(mode="after")
     def validate_ai_provider_keys(self) -> "Settings":
         """Cross-field validation for AI provider API keys after all fields are loaded."""
         environment = self.environment

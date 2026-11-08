@@ -16,6 +16,9 @@ export function AdminSourcesPage() {
   const [feedUrl, setFeedUrl] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["admin-sources"],
@@ -41,8 +44,22 @@ export function AdminSourcesPage() {
   }
 
   async function toggleActive(id: string, current: boolean) {
-    await sourcesApi.update(id, { is_active: !current });
-    qc.invalidateQueries({ queryKey: ["admin-sources"] });
+    setPendingId(id);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      if (current) {
+        await sourcesApi.deactivate(id, { reason: "Disabled by administrator" });
+      } else {
+        await sourcesApi.approve(id, { reason: "Approved by administrator" });
+      }
+      setActionSuccess(id);
+      qc.invalidateQueries({ queryKey: ["admin-sources"] });
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Action failed.");
+    } finally {
+      setPendingId(null);
+    }
   }
 
   async function removeSource(id: string) {
@@ -96,6 +113,16 @@ export function AdminSourcesPage() {
         </Card>
 
         <div className="mt-8">
+          {actionError && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {actionError}
+            </div>
+          )}
+          {actionSuccess && (
+            <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+              Source updated successfully.
+            </div>
+          )}
           {isError && (
             <ErrorState
               message={error?.message ?? "Failed to load sources."}
@@ -143,9 +170,14 @@ export function AdminSourcesPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            disabled={pendingId === s.id}
                             onClick={() => toggleActive(s.id, s.is_active)}
                           >
-                            {s.is_active ? "Disable" : "Enable"}
+                            {pendingId === s.id
+                              ? "Working…"
+                              : s.is_active
+                                ? "Disable"
+                                : "Enable"}
                           </Button>
                           <Button
                             variant="danger"

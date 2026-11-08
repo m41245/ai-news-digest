@@ -49,7 +49,7 @@ def test_dockerfile_has_non_root_user() -> None:
 
 
 def test_dockerfile_runs_migrations() -> None:
-    content = (ROOT / "Dockerfile").read_text()
+    content = (ROOT / "entrypoint.sh").read_text()
     assert "alembic upgrade head" in content
 
 
@@ -264,6 +264,6 @@ def test_dockerfile_healthcheck_handles_empty_port() -> None:
 
 
 def test_dockerfile_preserves_migration_gating() -> None:
-    content = (ROOT / "Dockerfile").read_text()
+    content = (ROOT / "entrypoint.sh").read_text()
     assert "RUN_MIGRATIONS:-true" in content
     assert "alembic upgrade head" in content

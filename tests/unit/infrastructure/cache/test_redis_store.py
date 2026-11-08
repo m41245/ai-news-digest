@@ -178,7 +178,7 @@ async def test_redis_store_exists_false(redis_store: RedisStore) -> None:
 
 @pytest.mark.asyncio
 async def test_redis_store_clear(redis_store: RedisStore) -> None:
-    """Test clear operation."""
+    """Test clear operation is a safe no-op on shared Redis."""
     mock_client = AsyncMock()
 
     with (
@@ -186,7 +186,7 @@ async def test_redis_store_clear(redis_store: RedisStore) -> None:
     ):
         await redis_store.clear()
 
-        mock_client.flushdb.assert_called_once()
+        mock_client.flushdb.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -267,17 +267,8 @@ async def test_redis_store_exists_failure(redis_store: RedisStore) -> None:
         await redis_store.exists("test_key")
 
 
-@pytest.mark.asyncio
-async def test_redis_store_clear_failure(redis_store: RedisStore) -> None:
-    """Test clear operation failure raises ExternalServiceError."""
-    mock_client = AsyncMock()
-    mock_client.flushdb.side_effect = Exception("Redis error")
-
-    with (
-        patch.object(RedisStore, "_build_client", return_value=mock_client),
-        pytest.raises(ExternalServiceError, match="Redis clear failed"),
-    ):
-        await redis_store.clear()
+# clear() is now intentionally a no-op on shared Redis and does not
+# touch the connection, so there is no failure path to exercise.
 
 
 @pytest.mark.asyncio

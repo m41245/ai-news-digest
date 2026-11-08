@@ -274,6 +274,26 @@ export interface SourceCreateRequest {
   description?: string | null;
 }
 
+export interface SourceDecisionRequest {
+  reason: string;
+}
+
+export interface SourceDecisionResponse {
+  id: string;
+  name: string;
+  feed_url: string;
+  website_url?: string | null;
+  description?: string | null;
+  is_active: boolean;
+  status: string;
+  decision: string;
+  previous_status: string;
+  previous_is_active: boolean;
+  reason: string;
+  validation_outcome?: string | null;
+  changed: boolean;
+}
+
 export interface SourceUpdateRequest {
   name?: string;
   feed_url?: string | null;
