@@ -398,6 +398,7 @@ async def _analyze_article_impl(article_id: UUID) -> dict[str, str]:
 
 async def _summarize_pending_articles_impl(
     execute_directly: bool = False,
+    limit: int = 100,
 ) -> dict[str, int]:
     """
     Typed implementation function for batch article summarization.
@@ -406,7 +407,7 @@ async def _summarize_pending_articles_impl(
 
     async for container in get_container():
         article_repository: ArticleRepository = container.article_repository
-        pending_articles = await article_repository.list_by_status(ArticleStatus.NEW, limit=100)
+        pending_articles = await article_repository.list_by_status(ArticleStatus.NEW, limit=limit)
 
         if not pending_articles:
             logger.info("No pending articles found for summarization")
@@ -443,6 +444,7 @@ async def _summarize_pending_articles_impl(
 
 async def _categorize_pending_articles_impl(
     execute_directly: bool = False,
+    limit: int = 100,
 ) -> dict[str, int]:
     """
     Typed implementation function for batch article categorization.
@@ -452,7 +454,7 @@ async def _categorize_pending_articles_impl(
     async for container in get_container():
         article_repository: ArticleRepository = container.article_repository
         ready_articles = await article_repository.list_by_status(
-            ArticleStatus.SUMMARIZED, limit=100
+            ArticleStatus.SUMMARIZED, limit=limit
         )
 
         if not ready_articles:
@@ -613,6 +615,7 @@ async def analyze_pending_articles() -> dict[str, int]:
 
 async def _analyze_pending_articles_impl(
     execute_directly: bool = False,
+    limit: int = 100,
 ) -> dict[str, int]:
     """
     Typed implementation function for batch article analysis.
@@ -622,7 +625,7 @@ async def _analyze_pending_articles_impl(
     async for container in get_container():
         article_repository: ArticleRepository = container.article_repository
         categorized_articles = await article_repository.list_by_status(
-            ArticleStatus.CATEGORIZED, limit=100
+            ArticleStatus.CATEGORIZED, limit=limit
         )
 
         if not categorized_articles:

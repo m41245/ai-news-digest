@@ -79,6 +79,7 @@ async def _cluster_article_impl(article_id: UUID) -> dict[str, str]:
 
 async def _cluster_pending_articles_impl(
     execute_directly: bool = False,
+    limit: int = 100,
 ) -> dict[str, int]:
     """
     Typed implementation function for batch article clustering.
@@ -87,14 +88,14 @@ async def _cluster_pending_articles_impl(
 
     async for container in get_container():
         article_repository: ArticleRepository = container.article_repository
-        categorized = await article_repository.list_by_status(ArticleStatus.CATEGORIZED, limit=100)
-        summarized = await article_repository.list_by_status(ArticleStatus.SUMMARIZED, limit=100)
-        analyzed = await article_repository.list_by_status(ArticleStatus.ANALYZED, limit=100)
-        ready = await article_repository.list_by_status(ArticleStatus.READY, limit=100)
+        categorized = await article_repository.list_by_status(ArticleStatus.CATEGORIZED, limit=limit)
+        summarized = await article_repository.list_by_status(ArticleStatus.SUMMARIZED, limit=limit)
+        analyzed = await article_repository.list_by_status(ArticleStatus.ANALYZED, limit=limit)
+        ready = await article_repository.list_by_status(ArticleStatus.READY, limit=limit)
 
         candidates = [
             a for a in (summarized + categorized + analyzed + ready) if a.cluster_id is None
-        ]
+        ][:limit]
 
         if not candidates:
             logger.info("No unclustered articles found")
