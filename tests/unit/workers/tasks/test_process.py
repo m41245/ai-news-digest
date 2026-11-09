@@ -862,6 +862,7 @@ async def test_process_article_no_provider_does_not_resummarize_summarized(
     assert result["status"] == "completed"
     assert result["article_status"] == "categorized"
 
+
 async def test_process_article_deterministic_summarize_failure_no_partial(
     mock_container: MagicMock,
 ) -> None:
