@@ -391,9 +391,9 @@ async def test_batch_size_limit_respected(db_session, container) -> None:
         text("SELECT count(*) FROM articles WHERE status = :s"),
         {"s": ArticleStatus.NEW.value},
     )
-    assert summarized.scalar_one() == 2, (
-        f"Expected exactly 2 summarized (batch=2), got {summarized.scalar_one()}"
-    )
+    assert (
+        summarized.scalar_one() == 2
+    ), f"Expected exactly 2 summarized (batch=2), got {summarized.scalar_one()}"
     assert new_count.scalar_one() == 3
 
 
