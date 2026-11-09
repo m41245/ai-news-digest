@@ -40,14 +40,22 @@ if [ "${ENVIRONMENT:-development}" = "production" ]; then
     fi
 fi
 
-log "Waiting for PostgreSQL to become available..."
-python -c "
+RUN_MIGRATIONS="${RUN_MIGRATIONS:-true}"
+
+run_migrations=false
+case "$RUN_MIGRATIONS" in
+    true|True|TRUE|1|yes|Yes|YES|on|On|ON) run_migrations=true ;;
+esac
+
+if [ "$run_migrations" = "true" ]; then
+    log "Waiting for PostgreSQL to become available..."
+    python -c "
 import sys
 import time
 
 import asyncpg
 
-dsn = '${DATABASE_URL}'
+dsn = '${DATABASE_URL}'.replace('postgresql+asyncpg://', 'postgresql://').replace('postgresql+psycopg://', 'postgresql://')
 max_attempts = 60
 for attempt in range(1, max_attempts + 1):
     try:
@@ -69,8 +77,12 @@ print('PostgreSQL did not become ready in time')
 sys.exit(1)
 " || fail "PostgreSQL pre-flight check failed"
 
-log "Running database migrations..."
-python -m alembic upgrade head
+    log "Running database migrations..."
+    python -m alembic upgrade head
 
-log "Migrations complete. Starting application..."
+    log "Migrations complete. Starting application..."
+else
+    log "RUN_MIGRATIONS is disabled; skipping PostgreSQL wait and migrations."
+fi
+
 exec "$@"

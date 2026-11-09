@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from ai_news_digest.application.services.deterministic_article_processor import (
+    deterministic_summarize,
+)
 from ai_news_digest.application.use_cases.article.categorize_article import (
     CategorizeArticleUseCase,
 )
@@ -39,8 +42,11 @@ class ProcessArticleUseCase:
         """Run summarize then categorize, persisting the final state."""
         from ai_news_digest.domain.enums.article_status import ArticleStatus
 
-        if article.status == ArticleStatus.NEW and self._summarize is not None:
-            article = await self._summarize.execute(article)
+        if article.status == ArticleStatus.NEW:
+            if self._summarize is not None:
+                article = await self._summarize.execute(article)
+            else:
+                article = await deterministic_summarize(article)
 
         if article.status == ArticleStatus.SUMMARIZED and self._categorize is not None:
             article = await self._categorize.execute(article)

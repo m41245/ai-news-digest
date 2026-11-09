@@ -53,7 +53,7 @@ docker run -d \
     -e POSTGRES_DB="${TEST_DB_NAME}" \
     -e POSTGRES_USER="${TEST_DB_USER}" \
     -e POSTGRES_PASSWORD="${TEST_DB_PASSWORD}" \
-    postgres:16-alpine >/dev/null
+    postgres:18 >/dev/null
 
 # Wait for PostgreSQL to be ready
 echo "Waiting for PostgreSQL to be ready..."
@@ -80,7 +80,7 @@ echo ""
 echo "Step 3: Verifying database schema..."
 TABLES=$(docker exec "${TEST_CONTAINER}" psql -U "${TEST_DB_USER}" -d "${TEST_DB_NAME}" -tAc "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;")
 
-EXPECTED_TABLES=("articles" "categories" "deliveries" "digest_articles" "digests" "sources" "users")
+EXPECTED_TABLES=("articles" "categories" "deliveries" "digest_articles" "digests" "sources" "topics" "source_trust_decisions" "users")
 for table in "${EXPECTED_TABLES[@]}"; do
     if echo "${TABLES}" | grep -q "${table}"; then
         echo "  [PASS] Table '${table}' exists"

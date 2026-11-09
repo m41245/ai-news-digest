@@ -42,6 +42,17 @@ class CategoryRepository(
         model = await self._add_and_refresh(model)
         return CategoryMapper.to_domain(model)
 
+    async def create_flush_only(self, category: Category) -> Category:
+        """Persist a category without committing the session.
+
+        Mirrors :meth:`create` but leaves transaction control to the caller so
+        the category can participate in an outer atomic unit of work.
+        """
+        model = CategoryMapper.to_model(category)
+        self._session.add(model)
+        await self._session.flush()
+        return CategoryMapper.to_domain(model)
+
     async def get_by_id(
         self,
         category_id: UUID,

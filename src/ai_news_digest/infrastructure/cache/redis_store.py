@@ -217,14 +217,19 @@ class RedisStore(CacheStore):
             raise ExternalServiceError(f"Redis exists check failed: {exc}") from exc
 
     async def clear(self) -> None:
-        """Clear all keys from the current database."""
-        try:
-            client = await self._ensure_connected()
-            await client.flushdb()
-            logger.info("Redis cache cleared")
-        except Exception as exc:
-            logger.error("Redis clear failed: %s", exc)
-            raise ExternalServiceError(f"Redis clear failed: {exc}") from exc
+        """Refuse to flush the shared Redis database.
+
+        Upstash exposes only logical DB 0, which is shared by the application
+        cache, rate limiting, Celery broker, and Celery result backend.
+        Flushing it would destroy unrelated keys, so this operation is
+        intentionally a no-op.  Callers that need key removal should delete
+        specific keys with ``delete``.
+        """
+        logger.warning(
+            "RedisStore.clear() is disabled on shared Redis DB 0 to avoid "
+            "deleting broker/result/cache keys from other components."
+        )
+        return
 
     async def ttl(self, key: str) -> int | None:
         """Return the remaining TTL (seconds) for a key, or None if absent/no TTL."""

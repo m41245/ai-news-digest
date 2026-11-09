@@ -43,6 +43,26 @@ else
     FAIL=$((FAIL + 1))
 fi
 
+# Optional SHA-256 sidecar verification
+SIDECAR="${BACKUP_FILE}.sha256"
+if [ -f "${SIDECAR}" ]; then
+    EXPECTED_HASH="$(tr -d '[:space:]' < "${SIDECAR}")"
+    if command -v sha256sum >/dev/null 2>&1; then
+        ACTUAL_HASH="$(sha256sum "${BACKUP_FILE}" | awk '{print $1}')"
+    elif command -v shasum >/dev/null 2>&1; then
+        ACTUAL_HASH="$(shasum -a 256 "${BACKUP_FILE}" | awk '{print $1}')"
+    else
+        ACTUAL_HASH=""
+    fi
+    if [ -n "${ACTUAL_HASH}" ] && [ "${ACTUAL_HASH}" = "${EXPECTED_HASH}" ]; then
+        echo "[PASS] SHA-256 sidecar matches"
+        PASS=$((PASS + 1))
+    else
+        echo "[FAIL] SHA-256 sidecar mismatch or unavailable"
+        FAIL=$((FAIL + 1))
+    fi
+fi
+
 # Check 2: Contains PostgreSQL dump header
 if grep -q "PostgreSQL database dump" "${BACKUP_FILE}"; then
     echo "[PASS] Valid PostgreSQL dump header found"
@@ -53,7 +73,7 @@ else
 fi
 
 # Check 3: Contains expected table definitions
-TABLES=("articles" "sources" "categories" "digests" "digest_articles" "users" "deliveries")
+TABLES=("articles" "sources" "categories" "digests" "digest_articles" "users" "deliveries" "topics" "source_trust_decisions")
 for table in "${TABLES[@]}"; do
     if grep -qi "create table.*${table}" "${BACKUP_FILE}"; then
         echo "[PASS] Table '${table}' definition found"

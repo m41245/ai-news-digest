@@ -54,6 +54,15 @@ class ArticleRepository(
     ) -> None:
         super().__init__(session)
 
+    @property
+    def session(self) -> AsyncSession:
+        """Return the underlying SQLAlchemy session.
+
+        Exposed so callers can run an explicit begin/commit/rollback around a
+        group of flush-only repository operations.
+        """
+        return self._session
+
     async def create(
         self,
         article: Article,
@@ -81,6 +90,30 @@ class ArticleRepository(
         )
 
         return await self.create(domain_article)
+
+    async def create_flush_only(self, article: Article) -> Article:
+        """Persist an article without committing the session.
+
+        Mirrors :meth:`create` but leaves transaction control to the caller so
+        the article can participate in an outer atomic unit of work.
+        """
+        model = ArticleMapper.to_model(article)
+        self._session.add(model)
+        await self._session.flush()
+        return ArticleMapper.to_domain(model)
+
+    async def update_flush_only(self, article: Article) -> Article:
+        """Persist article updates without committing the session.
+
+        Mirrors :meth:`update` but leaves transaction control to the caller so
+        the article can participate in an outer atomic unit of work.
+        """
+        model = await self._session.get(ArticleModel, str(article.id))
+        if model is None:
+            raise ResourceNotFoundError(f"Article with id '{article.id}' was not found.")
+        ArticleMapper.update_model(model, article)
+        await self._session.flush()
+        return ArticleMapper.to_domain(model)
 
     async def get_by_id(
         self,
@@ -936,6 +969,63 @@ class ArticleRepository(
             category_ids,
         )
 
+    async def replace_companies_flush_only(
+        self,
+        article_id: UUID,
+        company_ids: list[UUID],
+    ) -> None:
+        """Replace company links without committing the session.
+
+        Mirrors :meth:`replace_companies` but leaves transaction control to the
+        caller so the link replacement can participate in an outer atomic unit
+        of work.
+        """
+        await self._replace_links_flush_only(
+            ArticleCompanyModel,
+            ArticleCompanyModel.article_id,
+            ArticleCompanyModel.company_id,
+            article_id,
+            company_ids,
+        )
+
+    async def replace_topics_flush_only(
+        self,
+        article_id: UUID,
+        topic_ids: list[UUID] | list[str],
+    ) -> None:
+        """Replace topic links without committing the session.
+
+        Mirrors :meth:`replace_topics` but leaves transaction control to the
+        caller so the link replacement can participate in an outer atomic unit
+        of work.
+        """
+        await self._replace_links_flush_only(
+            ArticleTopicModel,
+            ArticleTopicModel.article_id,
+            ArticleTopicModel.topic_id,
+            article_id,
+            [str(topic_id) for topic_id in topic_ids],
+        )
+
+    async def replace_categories_flush_only(
+        self,
+        article_id: UUID,
+        category_ids: list[UUID],
+    ) -> None:
+        """Replace category links without committing the session.
+
+        Mirrors :meth:`replace_categories` but leaves transaction control to the
+        caller so the link replacement can participate in an outer atomic unit
+        of work.
+        """
+        await self._replace_links_flush_only(
+            ArticleCategoryModel,
+            ArticleCategoryModel.article_id,
+            ArticleCategoryModel.category_id,
+            article_id,
+            category_ids,
+        )
+
     async def set_cluster(
         self,
         article_id: UUID,
@@ -1048,3 +1138,30 @@ class ArticleRepository(
             self._session.add(link)
 
         await self._commit()
+
+    async def _replace_links_flush_only(
+        self,
+        model_cls: type,
+        article_id_col: Any,
+        target_id_col: Any,
+        article_id: UUID,
+        target_ids: list[UUID] | list[str],
+    ) -> None:
+        """Replace association links without committing the session.
+
+        Mirrors :meth:`_replace_links` but leaves transaction control to the
+        caller so the link replacement can participate in an outer atomic unit
+        of work.
+        """
+        from sqlalchemy import delete
+
+        await self._session.execute(delete(model_cls).where(article_id_col == str(article_id)))
+
+        for target_id in target_ids:
+            link = model_cls(
+                article_id=str(article_id),
+                **{target_id_col.name: str(target_id)},
+            )
+            self._session.add(link)
+
+        await self._session.flush()

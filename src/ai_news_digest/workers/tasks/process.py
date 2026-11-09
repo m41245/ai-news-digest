@@ -12,6 +12,7 @@ from ai_news_digest.core.metrics import (
     record_celery_task_success,
 )
 from ai_news_digest.domain.enums.article_status import ArticleStatus
+from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.ports.article_repository import ArticleRepository
 from ai_news_digest.workers._container import get_container
 from ai_news_digest.workers.celery_app import celery_app
@@ -80,11 +81,31 @@ async def _summarize_article_impl(article_id: UUID) -> dict[str, str]:
 
         use_case = container.summarize_article
         if use_case is None:
-            logger.warning(
-                "No AI provider available for summarization",
-                article_id=str(article_id),
+            from ai_news_digest.application.services.deterministic_article_processor import (
+                deterministic_summarize,
             )
-            return {"status": "no_provider"}
+
+            try:
+                updated_article = await deterministic_summarize(article)
+                persisted = await article_repository.update_flush_only(updated_article)
+                if isinstance(persisted, Article):
+                    updated_article = persisted
+                await article_repository.session.commit()
+            except Exception:
+                await article_repository.session.rollback()
+                raise
+
+            logger.info(
+                "Article deterministic summarization completed",
+                article_id=str(article_id),
+                status=updated_article.status,
+            )
+
+            return {
+                "status": "completed",
+                "article_id": str(updated_article.id),
+                "article_status": updated_article.status,
+            }
 
         updated_article = await use_case.execute(article)
 
@@ -133,11 +154,36 @@ async def _categorize_article_impl(article_id: UUID) -> dict[str, str]:
 
         use_case = container.categorize_article
         if use_case is None:
-            logger.warning(
-                "No AI provider available for categorization",
-                article_id=str(article_id),
+            from ai_news_digest.application.services.deterministic_article_processor import (
+                deterministic_categorize,
             )
-            return {"status": "no_provider"}
+
+            try:
+                updated_article = await deterministic_categorize(
+                    article,
+                    getattr(container, "category_repository", None),
+                    getattr(container, "topic_repository", None),
+                    article_repository,
+                )
+                persisted = await article_repository.update_flush_only(updated_article)
+                if isinstance(persisted, Article):
+                    updated_article = persisted
+                await article_repository.session.commit()
+            except Exception:
+                await article_repository.session.rollback()
+                raise
+
+            logger.info(
+                "Article deterministic categorization completed",
+                article_id=str(article_id),
+                status=updated_article.status,
+            )
+
+            return {
+                "status": "completed",
+                "article_id": str(updated_article.id),
+                "article_status": updated_article.status,
+            }
 
         updated_article = await use_case.execute(article)
 
@@ -186,11 +232,42 @@ async def _process_article_impl(article_id: UUID) -> dict[str, str]:
 
         use_case = container.process_article
         if use_case is None:
-            logger.warning(
-                "No AI provider available for article processing",
-                article_id=str(article_id),
+            from ai_news_digest.application.services.deterministic_article_processor import (
+                deterministic_categorize,
+                deterministic_summarize,
             )
-            return {"status": "no_provider"}
+
+            try:
+                updated_article = article
+                if updated_article.status == ArticleStatus.NEW:
+                    updated_article = await deterministic_summarize(updated_article)
+                if updated_article.status == ArticleStatus.SUMMARIZED:
+                    updated_article = await deterministic_categorize(
+                        updated_article,
+                        getattr(container, "category_repository", None),
+                        getattr(container, "topic_repository", None),
+                        article_repository,
+                    )
+
+                persisted = await article_repository.update_flush_only(updated_article)
+                if isinstance(persisted, Article):
+                    updated_article = persisted
+                await article_repository.session.commit()
+            except Exception:
+                await article_repository.session.rollback()
+                raise
+
+            logger.info(
+                "Article deterministic processing completed",
+                article_id=str(article_id),
+                status=updated_article.status,
+            )
+
+            return {
+                "status": "completed",
+                "article_id": str(updated_article.id),
+                "article_status": updated_article.status,
+            }
 
         updated_article = await use_case.execute(article)
 
@@ -251,11 +328,46 @@ async def _analyze_article_impl(article_id: UUID) -> dict[str, str]:
 
         analyze_use_case = container.analyze_article
         if analyze_use_case is None:
-            logger.warning(
-                "No AI provider available for analysis",
-                article_id=str(article_id),
+            from ai_news_digest.application.services.deterministic_article_processor import (
+                deterministic_categorize,
+                deterministic_summarize,
             )
-            return {"status": "no_provider"}
+
+            try:
+                updated_article = article
+                if updated_article.status == ArticleStatus.NEW:
+                    updated_article = await deterministic_summarize(updated_article)
+                if updated_article.status == ArticleStatus.SUMMARIZED:
+                    updated_article = await deterministic_categorize(
+                        updated_article,
+                        getattr(container, "category_repository", None),
+                        getattr(container, "topic_repository", None),
+                        article_repository,
+                    )
+                if updated_article.status in (
+                    ArticleStatus.CATEGORIZED,
+                    ArticleStatus.SUMMARIZED,
+                ):
+                    updated_article.mark_analyzed()
+                persisted = await article_repository.update_flush_only(updated_article)
+                if isinstance(persisted, Article):
+                    updated_article = persisted
+                await article_repository.session.commit()
+            except Exception:
+                await article_repository.session.rollback()
+                raise
+
+            logger.info(
+                "Article deterministic analysis completed",
+                article_id=str(article_id),
+                status=updated_article.status,
+            )
+
+            return {
+                "status": "completed",
+                "article_id": str(updated_article.id),
+                "article_status": updated_article.status,
+            }
 
         materialize_use_case = container.analyze_and_materialize
         if materialize_use_case is None:

@@ -26,6 +26,8 @@ import type {
   RelatedStoryResponse,
   Source,
   SourceCreateRequest,
+  SourceDecisionRequest,
+  SourceDecisionResponse,
   SourceUpdateRequest,
   StoryIntelligenceBriefResponse,
   StoryTimelineResponse,
@@ -319,6 +321,12 @@ export const sourcesApi = {
     api.patch(`/api/v1/sources/${id}`, data).then((r) => r.data),
   remove: (id: string): Promise<void> =>
     api.delete(`/api/v1/sources/${id}`).then((r) => r.data),
+  approve: (id: string, data: SourceDecisionRequest): Promise<SourceDecisionResponse> =>
+    api.post(`/api/v1/admin/sources/${id}/approve`, data).then((r) => r.data),
+  reject: (id: string, data: SourceDecisionRequest): Promise<SourceDecisionResponse> =>
+    api.post(`/api/v1/admin/sources/${id}/reject`, data).then((r) => r.data),
+  deactivate: (id: string, data: SourceDecisionRequest): Promise<SourceDecisionResponse> =>
+    api.post(`/api/v1/admin/sources/${id}/deactivate`, data).then((r) => r.data),
 };
 
 export const digestsApi = {

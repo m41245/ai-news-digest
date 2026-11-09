@@ -117,24 +117,27 @@ async def test_run_task_logs_failure() -> None:
 
 
 @pytest.mark.asyncio
-async def test_run_task_summarize_no_provider_returns_zero() -> None:
-    fake_impl = AsyncMock(return_value={"status": "no_provider"})
+async def test_run_task_summarize_completed_returns_zero() -> None:
+    """A deterministic ``completed`` dict is treated as a successful run."""
+    fake_impl = AsyncMock(return_value={"status": "completed"})
     with patch.object(run_task_module, "_import_impl", return_value=fake_impl):
         result = await run_task("summarize")
     assert result == 0
 
 
 @pytest.mark.asyncio
-async def test_run_task_categorize_no_provider_returns_zero() -> None:
-    fake_impl = AsyncMock(return_value={"status": "no_provider"})
+async def test_run_task_categorize_completed_returns_zero() -> None:
+    """A deterministic ``completed`` dict is treated as a successful run."""
+    fake_impl = AsyncMock(return_value={"status": "completed"})
     with patch.object(run_task_module, "_import_impl", return_value=fake_impl):
         result = await run_task("categorize")
     assert result == 0
 
 
 @pytest.mark.asyncio
-async def test_run_task_analyze_no_provider_returns_zero() -> None:
-    fake_impl = AsyncMock(return_value={"status": "no_provider"})
+async def test_run_task_analyze_completed_returns_zero() -> None:
+    """A deterministic ``completed`` dict is treated as a successful run."""
+    fake_impl = AsyncMock(return_value={"status": "completed"})
     with patch.object(run_task_module, "_import_impl", return_value=fake_impl):
         result = await run_task("analyze")
     assert result == 0
