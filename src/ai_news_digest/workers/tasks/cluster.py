@@ -88,7 +88,9 @@ async def _cluster_pending_articles_impl(
 
     async for container in get_container():
         article_repository: ArticleRepository = container.article_repository
-        categorized = await article_repository.list_by_status(ArticleStatus.CATEGORIZED, limit=limit)
+        categorized = await article_repository.list_by_status(
+            ArticleStatus.CATEGORIZED, limit=limit
+        )
         summarized = await article_repository.list_by_status(ArticleStatus.SUMMARIZED, limit=limit)
         analyzed = await article_repository.list_by_status(ArticleStatus.ANALYZED, limit=limit)
         ready = await article_repository.list_by_status(ArticleStatus.READY, limit=limit)

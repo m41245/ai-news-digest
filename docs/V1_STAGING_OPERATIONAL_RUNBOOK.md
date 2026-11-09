@@ -1,8 +1,8 @@
 # AI News Digest V1 — Staging Operational Runbook
 
-**Repository:** `C:\Users\raj1m\.local\share\kilo\worktree-pool\ai-news-digest-ec7a9d72f95b\feat-free-provider-groq`
-**Branch:** `feat/free-provider-groq`
-**HEAD:** `81963930ea4d2613f5df0630e830e5ffe8578419`
+**Release branch:** `release/v1-deterministic-pipeline`
+**Base:** latest verified `origin/main`
+**Release HEAD:** `d95017110f87d5f58c2431694b376e3e01b34590`
 
 ---
 
@@ -10,9 +10,9 @@
 
 | Component | Technology | Cost | Status |
 |-----------|-----------|------|--------|
-| Web application | FastAPI + Uvicorn (Docker) | ₹0 (Render free tier) | Deployed on staging |
-| Cache | Redis / Valkey (Upstash free 25 MB) | ₹0 | Available for cache |
-| Database | PostgreSQL (Neon free tier) | ₹0 | Available on staging |
+| Web application | FastAPI + Uvicorn (Docker) | ₹0 (Render free tier) | Not deployed to staging (staging unreachable) |
+| Cache | Redis / Valkey (Upstash free 25 MB) | ₹0 | Not verified live |
+| Database | PostgreSQL (Neon free tier) | ₹0 | Not verified live |
 | Processing runner | Python script (this runbook) | ₹0 | Bounded, one-shot |
 | Celery worker | Celery + Redis broker | Not on free tier | Not operational |
 | Celery Beat | Celery beat scheduler | Not on free tier | Not operational |
@@ -196,7 +196,7 @@ If the service returns 503, the Render free-tier instance may have spun down. Wa
 ## 14. Emergency contacts and escalation
 
 - Repository: `m41245/ai-news-digest`
-- Branch: `feat/free-provider-groq`
+- Branch: `release/v1-deterministic-pipeline`
 - Staging URL: `https://ai-news-digest-staging.onrender.com`
 - Staging Render service: `ai-news-digest-staging`
 

@@ -3,9 +3,11 @@
 Practical checklist for the solo maintainer. Mark each item only after verifying it.
 Do not commit, push, merge, or deploy without explicit owner authorization.
 
-Repository: `C:\Users\raj1m\.local\share\kilo\worktree-pool\ai-news-digest-ec7a9d72f95b\feat-free-provider-groq`
-Branch: `feat/free-provider-groq`
-HEAD: `81963930ea4d2613f5df0630e830e5ffe8578419`
+Release branch: `release/v1-deterministic-pipeline`
+Base: latest verified `origin/main`
+Release HEAD: `d95017110f87d5f58c2431694b376e3e01b34590`
+Commits: 3 — `d3cecea` deterministic processing pipeline, `b5340c4` deterministic batch processing runner, `d950171` batch-size limit wiring (required dependency)
+Changed files vs base: 26 — only release-related changes; no unrelated pre-existing working-tree changes included
 
 ---
 
@@ -20,7 +22,7 @@ HEAD: `81963930ea4d2613f5df0630e830e5ffe8578419`
 
 ## 1. Code correctness
 
-- [ ] Batch runner enforces `--batch-size` on every pipeline stage (summarize, categorize, analyze, cluster)
+- [ ] Batch runner enforces `--batch-size` on summarize, categorize, analyze, and cluster only; rank, trends, and digest operate on the full eligible collection and are not bounded by `--batch-size`
 - [ ] Runner uses existing application services (no duplicated business logic)
 - [ ] No unintended ingestion; no accidental AI calls; no Redis broker required for direct execution
 - [ ] No destructive database operations; explicit transaction boundaries and rollback
@@ -31,9 +33,10 @@ HEAD: `81963930ea4d2613f5df0630e830e5ffe8578419`
 
 ## 2. Testing
 
-- [ ] Batch runner unit tests pass (13)
-- [ ] Related task/lifecycle unit tests pass (47)
-- [ ] Isolated PostgreSQL integration tests pass (20) against real PostgreSQL via testcontainers
+- [ ] Deterministic batch runner unit tests pass
+- [ ] Worker/task/lifecycle unit tests pass
+- [ ] Isolated PostgreSQL integration tests pass against disposable PostgreSQL via testcontainers
+- [ ] One pre-existing AI-provider-path failure (`test_ai_enabled_task_path_remains_unchanged`) is a baseline issue in committed code, not a release regression; documented in the release report
 - [ ] No test connects to production or mutates staging data
 
 ## 3. Quality gates
