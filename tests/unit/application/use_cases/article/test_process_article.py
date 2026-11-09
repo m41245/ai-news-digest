@@ -148,5 +148,5 @@ async def test_process_article_skips_when_no_ai() -> None:
     use_case = ProcessArticleUseCase(None, None, repository)
     result = await use_case.execute(article)
 
-    assert result.status == ArticleStatus.NEW
+    assert result.status == ArticleStatus.SUMMARIZED
     repository.update.assert_awaited_once_with(article)

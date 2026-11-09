@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -105,6 +105,66 @@ class ArticleRepository(ABC):
         self,
         article: Article,
     ) -> Article:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_flush_only(self, article: Article) -> Article:
+        """Persist article updates without committing the session.
+
+        Mirrors :meth:`update` but leaves transaction control to the caller so
+        the article can participate in an outer atomic unit of work.
+        """
+        raise NotImplementedError
+
+    @property
+    def session(self) -> Any:
+        """Return the underlying SQLAlchemy session.
+
+        Exposed so callers can run an explicit begin/commit/rollback around a
+        group of flush-only repository operations.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def replace_topics_flush_only(
+        self,
+        article_id: UUID,
+        topic_ids: list[UUID] | list[str],
+    ) -> None:
+        """Replace topic links without committing the session.
+
+        Mirrors :meth:`replace_topics` but leaves transaction control to the
+        caller so the link replacement can participate in an outer atomic unit
+        of work.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def replace_companies_flush_only(
+        self,
+        article_id: UUID,
+        company_ids: list[UUID],
+    ) -> None:
+        """Replace company links without committing the session.
+
+        Mirrors :meth:`replace_companies` but leaves transaction control to the
+        caller so the link replacement can participate in an outer atomic unit
+        of work.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def replace_categories_flush_only(
+        self,
+        article_id: UUID,
+        category_ids: list[UUID],
+    ) -> None:
+        """Replace category links without committing the session.
+
+        Mirrors :meth:`replace_categories` but leaves transaction control to the
+        caller so the link replacement can participate in an outer atomic unit
+        of work.
+        """
         raise NotImplementedError
 
     @abstractmethod

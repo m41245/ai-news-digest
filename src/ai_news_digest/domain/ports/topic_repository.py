@@ -28,6 +28,14 @@ class TopicRepository:
     async def create(self, topic: Any) -> Any:
         raise NotImplementedError
 
+    async def create_flush_only(self, topic: Any) -> Any:
+        """Persist a topic without committing the session.
+
+        Mirrors :meth:`create` but leaves transaction control to the caller so
+        the topic can participate in an outer atomic unit of work.
+        """
+        raise NotImplementedError
+
     async def update(self, topic: Any) -> Any:
         raise NotImplementedError
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from uuid import uuid4
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -88,6 +89,29 @@ class SqlAlchemyTopicRepository(BaseRepository[TopicModel], TopicRepository):
             )
         self._session.add(model)
         await self._flush()
+        return TopicMapper.to_domain(model)
+
+    async def create_flush_only(self, topic: Any) -> Any:
+        """Persist a topic without committing the session.
+
+        Mirrors :meth:`create` but leaves transaction control to the
+        caller so the topic can participate in an outer atomic unit of
+        work.
+        """
+        if isinstance(topic, TopicModel):
+            model = topic
+            if not getattr(model, "slug", None):
+                model.slug = _slugify(model.name)
+        elif isinstance(topic, Topic):
+            model = TopicMapper.to_model(topic)
+        else:
+            model = TopicModel(
+                id=str(getattr(topic, "id", None) or uuid4()),
+                name=topic.name,
+                slug=_slugify(topic.name),
+            )
+        self._session.add(model)
+        await self._session.flush()
         return TopicMapper.to_domain(model)
 
     async def update(self, topic: Any) -> Any:

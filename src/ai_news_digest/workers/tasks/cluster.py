@@ -88,10 +88,13 @@ async def _cluster_pending_articles_impl(
     async for container in get_container():
         article_repository: ArticleRepository = container.article_repository
         categorized = await article_repository.list_by_status(ArticleStatus.CATEGORIZED, limit=100)
+        summarized = await article_repository.list_by_status(ArticleStatus.SUMMARIZED, limit=100)
         analyzed = await article_repository.list_by_status(ArticleStatus.ANALYZED, limit=100)
         ready = await article_repository.list_by_status(ArticleStatus.READY, limit=100)
 
-        candidates = [a for a in (categorized + analyzed + ready) if a.cluster_id is None]
+        candidates = [
+            a for a in (summarized + categorized + analyzed + ready) if a.cluster_id is None
+        ]
 
         if not candidates:
             logger.info("No unclustered articles found")

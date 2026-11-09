@@ -20,6 +20,15 @@ class CategoryRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def create_flush_only(self, category: Category) -> Category:
+        """Persist a category without committing the session.
+
+        Mirrors :meth:`create` but leaves transaction control to the caller so
+        the category can participate in an outer atomic unit of work.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     async def get_by_id(
         self,
         category_id: UUID,
