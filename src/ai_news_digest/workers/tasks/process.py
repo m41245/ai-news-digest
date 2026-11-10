@@ -109,6 +109,15 @@ async def _summarize_article_impl(article_id: UUID) -> dict[str, str]:
 
         updated_article = await use_case.execute(article)
 
+        try:
+            persisted = await article_repository.update_flush_only(updated_article)
+            if isinstance(persisted, Article):
+                updated_article = persisted
+            await article_repository.session.commit()
+        except Exception:
+            await article_repository.session.rollback()
+            raise
+
         logger.info(
             "Article summarization completed",
             article_id=str(article_id),
