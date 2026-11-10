@@ -106,7 +106,11 @@ async def test_summarize_article_no_provider(mock_container: MagicMock) -> None:
     with patch.object(process, "get_container", container_generator(mock_container)):
         result = await process.summarize_article(article.id)
 
-    assert result == {"status": "no_provider"}
+    assert result == {
+        "status": "completed",
+        "article_id": str(article.id),
+        "article_status": "summarized",
+    }
 
 
 # ----------------------------------------------------------------------
@@ -190,7 +194,11 @@ async def test_categorize_article_no_provider(mock_container: MagicMock) -> None
     with patch.object(process, "get_container", container_generator(mock_container)):
         result = await process.categorize_article(article.id)
 
-    assert result == {"status": "no_provider"}
+    assert result == {
+        "status": "completed",
+        "article_id": str(article.id),
+        "article_status": "categorized",
+    }
 
 
 # ----------------------------------------------------------------------
@@ -370,7 +378,11 @@ async def test_process_article_no_provider(mock_container: MagicMock) -> None:
     with patch.object(process, "get_container", container_generator(mock_container)):
         result = await process.process_article(article.id)
 
-    assert result == {"status": "no_provider"}
+    assert result == {
+        "status": "completed",
+        "article_id": str(article.id),
+        "article_status": "categorized",
+    }
 
 
 # ----------------------------------------------------------------------
@@ -807,3 +819,129 @@ def test_process_task_registration() -> None:
         process.analyze_pending_articles,
     ):
         assert task.name in celery_app.tasks
+
+
+# ----------------------------------------------------------------------
+# Deterministic lifecycle and failure injection
+# ----------------------------------------------------------------------
+
+
+async def test_analyze_article_no_provider_lifecycle_from_new(
+    mock_container: MagicMock,
+) -> None:
+    """A NEW article reaches ANALYZED through summarize -> categorize -> analyze."""
+    article = make_article(ArticleStatus.NEW)
+    mock_container.article_repository.get_by_id.return_value = article
+    mock_container.analyze_article = None
+    mock_container.analyze_and_materialize = None
+
+    with patch.object(process, "get_container", container_generator(mock_container)):
+        result = await process.analyze_article(article.id)
+
+    assert result["status"] == "completed"
+    assert result["article_status"] == "analyzed"
+
+
+async def test_process_article_no_provider_does_not_resummarize_summarized(
+    mock_container: MagicMock,
+) -> None:
+    """A SUMMARIZED article is not resummarized during deterministic processing."""
+    article = make_article(ArticleStatus.SUMMARIZED)
+    mock_container.article_repository.get_by_id.return_value = article
+    mock_container.process_article = None
+
+    with (
+        patch.object(process, "get_container", container_generator(mock_container)),
+        patch(
+            "ai_news_digest.application.services.deterministic_article_processor.deterministic_summarize",
+            side_effect=RuntimeError("should not summarize"),
+        ),
+    ):
+        result = await process.process_article(article.id)
+
+    assert result["status"] == "completed"
+    assert result["article_status"] == "categorized"
+
+
+async def test_process_article_deterministic_summarize_failure_no_partial(
+    mock_container: MagicMock,
+) -> None:
+    """A summarization failure does not persist a partial article."""
+    article = make_article(ArticleStatus.NEW)
+    mock_container.article_repository.get_by_id.return_value = article
+    mock_container.process_article = None
+
+    with (
+        patch.object(process, "get_container", container_generator(mock_container)),
+        patch(
+            "ai_news_digest.application.services.deterministic_article_processor.deterministic_summarize",
+            side_effect=RuntimeError("summarize boom"),
+        ),
+        pytest.raises(RuntimeError, match="summarize boom"),
+    ):
+        await process.process_article(article.id)
+
+    mock_container.article_repository.update_flush_only.assert_not_awaited()
+
+
+async def test_process_article_deterministic_categorize_failure_no_partial(
+    mock_container: MagicMock,
+) -> None:
+    """A categorization failure does not persist a partial article."""
+    article = make_article(ArticleStatus.NEW)
+    mock_container.article_repository.get_by_id.return_value = article
+    mock_container.process_article = None
+
+    with (
+        patch.object(process, "get_container", container_generator(mock_container)),
+        patch(
+            "ai_news_digest.application.services.deterministic_article_processor.deterministic_categorize",
+            side_effect=RuntimeError("categorize boom"),
+        ),
+        pytest.raises(RuntimeError, match="categorize boom"),
+    ):
+        await process.process_article(article.id)
+
+    mock_container.article_repository.update_flush_only.assert_not_awaited()
+
+
+async def test_analyze_article_deterministic_summarize_failure_no_partial(
+    mock_container: MagicMock,
+) -> None:
+    article = make_article(ArticleStatus.NEW)
+    mock_container.article_repository.get_by_id.return_value = article
+    mock_container.analyze_article = None
+    mock_container.analyze_and_materialize = None
+
+    with (
+        patch.object(process, "get_container", container_generator(mock_container)),
+        patch(
+            "ai_news_digest.application.services.deterministic_article_processor.deterministic_summarize",
+            side_effect=RuntimeError("summarize boom"),
+        ),
+        pytest.raises(RuntimeError, match="summarize boom"),
+    ):
+        await process.analyze_article(article.id)
+
+    mock_container.article_repository.update_flush_only.assert_not_awaited()
+
+
+async def test_analyze_article_deterministic_categorize_failure_no_partial(
+    mock_container: MagicMock,
+) -> None:
+    article = make_article(ArticleStatus.NEW)
+    mock_container.article_repository.get_by_id.return_value = article
+    mock_container.analyze_article = None
+    mock_container.analyze_and_materialize = None
+
+    with (
+        patch.object(process, "get_container", container_generator(mock_container)),
+        patch(
+            "ai_news_digest.application.services.deterministic_article_processor.deterministic_categorize",
+            side_effect=RuntimeError("categorize boom"),
+        ),
+        pytest.raises(RuntimeError, match="categorize boom"),
+    ):
+        await process.analyze_article(article.id)
+
+    mock_container.article_repository.update_flush_only.assert_not_awaited()

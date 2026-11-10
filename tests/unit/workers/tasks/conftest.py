@@ -46,6 +46,33 @@ def container_generator(container: MagicMock):
     return _gen
 
 
+class _AsyncContextManager:
+    """Minimal async context manager used to mock ``Session.begin()``."""
+
+    def __init__(self) -> None:
+        self.committed = False
+        self.rolled_back = False
+
+    async def __aenter__(self) -> _AsyncContextManager:
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        if exc_type is None:
+            self.committed = True
+        else:
+            self.rolled_back = True
+
+
+def mock_session() -> MagicMock:
+    """Build a mock SQLAlchemy session exposing ``begin()`` and ``rollback()``."""
+    session = MagicMock()
+    ctx = _AsyncContextManager()
+    session.begin.return_value = ctx
+    session.commit = AsyncMock()
+    session.rollback = AsyncMock()
+    return session
+
+
 @pytest.fixture
 def mock_container() -> MagicMock:
     """
@@ -62,6 +89,8 @@ def mock_container() -> MagicMock:
         "digest_repository",
         "delivery_repository",
         "source_repository",
+        "category_repository",
+        "topic_repository",
         "provider_quota_registry",
         "ingest_all_sources",
         "summarize_article",
@@ -75,6 +104,9 @@ def mock_container() -> MagicMock:
         "cluster_articles",
     ):
         setattr(container, name, AsyncMock())
+
+    # The deterministic path wraps persistence in ``article_repository.session.begin()``.
+    container.article_repository.session = mock_session()
 
     container.generate_intelligent_digest.execute.return_value = IntelligentDigestResult(
         digest_id=uuid4(),

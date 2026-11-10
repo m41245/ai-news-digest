@@ -281,32 +281,23 @@ jobs:
           tags: ai-news-digest-frontend:ci-${{ env.IMAGE_TAG }}
           cache-from: type=gha
 
-      - name: Install Trivy
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update
-          sudo apt-get install -y trivy
-
       - name: Scan backend image for vulnerabilities
-        run: |
-          trivy image --exit-code 1 --severity HIGH,CRITICAL ai-news-digest:ci-${{ env.IMAGE_TAG }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          scan-type: image
+          image-ref: ai-news-digest:ci-${{ env.IMAGE_TAG }}
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+          format: 'table'
 
       - name: Scan frontend image for vulnerabilities
-        run: |
-          trivy image --exit-code 1 --severity HIGH,CRITICAL ai-news-digest-frontend:ci-${{ env.IMAGE_TAG }}
-
-      - name: Scan backend image for vulnerabilities (full report)
-        if: always()
-        run: |
-          trivy image --format table ai-news-digest:ci-${{ env.IMAGE_TAG }}
-
-      - name: Scan frontend image for vulnerabilities (full report)
-        if: always()
-        run: |
-          trivy image --format table ai-news-digest-frontend:ci-${{ env.IMAGE_TAG }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          scan-type: image
+          image-ref: ai-news-digest-frontend:ci-${{ env.IMAGE_TAG }}
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+          format: 'table'
 
   security-audit:
     name: Security Audit

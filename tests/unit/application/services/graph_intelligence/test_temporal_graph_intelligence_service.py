@@ -152,7 +152,7 @@ class TestTemporalGraphIntelligenceService:
 
     def test_compute_activity_status_declining(self) -> None:
         """Relationships last observed 7-14 days ago should be DECLINING."""
-        ten_days_ago = datetime.now(UTC).replace(day=datetime.now(UTC).day - 10)
+        ten_days_ago = datetime.now(UTC) - timedelta(days=10)
         rel = _make_relationship(
             first_observed_at=ten_days_ago,
             last_observed_at=ten_days_ago,
