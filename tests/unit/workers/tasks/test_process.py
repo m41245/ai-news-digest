@@ -222,7 +222,7 @@ async def test_summarize_pending_articles_queues_new(
         result = await process.summarize_pending_articles()
 
     # Assert
-    assert result == {"queued": 1, "failed": 0}
+    assert result == {"queued": 1, "failed": 0, "skipped_ineligible": 0}
     mock_container.article_repository.list_by_status.assert_awaited_once_with(
         ArticleStatus.NEW, limit=100
     )
@@ -507,7 +507,7 @@ async def test_summarize_pending_direct_first_article_failure_isolation(
     with patch.object(process, "get_container", container_generator(mock_container)):
         result = await process._summarize_pending_articles_impl(execute_directly=True)
 
-    assert result == {"queued": 2, "failed": 1}
+    assert result == {"queued": 2, "failed": 1, "skipped_ineligible": 0}
     assert mock_container.summarize_article.execute.await_count == 2
 
 
@@ -529,7 +529,7 @@ async def test_summarize_pending_direct_middle_article_failure_isolation(
     with patch.object(process, "get_container", container_generator(mock_container)):
         result = await process._summarize_pending_articles_impl(execute_directly=True)
 
-    assert result == {"queued": 3, "failed": 1}
+    assert result == {"queued": 3, "failed": 1, "skipped_ineligible": 0}
     assert mock_container.summarize_article.execute.await_count == 3
 
 
@@ -546,7 +546,7 @@ async def test_summarize_pending_direct_all_articles_failure(
     with patch.object(process, "get_container", container_generator(mock_container)):
         result = await process._summarize_pending_articles_impl(execute_directly=True)
 
-    assert result == {"queued": 3, "failed": 3}
+    assert result == {"queued": 3, "failed": 3, "skipped_ineligible": 0}
     assert mock_container.summarize_article.execute.await_count == 3
 
 
@@ -564,7 +564,7 @@ async def test_summarize_pending_direct_success(
     with patch.object(process, "get_container", container_generator(mock_container)):
         result = await process._summarize_pending_articles_impl(execute_directly=True)
 
-    assert result == {"queued": 2, "failed": 0}
+    assert result == {"queued": 2, "failed": 0, "skipped_ineligible": 0}
     assert mock_container.summarize_article.execute.await_count == 2
 
 
@@ -581,7 +581,74 @@ async def test_summarize_pending_direct_no_provider(
     with patch.object(process, "get_container", container_generator(mock_container)):
         result = await process._summarize_pending_articles_impl(execute_directly=True)
 
-    assert result == {"queued": 2, "failed": 0}
+    assert result == {"queued": 2, "failed": 0, "skipped_ineligible": 0}
+
+
+async def test_summarize_pending_direct_ineligible_articles_are_skipped(
+    mock_container: MagicMock,
+) -> None:
+    """NEW articles with empty content are reported as skipped_ineligible, not failed."""
+    eligible = make_article(ArticleStatus.NEW)
+    eligible.content = "Real article content here about AI developments."
+    eligible.summary = ""
+
+    ineligible1 = make_article(ArticleStatus.NEW)
+    ineligible1.content = None
+    ineligible1.summary = None
+
+    ineligible2 = make_article(ArticleStatus.NEW)
+    ineligible2.content = ""
+    ineligible2.summary = None
+
+    ineligible3 = make_article(ArticleStatus.NEW)
+    ineligible3.content = "   \n  \t  "
+    ineligible3.summary = None
+
+    articles = [eligible, ineligible1, ineligible2, ineligible3]
+
+    # get_by_id cycles through articles in order
+    mock_container.article_repository.list_by_status.return_value = articles
+    mock_container.article_repository.get_by_id.side_effect = articles
+    mock_container.summarize_article = None  # Force deterministic path
+
+    with patch.object(process, "get_container", container_generator(mock_container)):
+        result = await process._summarize_pending_articles_impl(execute_directly=True)
+
+    assert result == {
+        "queued": 4,
+        "failed": 0,
+        "skipped_ineligible": 3,
+    }
+    # Only the eligible article should have execute called (well, in direct mode,
+    # _summarize_article_impl is called directly, not via execute).
+    mock_container.article_repository.get_by_id.assert_any_call(eligible.id)
+    mock_container.article_repository.get_by_id.assert_any_call(ineligible1.id)
+
+
+async def test_summarize_pending_direct_ineligible_does_not_block_eligible(
+    mock_container: MagicMock,
+) -> None:
+    """One ineligible article does not prevent processing of eligible articles."""
+    eligible = make_article(ArticleStatus.NEW)
+    eligible.content = "Real article content here about AI developments."
+    eligible.summary = ""
+
+    ineligible = make_article(ArticleStatus.NEW)
+    ineligible.content = None
+    ineligible.summary = None
+
+    mock_container.article_repository.list_by_status.return_value = [eligible, ineligible]
+    mock_container.article_repository.get_by_id.side_effect = [eligible, ineligible]
+    mock_container.summarize_article = None  # Force deterministic path
+
+    with patch.object(process, "get_container", container_generator(mock_container)):
+        result = await process._summarize_pending_articles_impl(execute_directly=True)
+
+    assert result == {
+        "queued": 2,
+        "failed": 0,
+        "skipped_ineligible": 1,
+    }
 
 
 # ---- categorize_pending_articles ----
@@ -944,4 +1011,76 @@ async def test_analyze_article_deterministic_categorize_failure_no_partial(
     ):
         await process.analyze_article(article.id)
 
+    mock_container.article_repository.update_flush_only.assert_not_awaited()
+
+
+# ----------------------------------------------------------------------
+# Celery path applies the same content-eligibility policy
+# ----------------------------------------------------------------------
+
+
+async def test_summarize_article_deterministic_strips_html(
+    mock_container: MagicMock,
+) -> None:
+    """HTML tags are stripped by the deterministic summarize path."""
+    article = make_article(ArticleStatus.NEW)
+    article.content = (
+        "<html><body><article><p>Breaking news about artificial intelligence "
+        "developments announced today by major technology companies.</p></article></body></html>"
+    )
+    article.summary = ""
+    mock_container.article_repository.get_by_id.return_value = article
+    mock_container.summarize_article = None  # Force deterministic path
+
+    updated = make_article(ArticleStatus.SUMMARIZED)
+    updated.summary = (
+        "Breaking news about artificial intelligence developments announced today "
+        "by major technology companies."
+    )
+    mock_container.article_repository.update_flush_only.return_value = updated
+
+    with patch.object(process, "get_container", container_generator(mock_container)):
+        result = await process.summarize_article(article.id)
+
+    assert result["status"] == "completed"
+    assert result["article_status"] == "summarized"
+    persisted = mock_container.article_repository.update_flush_only.await_args[0][0]
+    assert "<html>" not in persisted.summary
+    assert "<body>" not in persisted.summary
+    assert "<p>" not in persisted.summary
+    assert "artificial intelligence" in persisted.summary
+
+
+async def test_summarize_article_deterministic_title_only_remains_new(
+    mock_container: MagicMock,
+) -> None:
+    """Title-only content does not produce a SUMMARIZED transition."""
+    article = make_article(ArticleStatus.NEW)
+    article.content = "Breaking News: AI Act Signed"
+    article.summary = ""
+    article.title = "Breaking News: AI Act Signed"
+    mock_container.article_repository.get_by_id.return_value = article
+    mock_container.summarize_article = None  # Force deterministic path
+
+    with patch.object(process, "get_container", container_generator(mock_container)):
+        result = await process.summarize_article(article.id)
+
+    assert result["status"] == "skipped"
+    assert result["reason"] == "ineligible_content"
+    assert result["article_status"] == "new"
+
+
+async def test_summarize_article_deterministic_idempotent_reexecution(
+    mock_container: MagicMock,
+) -> None:
+    """Repeated summarization of an already-SUMMARIZED article is idempotent."""
+    article = make_article(ArticleStatus.SUMMARIZED)
+    article.summary = "Existing summary."
+    mock_container.article_repository.get_by_id.return_value = article
+    mock_container.summarize_article = None  # Force deterministic path
+
+    with patch.object(process, "get_container", container_generator(mock_container)):
+        result = await process.summarize_article(article.id)
+
+    assert result["status"] == "already_processed"
     mock_container.article_repository.update_flush_only.assert_not_awaited()

@@ -39,6 +39,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from ai_news_digest.application.services.content_eligibility import (
+    assess_content_eligibility,
+)
 from ai_news_digest.bootstrap.container import Container
 from ai_news_digest.core.logging import configure_logging, get_logger
 from ai_news_digest.domain.enums.article_status import ArticleStatus
@@ -106,9 +109,62 @@ def _parse_args() -> argparse.Namespace:
 async def _count_by_status(
     container: Container,
     status: ArticleStatus,
+    limit: int = 100,
 ) -> int:
-    articles = await container.article_repository.list_by_status(status, limit=1)
+    """Return the number of articles with *status*, capped at *limit*.
+
+    Read-only: loads articles without mutating them.
+    """
+    articles = await container.article_repository.list_by_status(status, limit=limit)
     return len(articles)
+
+
+async def _count_eligible_summarize(
+    container: Container,
+    limit: int = 100,
+) -> int:
+    """Return the number of NEW articles eligible for summarization, capped at *limit*.
+
+    Applies the same content-eligibility rules as the live summarization path.
+    Read-only: loads articles without mutating them.
+    """
+    articles = await container.article_repository.list_by_status(ArticleStatus.NEW, limit=limit)
+    eligible = 0
+    for article in articles:
+        eligibility = assess_content_eligibility(
+            content=article.content,
+            summary=article.summary,
+            title=article.title,
+        )
+        if eligibility.eligible:
+            eligible += 1
+    return eligible
+
+
+async def _count_eligible_cluster(
+    container: Container,
+    limit: int = 100,
+) -> int:
+    """Return the number of unclustered articles eligible for clustering, capped at *limit*.
+
+    Mirrors the live clustering implementation exactly: fetches up to *limit*
+    articles from each processable status, combines them, excludes any with a
+    ``cluster_id`` already set, then applies the same combined ``[:limit]``
+    selection as live execution. Read-only: loads articles without mutating
+    them.
+    """
+    statuses = [
+        ArticleStatus.CATEGORIZED,
+        ArticleStatus.SUMMARIZED,
+        ArticleStatus.ANALYZED,
+        ArticleStatus.READY,
+    ]
+    all_articles: list[Any] = []
+    for status in statuses:
+        articles = await container.article_repository.list_by_status(status, limit=limit)
+        all_articles.extend(articles)
+    unclustered = [article for article in all_articles if article.cluster_id is None]
+    return len(unclustered[:limit])
 
 
 async def _run_stage(
@@ -121,36 +177,62 @@ async def _run_stage(
     result: dict[str, Any] = {
         "stage": stage,
         "dry_run": dry_run,
+        "eligible": 0,
+        "would_process": 0,
+        "skipped_ineligible": 0,
         "processed": 0,
         "skipped": 0,
         "failed": 0,
         "status": "skipped",
+        "not_evaluated": False,
+        "note": "",
     }
 
     if dry_run:
         if stage == "summarize":
-            n = await _count_by_status(container, ArticleStatus.NEW)
-            result["status"] = "would_process"
+            n = await _count_eligible_summarize(container, limit=batch_size)
+            result["eligible"] = n
+            result["would_process"] = n
             result["processed"] = n
+            result["status"] = "would_process"
+            result["note"] = (
+                "Counts NEW articles that pass content eligibility up to "
+                "batch_size. Ineligible content (None, empty, whitespace-only, "
+                "HTML-only, boilerplate-only, title-only, or below minimum) "
+                "is excluded."
+            )
         elif stage == "categorize":
-            n = await _count_by_status(container, ArticleStatus.SUMMARIZED)
-            result["status"] = "would_process"
+            n = await _count_by_status(container, ArticleStatus.SUMMARIZED, limit=batch_size)
+            result["eligible"] = n
+            result["would_process"] = n
             result["processed"] = n
+            result["status"] = "would_process"
         elif stage == "analyze":
-            n = await _count_by_status(container, ArticleStatus.CATEGORIZED)
-            n += await _count_by_status(container, ArticleStatus.SUMMARIZED)
-            result["status"] = "would_process"
+            n = await _count_by_status(container, ArticleStatus.CATEGORIZED, limit=batch_size)
+            result["eligible"] = n
+            result["would_process"] = n
             result["processed"] = n
+            result["status"] = "would_process"
         elif stage == "cluster":
+            n = await _count_eligible_cluster(container, limit=batch_size)
+            result["eligible"] = n
+            result["would_process"] = min(n, batch_size)
+            result["processed"] = min(n, batch_size)
             result["status"] = "would_process"
-            result["processed"] = -1  # unknown without scanning
         elif stage in ("rank", "trends", "digest"):
-            result["status"] = "would_process"
-            result["processed"] = -1
+            result["status"] = "not_evaluated"
+            result["not_evaluated"] = True
+            result["note"] = (
+                f"{stage} operates on the full eligible collection and cannot "
+                "be counted read-only without executing the stage."
+            )
         logger.info(
             "Dry run stage preview",
             stage=stage,
-            would_process=result["processed"],
+            eligible=result["eligible"],
+            would_process=result["would_process"],
+            skipped_ineligible=result["skipped_ineligible"],
+            status=result["status"],
         )
         return result
 
@@ -193,7 +275,7 @@ async def _run_stage(
             result["status"] = str(result_data.get("status", "completed"))
         elif stage == "trends":
             result_data = await _detect_trends_impl()
-            detected = result_data.get("detected", 0)
+            detected: Any = result_data.get("detected", 0)
             if isinstance(detected, dict):
                 detected = sum(int(v) for v in detected.values())
             result["processed"] = int(detected or 0)

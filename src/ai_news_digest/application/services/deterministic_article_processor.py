@@ -7,6 +7,11 @@ from ai_news_digest.application.ai.category_vocabulary import (
     ArticleCategory,
     normalize_category,
 )
+from ai_news_digest.application.services.content_eligibility import (
+    ContentEligibility,
+    assess_content_eligibility,
+    normalize_text,
+)
 from ai_news_digest.domain.enums.article_status import ArticleStatus
 from ai_news_digest.domain.models.article import Article
 from ai_news_digest.domain.models.category import Category
@@ -16,11 +21,6 @@ if TYPE_CHECKING:
     from ai_news_digest.domain.ports.article_repository import ArticleRepository
     from ai_news_digest.domain.ports.category_repository import CategoryRepository
     from ai_news_digest.domain.ports.topic_repository import TopicRepository
-
-
-def normalize_text(text: str) -> str:
-    """Collapse internal whitespace in *text*."""
-    return " ".join(text.split())
 
 
 def _slugify(value: str) -> str:
@@ -81,15 +81,41 @@ async def deterministic_summarize(article: Article) -> Article:
 
     This is a pure in-memory transformation. No database writes occur here; the
     caller is responsible for persisting the returned article.
+
+    An article is only marked ``SUMMARIZED`` when a meaningful, non-empty
+    summary can be produced from usable source content or a valid existing
+    summary.  Articles with ``None``, empty, whitespace-only, HTML-only,
+    boilerplate-only, or title-only content (and no valid existing summary)
+    are returned unchanged (status remains ``NEW``) so the caller can detect
+    ineligibility and avoid a false successful transition.
+
+    HTML is normalized via trafilatura, which strips scripts, styles,
+    navigation, and boilerplate.  HTML tags and scripts are never accepted as
+    meaningful article content, and article content is never invented from a
+    title.
     """
     if article.status != ArticleStatus.NEW:
         return article
 
-    if article.summary:
+    eligibility: ContentEligibility = assess_content_eligibility(
+        content=article.content,
+        summary=article.summary,
+        title=article.title,
+    )
+
+    if not eligibility.eligible:
+        # Ineligible content: leave status unchanged (NEW) so the caller can
+        # detect ineligibility and avoid a false successful transition.
+        return article
+
+    if eligibility.reason == "existing_summary_valid":
+        # Preserve the valid existing summary; do not overwrite it with
+        # empty or unusable content.
         article.mark_summarized()
         return article
 
-    article.summary = _truncate(article.content or article.summary, 8000) or article.summary
+    # Valid extracted content: use the cleaned extracted text as the summary.
+    article.summary = _truncate(eligibility.usable_text or "", 8000) or article.summary
     article.mark_summarized()
     return article
 
