@@ -113,7 +113,7 @@ def _extract_text_from_html(html: str) -> str:
     if extracted is None:
         return ""
 
-    return extracted
+    return str(extracted)
 
 
 def assess_content_eligibility(
