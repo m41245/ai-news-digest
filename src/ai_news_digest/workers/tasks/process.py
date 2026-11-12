@@ -87,6 +87,18 @@ async def _summarize_article_impl(article_id: UUID) -> dict[str, str]:
 
             try:
                 updated_article = await deterministic_summarize(article)
+                if updated_article.status != ArticleStatus.SUMMARIZED:
+                    logger.info(
+                        "Article ineligible for summarization, skipping",
+                        article_id=str(article_id),
+                        status=updated_article.status,
+                    )
+                    return {
+                        "status": "skipped",
+                        "reason": "ineligible_content",
+                        "article_id": str(updated_article.id),
+                        "article_status": updated_article.status,
+                    }
                 persisted = await article_repository.update_flush_only(updated_article)
                 if isinstance(persisted, Article):
                     updated_article = persisted
@@ -428,10 +440,13 @@ async def _summarize_pending_articles_impl(
         )
 
         failed = 0
+        skipped_ineligible = 0
         for article in pending_articles:
             if execute_directly:
                 try:
-                    await _summarize_article_impl(article.id)
+                    result = await _summarize_article_impl(article.id)
+                    if result.get("status") == "skipped":
+                        skipped_ineligible += 1
                 except Exception as exc:
                     logger.error(
                         "Unexpected failure processing article during batch summarization",
@@ -446,6 +461,7 @@ async def _summarize_pending_articles_impl(
         return {
             "queued": len(pending_articles),
             "failed": failed,
+            "skipped_ineligible": skipped_ineligible,
         }
 
     return {"processed": 0, "failed": 0}

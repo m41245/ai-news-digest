@@ -8,11 +8,22 @@ verified without a database, broker, or external services.
 
 from __future__ import annotations
 
+import os
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
 import scripts.scheduled.run_deterministic_batch as batch_module
-from scripts.scheduled.run_deterministic_batch import _parse_args, _run_pipeline, _run_stage, main
+from scripts.scheduled.run_deterministic_batch import (
+    _parse_args,
+    _run_pipeline,
+    _run_stage,
+    main,
+)
+
+from ai_news_digest.domain.enums.article_status import ArticleStatus
+from ai_news_digest.domain.models.article import Article
 
 pytestmark = pytest.mark.unit
 
@@ -30,6 +41,27 @@ async def _async_gen(container):
 
 def _patch_container(container: MagicMock):
     return patch.object(batch_module, "get_container", return_value=_async_gen(container))
+
+
+def _make_test_article(
+    *,
+    status: ArticleStatus = ArticleStatus.NEW,
+    content: str | None = "Valid article content here about AI.",
+    summary: str | None = "",
+    title: str = "Test Article",
+    cluster_id: object | None = None,
+) -> Article:
+    article = Article.create(
+        title=title,
+        url=f"https://example.com/{uuid4()}",
+        summary=summary,
+        content=content,
+        source_id=uuid4(),
+        published_at=datetime.now(UTC),
+    )
+    article.status = status
+    article.cluster_id = cluster_id
+    return article
 
 
 def test_parse_args_defaults() -> None:
@@ -94,7 +126,13 @@ def test_main_no_stages_selected_returns_one() -> None:
 
 async def test_run_stage_summarize_dry_run_reports_count() -> None:
     container = _make_container()
-    container.article_repository.list_by_status.return_value = [MagicMock()] * 7
+    articles = [
+        _make_test_article(
+            status=ArticleStatus.NEW, content=f"Valid article number {i} content here."
+        )
+        for i in range(7)
+    ]
+    container.article_repository.list_by_status.return_value = articles
 
     with _patch_container(container):
         result = await _run_stage("summarize", 100, dry_run=True, container=container)
@@ -126,7 +164,7 @@ async def test_run_stage_analyze_dry_run_reports_count() -> None:
 
     assert result["stage"] == "analyze"
     assert result["status"] == "would_process"
-    assert result["processed"] == 10  # categorized + summarized
+    assert result["processed"] == 5  # CATEGORIZED articles only (batch path)
 
 
 async def test_run_pipeline_executes_stages_in_order() -> None:
@@ -312,3 +350,353 @@ def test_main_exits_nonzero_on_pipeline_failure() -> None:
         result = main()
 
     assert result == 1
+
+
+# ----------------------------------------------------------------------
+# Dry-run accuracy tests
+# ----------------------------------------------------------------------
+
+
+async def test_dry_run_summarize_reports_eligible_count_only() -> None:
+    """Dry-run summarize counts only NEW articles that pass content eligibility."""
+    eligible = _make_test_article(
+        status=ArticleStatus.NEW, content="Real article content about AI."
+    )
+    ineligible_none = _make_test_article(status=ArticleStatus.NEW, content=None, summary=None)
+    ineligible_empty = _make_test_article(status=ArticleStatus.NEW, content="", summary=None)
+    ineligible_html = _make_test_article(
+        status=ArticleStatus.NEW, content="<script>alert(1)</script>", summary=None
+    )
+
+    container = _make_container()
+    container.article_repository.list_by_status.return_value = [
+        eligible,
+        ineligible_none,
+        ineligible_empty,
+        ineligible_html,
+    ]
+
+    with _patch_container(container):
+        result = await _run_stage("summarize", 100, dry_run=True, container=container)
+
+    assert result["stage"] == "summarize"
+    assert result["dry_run"] is True
+    assert result["eligible"] == 1
+    assert result["would_process"] == 1
+    assert result["processed"] == 1
+    assert result["status"] == "would_process"
+
+
+async def test_dry_run_summarize_applies_batch_limit() -> None:
+    """Dry-run summarize does not count beyond the batch-size selection."""
+    articles = [
+        _make_test_article(
+            status=ArticleStatus.NEW,
+            content=f"Valid article number {i} with sufficient content here.",
+        )
+        for i in range(5)
+    ]
+
+    container = _make_container()
+    container.article_repository.list_by_status.side_effect = lambda status, limit=100: articles[
+        :limit
+    ]
+
+    with _patch_container(container):
+        result = await _run_stage("summarize", 2, dry_run=True, container=container)
+
+    assert result["eligible"] == 2
+    assert result["would_process"] == 2
+    assert result["processed"] == 2
+    assert result["status"] == "would_process"
+
+
+async def test_dry_run_summarize_existing_summary_counts_as_eligible() -> None:
+    """NEW articles with a valid existing summary are eligible even with None content."""
+    with_summary = _make_test_article(
+        status=ArticleStatus.NEW,
+        content=None,
+        summary=None,
+        title="T",
+    )
+    # Override to have a valid summary but None content
+    with_summary.content = None
+    with_summary.summary = "A valid pre-existing summary."
+
+    container = _make_container()
+    container.article_repository.list_by_status.return_value = [with_summary]
+
+    with _patch_container(container):
+        result = await _run_stage("summarize", 100, dry_run=True, container=container)
+
+    assert result["eligible"] == 1
+    assert result["would_process"] == 1
+
+
+async def test_dry_run_categorize_reports_summarized_count() -> None:
+    """Dry-run categorize counts SUMMARIZED articles (all are eligible)."""
+    articles = [
+        _make_test_article(status=ArticleStatus.SUMMARIZED, content="x" * 50) for _ in range(4)
+    ]
+    container = _make_container()
+    container.article_repository.list_by_status.return_value = articles
+
+    with _patch_container(container):
+        result = await _run_stage("categorize", 100, dry_run=True, container=container)
+
+    assert result["eligible"] == 4
+    assert result["would_process"] == 4
+    assert result["status"] == "would_process"
+
+
+async def test_dry_run_analyze_reports_categorized_count() -> None:
+    """Dry-run analyze counts CATEGORIZED articles (matching the batch path)."""
+    articles = [
+        _make_test_article(status=ArticleStatus.CATEGORIZED, content="x" * 50) for _ in range(3)
+    ]
+    container = _make_container()
+    container.article_repository.list_by_status.return_value = articles
+
+    with _patch_container(container):
+        result = await _run_stage("analyze", 100, dry_run=True, container=container)
+
+    assert result["eligible"] == 3
+    assert result["would_process"] == 3
+    assert result["status"] == "would_process"
+
+
+async def test_dry_run_cluster_excludes_already_clustered() -> None:
+    """Dry-run cluster excludes articles that already have a cluster_id."""
+    unclustered = _make_test_article(status=ArticleStatus.CATEGORIZED, cluster_id=None)
+    clustered = _make_test_article(status=ArticleStatus.SUMMARIZED, cluster_id=uuid4())
+    unclustered2 = _make_test_article(status=ArticleStatus.ANALYZED, cluster_id=None)
+
+    container = _make_container()
+    # Return different lists per status call
+    container.article_repository.list_by_status.side_effect = [
+        [unclustered],  # CATEGORIZED
+        [clustered],  # SUMMARIZED
+        [unclustered2],  # ANALYZED
+        [],  # READY
+    ]
+
+    with _patch_container(container):
+        result = await _run_stage("cluster", 100, dry_run=True, container=container)
+
+    assert result["eligible"] == 2
+    assert result["would_process"] == 2
+    assert result["status"] == "would_process"
+
+
+async def test_dry_run_cluster_applies_batch_limit() -> None:
+    """Dry-run cluster caps eligible count at batch_size, matching live selection."""
+    articles = [
+        _make_test_article(status=ArticleStatus.CATEGORIZED, cluster_id=None) for _ in range(10)
+    ]
+    container = _make_container()
+    container.article_repository.list_by_status.side_effect = [
+        articles,  # CATEGORIZED - 10 articles, mock ignores limit
+        [],  # SUMMARIZED
+        [],  # ANALYZED
+        [],  # READY
+    ]
+
+    with _patch_container(container):
+        result = await _run_stage("cluster", 3, dry_run=True, container=container)
+
+    assert result["eligible"] == 3
+    assert result["would_process"] == 3
+    assert result["processed"] == 3
+    assert result["status"] == "would_process"
+
+
+async def test_dry_run_rank_trends_digest_are_not_evaluated() -> None:
+    """Rank, trends, digest cannot be counted read-only; report not_evaluated."""
+    container = _make_container()
+
+    for stage in ("rank", "trends", "digest"):
+        with _patch_container(container):
+            result = await _run_stage(stage, 100, dry_run=True, container=container)
+
+        assert result["status"] == "not_evaluated"
+        assert result["not_evaluated"] is True
+        assert result["eligible"] == 0
+        assert result["would_process"] == 0
+        assert "cannot" in result["note"]
+
+
+async def test_dry_run_no_negative_one_sentinel() -> None:
+    """No stage should report -1 as a count."""
+    container = _make_container()
+
+    for stage in (
+        "summarize",
+        "categorize",
+        "analyze",
+        "cluster",
+        "rank",
+        "trends",
+        "digest",
+    ):
+        with _patch_container(container):
+            result = await _run_stage(stage, 100, dry_run=True, container=container)
+
+        for key in ("eligible", "would_process", "processed", "skipped_ineligible", "failed"):
+            assert result[key] >= 0, f"Stage {stage} has negative {key}: {result[key]}"
+        assert result["processed"] != -1
+
+
+# ----------------------------------------------------------------------
+# Dry-run zero-mutation tests
+# ----------------------------------------------------------------------
+
+
+async def test_dry_run_summarize_does_not_mutate_articles() -> None:
+    """Dry-run must not mutate ORM objects or change article status."""
+    article = _make_test_article(status=ArticleStatus.NEW, content="Valid content.")
+    original_status = article.status
+    original_summary = article.summary
+
+    container = _make_container()
+    container.article_repository.list_by_status.return_value = [article]
+
+    with _patch_container(container):
+        result = await _run_stage("summarize", 100, dry_run=True, container=container)
+
+    assert article.status == original_status
+    assert article.summary == original_summary
+    assert result["status"] == "would_process"
+
+
+async def test_dry_run_cluster_does_not_mutate_cluster_id() -> None:
+    """Dry-run cluster must not set or change cluster_id on articles."""
+    article = _make_test_article(status=ArticleStatus.CATEGORIZED, cluster_id=None)
+    original_cluster_id = article.cluster_id
+
+    container = _make_container()
+    container.article_repository.list_by_status.side_effect = [
+        [article],
+        [],
+        [],
+        [],
+    ]
+
+    with _patch_container(container):
+        result = await _run_stage("cluster", 100, dry_run=True, container=container)
+
+    assert article.cluster_id == original_cluster_id
+    assert result["status"] == "would_process"
+
+
+async def test_dry_run_does_not_invoke_stage_implementations() -> None:
+    """Dry-run must not call the live stage implementation functions."""
+    container = _make_container()
+    container.article_repository.list_by_status.return_value = []
+
+    called = []
+
+    async def fake_summarize(*args, **kwargs):
+        called.append("summarize")
+        return {"queued": 0, "failed": 0}
+
+    with (
+        _patch_container(container),
+        patch.object(batch_module, "_summarize_pending_articles_impl", fake_summarize),
+        patch.object(batch_module, "_categorize_pending_articles_impl", fake_summarize),
+        patch.object(batch_module, "_analyze_pending_articles_impl", fake_summarize),
+        patch.object(batch_module, "_cluster_pending_articles_impl", fake_summarize),
+    ):
+        for stage in ("summarize", "categorize", "analyze", "cluster"):
+            await _run_stage(stage, 100, dry_run=True, container=container)
+
+    assert called == [], f"Stage implementations were invoked during dry-run: {called}"
+
+
+# ----------------------------------------------------------------------
+# Dry-run duplicate relationship tests
+# ----------------------------------------------------------------------
+
+
+async def test_dry_run_cluster_no_duplicate_counting_across_statuses() -> None:
+    """Each article appears under exactly one status and is counted once."""
+    categorized = _make_test_article(status=ArticleStatus.CATEGORIZED, cluster_id=None)
+    summarized = _make_test_article(status=ArticleStatus.SUMMARIZED, cluster_id=None)
+    analyzed = _make_test_article(status=ArticleStatus.ANALYZED, cluster_id=None)
+    already_clustered = _make_test_article(status=ArticleStatus.READY, cluster_id=uuid4())
+
+    container = _make_container()
+    container.article_repository.list_by_status.side_effect = [
+        [categorized],  # CATEGORIZED
+        [summarized],  # SUMMARIZED
+        [analyzed],  # ANALYZED
+        [already_clustered],  # READY - excluded because cluster_id is set
+    ]
+
+    with _patch_container(container):
+        result = await _run_stage("cluster", 100, dry_run=True, container=container)
+
+    assert result["eligible"] == 3
+    assert result["would_process"] == 3
+
+
+# ----------------------------------------------------------------------
+# Batch runner lock behavior tests
+# ----------------------------------------------------------------------
+
+
+def test_acquire_lock_creates_and_releases_lock_file(tmp_path) -> None:
+    """_acquire_lock writes the lock file and _release_lock removes it."""
+    original_lock_path = batch_module._lock_path
+
+    try:
+        batch_module._lock_path = lambda: tmp_path / "test.lock"
+
+        assert batch_module._acquire_lock() is True
+        lock_file = tmp_path / "test.lock"
+        assert lock_file.exists()
+        assert lock_file.read_text().strip() == str(os.getpid())
+
+        batch_module._release_lock()
+        assert not lock_file.exists()
+    finally:
+        batch_module._lock_path = original_lock_path
+
+
+def test_acquire_lock_rejects_live_holder(tmp_path) -> None:
+    """_acquire_lock returns False when a live PID holds the lock."""
+    original_lock_path = batch_module._lock_path
+
+    try:
+        batch_module._lock_path = lambda: tmp_path / "test.lock"
+
+        # First acquire succeeds
+        assert batch_module._acquire_lock() is True
+
+        # Second acquire in the same process: the holder PID is this process,
+        # which is alive, so the lock is "held" and the second acquire returns False.
+        assert batch_module._acquire_lock() is False
+
+        batch_module._release_lock()
+    finally:
+        batch_module._lock_path = original_lock_path
+
+
+def test_acquire_lock_reclaims_stale_lock(tmp_path) -> None:
+    """_acquire_lock reclaims a lock file left by a dead process."""
+    original_lock_path = batch_module._lock_path
+
+    try:
+        batch_module._lock_path = lambda: tmp_path / "test.lock"
+
+        # Write a lock file with a PID that cannot be alive
+        lock_file = tmp_path / "test.lock"
+        lock_file.write_text("999999", encoding="utf-8")
+
+        # Should reclaim the stale lock
+        assert batch_module._acquire_lock() is True
+        assert lock_file.read_text().strip() == str(os.getpid())
+
+        batch_module._release_lock()
+        assert not lock_file.exists()
+    finally:
+        batch_module._lock_path = original_lock_path
